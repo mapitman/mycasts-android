@@ -137,6 +137,7 @@
     <string name="add_feed_all_feeds_already_subscribed">All feeds in this OPML are already subscribed</string>
     <string name="add_feed_some_feeds_could_not_be_imported">Some feeds could not be imported (invalid or unreachable)</string>
     <string name="add_feed_invalid_opml">Could not read that OPML file</string>
+    <string name="add_feed_working">Working…</string>
     <string name="add_feed_search_heading">Search feed directory</string>
     <string name="add_feed_search_label">Search by topic or title</string>
     <string name="add_feed_search_no_results">No feeds found</string>

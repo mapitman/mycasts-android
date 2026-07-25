@@ -134,6 +134,7 @@
     <string name="add_feed_no_feeds_found_in_opml">Aucun flux trouvé dans l\'OPML</string>
     <string name="add_feed_all_feeds_already_subscribed">Tous les flux de cet OPML sont déjà suivis</string>
     <string name="add_feed_invalid_opml">Impossible de lire ce fichier OPML</string>
+    <string name="add_feed_working">Traitement en cours…</string>
     <string name="add_feed_some_feeds_could_not_be_imported">Certains flux n\'ont pas pu être importés (invalides ou inaccessibles)</string>
     <string name="add_feed_search_heading">Rechercher dans le répertoire de flux</string>
     <string name="add_feed_search_label">Rechercher par thème ou titre</string>

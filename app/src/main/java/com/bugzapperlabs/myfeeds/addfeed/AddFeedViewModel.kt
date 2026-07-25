@@ -48,9 +48,11 @@ class AddFeedViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<AddFeedUiState>(AddFeedUiState.Idle)
     val uiState: StateFlow<AddFeedUiState> = _uiState
 
-    /** One-shot OPML import result for a Snackbar; cleared via [consumeOpmlImportMessage]. */
-    private val _opmlImportMessage = MutableStateFlow<String?>(null)
-    val opmlImportMessage: StateFlow<String?> = _opmlImportMessage
+    /** One-shot OPML import result (issue #267); cleared via [consumeOpmlImportMessage].
+     * [OpmlImportFeedback.success] tells the screen whether to close (the OPML parsed, whatever
+     * came of the entries in it) or stay put so the user can correct and retry. */
+    private val _opmlImportMessage = MutableStateFlow<OpmlImportFeedback?>(null)
+    val opmlImportMessage: StateFlow<OpmlImportFeedback?> = _opmlImportMessage
 
     fun consumeOpmlImportMessage() {
         _opmlImportMessage.value = null
@@ -122,7 +124,7 @@ class AddFeedViewModel @Inject constructor(
             }
             if (document == null) {
                 _uiState.value = AddFeedUiState.Idle
-                _opmlImportMessage.value = context.getString(R.string.add_feed_invalid_opml)
+                _opmlImportMessage.value = OpmlImportFeedback(context.getString(R.string.add_feed_invalid_opml), success = false)
             } else {
                 finishImport(document)
             }
@@ -131,7 +133,7 @@ class AddFeedViewModel @Inject constructor(
 
     fun importOpmlFromText(text: String) {
         if (text.isBlank()) {
-            _opmlImportMessage.value = context.getString(R.string.add_feed_enter_opml_text_error)
+            _opmlImportMessage.value = OpmlImportFeedback(context.getString(R.string.add_feed_enter_opml_text_error), success = false)
             return
         }
 
@@ -146,7 +148,7 @@ class AddFeedViewModel @Inject constructor(
             }
             if (document == null) {
                 _uiState.value = AddFeedUiState.Idle
-                _opmlImportMessage.value = context.getString(R.string.add_feed_invalid_opml)
+                _opmlImportMessage.value = OpmlImportFeedback(context.getString(R.string.add_feed_invalid_opml), success = false)
             } else {
                 finishImport(document)
             }
@@ -156,7 +158,7 @@ class AddFeedViewModel @Inject constructor(
     fun importOpmlFromUrl(url: String) {
         val trimmedUrl = url.trim()
         if (trimmedUrl.isEmpty()) {
-            _opmlImportMessage.value = context.getString(R.string.add_feed_enter_opml_url_error)
+            _opmlImportMessage.value = OpmlImportFeedback(context.getString(R.string.add_feed_enter_opml_url_error), success = false)
             return
         }
 
@@ -175,7 +177,10 @@ class AddFeedViewModel @Inject constructor(
             }
             _uiState.value = AddFeedUiState.Idle
             if (document == null) {
-                _opmlImportMessage.value = context.getString(R.string.add_feed_could_not_load_opml, trimmedUrl)
+                _opmlImportMessage.value = OpmlImportFeedback(
+                    context.getString(R.string.add_feed_could_not_load_opml, trimmedUrl),
+                    success = false,
+                )
             } else {
                 finishImport(document)
             }
@@ -185,12 +190,15 @@ class AddFeedViewModel @Inject constructor(
     private suspend fun finishImport(document: OpmlDocument) {
         val result = opmlImporter.import(document)
         _uiState.value = AddFeedUiState.Idle
-        _opmlImportMessage.value = when {
+        val message = when {
             result.importedCount > 0 -> context.getString(R.string.add_feed_imported_count, result.importedCount)
             document.feeds.isEmpty() -> context.getString(R.string.add_feed_no_feeds_found_in_opml)
             result.invalidCount > 0 -> context.getString(R.string.add_feed_some_feeds_could_not_be_imported)
             else -> context.getString(R.string.add_feed_all_feeds_already_subscribed)
         }
+        // The OPML parsed either way (issue #267), so the screen closes regardless of whether
+        // anything new actually got subscribed -- there's nothing left for the user to fix here.
+        _opmlImportMessage.value = OpmlImportFeedback(message, success = true)
     }
 
     fun resetState() {

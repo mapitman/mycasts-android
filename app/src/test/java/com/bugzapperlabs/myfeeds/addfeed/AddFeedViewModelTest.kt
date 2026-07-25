@@ -162,9 +162,10 @@ class AddFeedViewModelTest {
         """.trimIndent()
 
         viewModel.importOpml(opml.byteInputStream())
-        val message = viewModel.opmlImportMessage.first { it != null }
+        val feedback = viewModel.opmlImportMessage.first { it != null }
 
-        assertEquals("Imported 1 feeds", message)
+        assertEquals("Imported 1 feeds", feedback?.message)
+        assertEquals(true, feedback?.success)
         val feeds = db.feedDao().observeAll().first()
         assertEquals(listOf("A New Feed"), feeds.map { it.title })
     }
@@ -172,9 +173,10 @@ class AddFeedViewModelTest {
     @Test
     fun importOpml_malformedXml_reportsErrorWithoutCrashing() = runTest(testDispatcher) {
         viewModel.importOpml("not valid opml".byteInputStream())
-        val message = viewModel.opmlImportMessage.first { it != null }
+        val feedback = viewModel.opmlImportMessage.first { it != null }
 
-        assertEquals("Could not read that OPML file", message)
+        assertEquals("Could not read that OPML file", feedback?.message)
+        assertEquals(false, feedback?.success)
         assertEquals(0, db.feedDao().observeAll().first().size)
     }
 
@@ -191,9 +193,10 @@ class AddFeedViewModelTest {
         """.trimIndent()
 
         viewModel.importOpmlFromText(opml)
-        val message = viewModel.opmlImportMessage.first { it != null }
+        val feedback = viewModel.opmlImportMessage.first { it != null }
 
-        assertEquals("Imported 1 feeds", message)
+        assertEquals("Imported 1 feeds", feedback?.message)
+        assertEquals(true, feedback?.success)
         val feeds = db.feedDao().observeAll().first()
         assertEquals(listOf("A New Feed"), feeds.map { it.title })
     }
@@ -201,9 +204,10 @@ class AddFeedViewModelTest {
     @Test
     fun importOpmlFromText_blankText_showsErrorWithoutParsing() = runTest(testDispatcher) {
         viewModel.importOpmlFromText("   ")
-        val message = viewModel.opmlImportMessage.first { it != null }
+        val feedback = viewModel.opmlImportMessage.first { it != null }
 
-        assertEquals("Paste OPML content to import", message)
+        assertEquals("Paste OPML content to import", feedback?.message)
+        assertEquals(false, feedback?.success)
         assertEquals(0, db.feedDao().observeAll().first().size)
     }
 }

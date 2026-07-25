@@ -1,9 +1,15 @@
 package com.bugzapperlabs.myfeeds.addfeed
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -76,9 +82,17 @@ fun AddFeedScreen(
     }
 
     LaunchedEffect(opmlImportMessage) {
-        opmlImportMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeOpmlImportMessage()
+        opmlImportMessage?.let { feedback ->
+            if (feedback.success) {
+                // The screen is about to close (issue #267), so a Snackbar here would never be
+                // seen -- a Toast survives the navigation instead.
+                Toast.makeText(context, feedback.message, Toast.LENGTH_LONG).show()
+                viewModel.consumeOpmlImportMessage()
+                onDone()
+            } else {
+                snackbarHostState.showSnackbar(feedback.message)
+                viewModel.consumeOpmlImportMessage()
+            }
         }
     }
 
@@ -96,9 +110,9 @@ fun AddFeedScreen(
             )
         },
     ) { innerPadding ->
+        Box(modifier = Modifier.padding(innerPadding)) {
         Column(
             modifier = Modifier
-                .padding(innerPadding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
@@ -188,7 +202,6 @@ fun AddFeedScreen(
             }
 
             when (val state = uiState) {
-                is AddFeedUiState.Loading -> CircularProgressIndicator(modifier = Modifier.padding(top = 16.dp))
                 is AddFeedUiState.Error -> Text(
                     text = state.message,
                     color = MaterialTheme.colorScheme.error,
@@ -196,6 +209,29 @@ fun AddFeedScreen(
                 )
                 else -> Unit
             }
+        }
+        // A busy overlay at the top of the screen (issue #267) rather than a spinner buried at
+        // the bottom of the scrollable form, which was easy to miss without scrolling down.
+        if (uiState is AddFeedUiState.Loading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(top = 24.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium)
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.padding(end = 12.dp))
+                    Text(stringResource(R.string.add_feed_working))
+                }
+            }
+        }
         }
     }
 }

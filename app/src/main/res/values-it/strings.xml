@@ -134,6 +134,7 @@
     <string name="add_feed_no_feeds_found_in_opml">Nessun feed trovato nell\'OPML</string>
     <string name="add_feed_all_feeds_already_subscribed">Tutti i feed di questo OPML sono già sottoscritti</string>
     <string name="add_feed_invalid_opml">Impossibile leggere questo file OPML</string>
+    <string name="add_feed_working">In corso…</string>
     <string name="add_feed_some_feeds_could_not_be_imported">Alcuni feed non è stato possibile importarli (non validi o irraggiungibili)</string>
     <string name="add_feed_search_heading">Cerca nella directory dei feed</string>
     <string name="add_feed_search_label">Cerca per argomento o titolo</string>
