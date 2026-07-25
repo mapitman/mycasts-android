@@ -4,6 +4,7 @@ import com.bugzapperlabs.myfeeds.data.local.Feed
 import com.bugzapperlabs.myfeeds.data.local.FeedItem
 import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
 import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -33,7 +34,7 @@ class FeedUpdateEngine @Inject constructor(
 
         return when (val result = feedFetcher.fetchFeed(feedUrl)) {
             is FeedFetchResult.Failure -> FeedUpdateResult.Failure(result.message)
-            is FeedFetchResult.Success -> persist(feed, result.feed)
+            is FeedFetchResult.Success -> persistSafely(feed, result.feed)
         }
     }
 
@@ -48,7 +49,26 @@ class FeedUpdateEngine @Inject constructor(
      * [com.bugzapperlabs.myfeeds.data.opml.OpmlImporter], which must fetch each candidate feed once already
      * to validate it before subscribing (issue #231).
      */
-    suspend fun persistFetchedFeed(feed: Feed, parsed: ParsedFeed): FeedUpdateResult = persist(feed, parsed)
+    suspend fun persistFetchedFeed(feed: Feed, parsed: ParsedFeed): FeedUpdateResult = persistSafely(feed, parsed)
+
+    /**
+     * [persist] runs concurrently across many feeds -- both here via [updateFeeds] and in
+     * [com.bugzapperlabs.myfeeds.data.opml.OpmlImporter] -- inside a bare `coroutineScope`, where
+     * an uncaught exception from any one feed cancels every other concurrently in-flight sibling
+     * immediately (structured concurrency), interrupting them mid-`persist` (issue #269): a sibling
+     * could end up with items inserted but the trim-to-`itemsToKeep` step -- or even `Feed.lastGet`
+     * -- never reached. Catching broadly here, rather than only the specific exceptions seen so
+     * far, keeps one feed's failure (present or future) from corrupting unrelated feeds' state.
+     */
+    private suspend fun persistSafely(feed: Feed, parsed: ParsedFeed): FeedUpdateResult = try {
+        persist(feed, parsed)
+    } catch (e: CancellationException) {
+        // Genuine cancellation (e.g. the caller's own scope was cancelled) must keep propagating
+        // -- only *other* feeds' failures should be contained, not this one's real cancellation.
+        throw e
+    } catch (e: Exception) {
+        FeedUpdateResult.Failure(e.message ?: "Failed to save feed")
+    }
 
     private suspend fun persist(feed: Feed, parsed: ParsedFeed): FeedUpdateResult {
         // A feed's first-ever successful fetch is the only time it's safe to change auto-queue

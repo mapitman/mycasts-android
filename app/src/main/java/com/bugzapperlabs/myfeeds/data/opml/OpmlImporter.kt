@@ -6,6 +6,7 @@ import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.myfeeds.data.local.Feed
 import com.bugzapperlabs.myfeeds.data.local.FeedDao
 import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -67,13 +68,29 @@ class OpmlImporter @Inject constructor(
         )
     }
 
-    private suspend fun subscribeIfValid(feed: OpmlFeed): Boolean {
+    /**
+     * Candidates run concurrently inside a bare `coroutineScope` (issue #269): an uncaught
+     * exception from any one of them would cancel every other in-flight sibling immediately
+     * (structured concurrency), interrupting whichever feed a sibling happened to be
+     * fetching/persisting mid-operation. Catching broadly here -- on top of
+     * [FeedUpdateEngine]'s own [FeedUpdateEngine.persistFetchedFeed] guard -- keeps this one
+     * feed's failure from corrupting unrelated feeds in the same import batch, e.g. a DB
+     * constraint violation from two different OPML URLs resolving to the same feed after
+     * redirects (not caught by the upfront [seenUrls] dedup, which only sees the original URLs).
+     */
+    private suspend fun subscribeIfValid(feed: OpmlFeed): Boolean = try {
         val result = feedFetcher.fetchFeed(feed.xmlUrl)
-        if (result !is FeedFetchResult.Success) return false
-
-        val id = feedDao.insert(Feed(title = result.feed.title.ifBlank { feed.title }, feedUrl = result.resolvedUrl))
-        val newFeed = feedDao.getById(id) ?: return true
-        feedUpdateEngine.persistFetchedFeed(newFeed, result.feed)
-        return true
+        if (result !is FeedFetchResult.Success) {
+            false
+        } else {
+            val id = feedDao.insert(Feed(title = result.feed.title.ifBlank { feed.title }, feedUrl = result.resolvedUrl))
+            val newFeed = feedDao.getById(id)
+            if (newFeed != null) feedUpdateEngine.persistFetchedFeed(newFeed, result.feed)
+            true
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        false
     }
 }

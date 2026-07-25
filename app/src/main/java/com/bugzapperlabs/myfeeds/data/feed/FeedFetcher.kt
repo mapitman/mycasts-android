@@ -20,11 +20,19 @@ class FeedFetcher @Inject constructor(private val httpClient: OkHttpClient) {
                 return@withContext FeedFetchResult.Failure("Too many HTML discovery redirects")
             }
 
-            val request = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
             val response = try {
+                val request = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
                 httpClient.newCall(request).execute()
             } catch (e: IOException) {
                 return@withContext FeedFetchResult.Failure(e.message ?: "Network error")
+            } catch (e: IllegalArgumentException) {
+                // Request.Builder().url() throws synchronously (not an IOException) for a
+                // malformed URL -- reachable via HTML redirect-discovery resolving to a bad
+                // relative link (issue #269). Left uncaught, this crashed out of a concurrent
+                // batch fetch (OpmlImporter/FeedUpdateEngine.updateFeeds), cancelling every
+                // other in-flight feed mid-persist and leaving them with items inserted but
+                // never trimmed.
+                return@withContext FeedFetchResult.Failure(e.message ?: "Invalid feed URL: $url")
             }
 
             response.use {

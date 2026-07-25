@@ -38,6 +38,7 @@ class OpmlImporterTest {
     private lateinit var server: MockWebServer
     private lateinit var db: AppDatabase
     private lateinit var importer: OpmlImporter
+    private lateinit var settingsDataStore: SettingsDataStore
 
     private fun rssXml(title: String) = """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -66,7 +67,7 @@ class OpmlImporterTest {
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
-        val settingsDataStore = SettingsDataStore(dataStore)
+        settingsDataStore = SettingsDataStore(dataStore)
         val httpClient = OkHttpClient()
         val feedFetcher = FeedFetcher(httpClient)
         val repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
@@ -200,6 +201,58 @@ class OpmlImporterTest {
         assertEquals(1, result.invalidCount)
         val feeds = db.feedDao().observeAll().first()
         assertEquals(listOf("Good Feed"), feeds.map { it.title })
+    }
+
+    @Test
+    fun import_oneFeedThrowingUnexpectedly_doesNotCorruptConcurrentSiblingsTrim() = runTest {
+        // issue #269: one candidate feed's *uncaught* exception (as opposed to a graceful
+        // FeedFetchResult.Failure) used to cancel the whole `coroutineScope`, interrupting every
+        // other concurrently in-flight feed mid-persist -- leaving them with items inserted but
+        // never trimmed to itemsToKeep (root cause of a report that imported feeds weren't
+        // honoring the max-articles-per-feed setting).
+        settingsDataStore.setMaxArticles(3)
+        settingsDataStore.setFeedRefreshConcurrency(2)
+        val goodItems = (1..10).joinToString(separator = "") { i ->
+            "<item><title>Item $i</title><link>https://example.com/$i</link><guid>guid-$i</guid>" +
+                "<description>Body $i</description><pubDate>Mon, 0${(i % 9) + 1} Jun 2013 11:05:30 GMT</pubDate></item>"
+        }
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.path == "/good") {
+                    // Slow enough that the malformed sibling's request (below, fails near-instantly
+                    // since it never leaves the client) resolves first, exercising the cancellation
+                    // window mid-persist rather than before it starts.
+                    Thread.sleep(50)
+                    return MockResponse().setResponseCode(200).setBody(
+                        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel>" +
+                            "<title>Good Feed</title><link>https://example.com</link><description>desc</description>" +
+                            "$goodItems</channel></rss>",
+                    )
+                }
+                return MockResponse().setResponseCode(404)
+            }
+        }
+        val document = OpmlDocument(
+            folders = listOf(
+                OpmlFolder(
+                    "Tech",
+                    listOf(
+                        OpmlFeed("Good", server.url("/good").toString()),
+                        // Never leaves the HTTP client -- Request.Builder().url() throws
+                        // IllegalArgumentException synchronously for this, which used to be
+                        // uncaught (issue #269).
+                        OpmlFeed("Bad", "not a valid url at all"),
+                    ),
+                ),
+            ),
+        )
+
+        val result = importer.import(document)
+
+        assertEquals(1, result.importedCount)
+        assertEquals(1, result.invalidCount)
+        val goodFeed = db.feedDao().observeAll().first().single { it.title == "Good Feed" }
+        assertEquals(3, db.feedItemDao().observeByFeed(goodFeed.id).first().size)
     }
 
     @Test
