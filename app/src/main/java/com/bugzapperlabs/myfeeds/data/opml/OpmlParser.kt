@@ -8,9 +8,9 @@ data class OpmlFeed(val title: String, val xmlUrl: String, val description: Stri
 
 /**
  * A folder-level outline grouping feeds. Not the app's (removed, issue #118) `Category` entity --
- * subscribing (via [OpmlImporter]/[com.bugzapperlabs.myfeeds.data.DefaultFeedsSeeder]) ignores [name] and
- * just flattens every folder's feeds; only [com.bugzapperlabs.myfeeds.data.directory.FeedDirectory] (a
- * different feature, issue #62) uses [name] as a topic label for its offline keyword search.
+ * subscribing (via [OpmlImporter]) ignores [name] and just flattens every folder's feeds; only
+ * [com.bugzapperlabs.myfeeds.data.directory.FeedDirectory] (a different feature, issue #62) uses
+ * [name] as a topic label for its offline keyword search.
  */
 data class OpmlFolder(val name: String, val feeds: List<OpmlFeed>)
 

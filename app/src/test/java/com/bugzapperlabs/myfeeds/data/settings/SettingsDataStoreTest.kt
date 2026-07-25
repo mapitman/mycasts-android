@@ -35,7 +35,6 @@ class SettingsDataStoreTest {
 
         assertEquals(AppSettings(), settings)
         assertEquals(30L, settings.updateIntervalMinutes)
-        assertTrue(settings.isFirstRun)
         assertEquals(FontSize.NORMAL, settings.listFontSize)
         assertEquals(FontSize.LARGE, settings.feedListFontSize)
         assertEquals(FontSize.NORMAL, settings.articleFontSize)
@@ -52,7 +51,6 @@ class SettingsDataStoreTest {
     @Test
     fun writingEachSetting_roundTripsThroughSettingsFlow() = runTest {
         settingsDataStore.setUpdateIntervalMinutes(60)
-        settingsDataStore.setFirstRunComplete()
         settingsDataStore.setListFontSize(FontSize.SMALL)
         settingsDataStore.setFeedListFontSize(FontSize.SMALL)
         settingsDataStore.setArticleFontSize(FontSize.LARGE)
@@ -69,7 +67,6 @@ class SettingsDataStoreTest {
         val settings = settingsDataStore.settings.first()
 
         assertEquals(60L, settings.updateIntervalMinutes)
-        assertFalse(settings.isFirstRun)
         assertEquals(FontSize.SMALL, settings.listFontSize)
         assertEquals(FontSize.SMALL, settings.feedListFontSize)
         assertEquals(FontSize.LARGE, settings.articleFontSize)

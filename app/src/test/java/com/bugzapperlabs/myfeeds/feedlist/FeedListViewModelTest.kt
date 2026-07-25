@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.myfeeds.TrackedViewModelStore
-import com.bugzapperlabs.myfeeds.data.DefaultFeedsSeeder
 import com.bugzapperlabs.myfeeds.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.myfeeds.data.feed.FeedFetcher
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
@@ -75,9 +74,6 @@ class FeedListViewModelTest {
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
-        // Skips DefaultFeedsSeeder's bundled-OPML seeding so the test only sees fixture data
-        // inserted below, not the app's default Tech/Mobile/News starter feeds.
-        settingsDataStore.setFirstRunComplete()
 
         queueRepository = QueueRepository(db.queueDao())
         val downloadRepository = EnclosureDownloadRepository(
@@ -89,7 +85,6 @@ class FeedListViewModelTest {
             settingsDataStore = settingsDataStore,
         )
         viewModel = FeedListViewModel(
-            seeder = DefaultFeedsSeeder(context, db.feedDao(), settingsDataStore),
             feedRepository = repository,
             feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore),
             autoQueueAndDownloadEnforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository),

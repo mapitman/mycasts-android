@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.DefaultFeedsSeeder
 import com.bugzapperlabs.myfeeds.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateResult
@@ -51,7 +50,6 @@ private data class FeedListSourceData(
 
 @HiltViewModel
 class FeedListViewModel @Inject constructor(
-    private val seeder: DefaultFeedsSeeder,
     private val feedRepository: FeedRepository,
     private val feedUpdateEngine: FeedUpdateEngine,
     private val autoQueueAndDownloadEnforcer: AutoQueueAndDownloadEnforcer,
@@ -102,7 +100,6 @@ class FeedListViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FeedListUiState())
 
     init {
-        viewModelScope.launch { seeder.seedIfFirstRun() }
         viewModelScope.launch {
             combine(
                 feedRepository.observeAllFeeds(),

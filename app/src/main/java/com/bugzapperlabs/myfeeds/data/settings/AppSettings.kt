@@ -7,7 +7,6 @@ package com.bugzapperlabs.myfeeds.data.settings
  */
 data class AppSettings(
     val updateIntervalMinutes: Long = 30,
-    val isFirstRun: Boolean = true,
     val listFontSize: FontSize = FontSize.NORMAL,
     val feedListFontSize: FontSize = FontSize.LARGE,
     val articleFontSize: FontSize = FontSize.NORMAL,

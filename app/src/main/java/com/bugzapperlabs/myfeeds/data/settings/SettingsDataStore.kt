@@ -15,7 +15,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
     val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             updateIntervalMinutes = prefs[Keys.UPDATE_INTERVAL_MINUTES] ?: AppSettings().updateIntervalMinutes,
-            isFirstRun = prefs[Keys.IS_FIRST_RUN] ?: AppSettings().isFirstRun,
             listFontSize = prefs[Keys.LIST_FONT_SIZE]?.let { FontSize.entries[it] } ?: AppSettings().listFontSize,
             feedListFontSize = prefs[Keys.FEED_LIST_FONT_SIZE]?.let { FontSize.entries[it] }
                 ?: AppSettings().feedListFontSize,
@@ -43,10 +42,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
 
     suspend fun setUpdateIntervalMinutes(minutes: Long) {
         dataStore.edit { it[Keys.UPDATE_INTERVAL_MINUTES] = minutes }
-    }
-
-    suspend fun setFirstRunComplete() {
-        dataStore.edit { it[Keys.IS_FIRST_RUN] = false }
     }
 
     suspend fun setListFontSize(size: FontSize) {
@@ -127,7 +122,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
 
     private object Keys {
         val UPDATE_INTERVAL_MINUTES = longPreferencesKey("update_interval_minutes")
-        val IS_FIRST_RUN = booleanPreferencesKey("is_first_run")
         val LIST_FONT_SIZE = intPreferencesKey("list_font_size")
         val FEED_LIST_FONT_SIZE = intPreferencesKey("feed_list_font_size")
         val ARTICLE_FONT_SIZE = intPreferencesKey("article_font_size")
