@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 ./gradlew assembleDebug              # build the debug APK
 ./gradlew testDebugUnitTest          # run JVM unit tests (Robolectric)
-./gradlew testDebugUnitTest --tests "io.pitman.myfeeds.playback.PlaybackControllerTest"  # single test class
+./gradlew testDebugUnitTest --tests "com.bugzapperlabs.myfeeds.playback.PlaybackControllerTest"  # single test class
 ./gradlew lintDebug                  # Android lint
 ./gradlew installDebug               # install to a connected device/emulator
 ```
@@ -18,7 +18,7 @@ Unit tests live under `app/src/test` and run on the JVM via Robolectric (`isIncl
 
 ## Architecture
 
-Single-module Android app (`app/`), Kotlin, Jetpack Compose UI, Hilt DI, Room for persistence, Media3 for podcast playback. Package root: `io.pitman.myfeeds`.
+Single-module Android app (`app/`), Kotlin, Jetpack Compose UI, Hilt DI, Room for persistence, Media3 for podcast playback. Package root: `com.bugzapperlabs.myfeeds`.
 
 **Navigation**: One `NavHost` in `MainActivity`, routes are plain strings (`"articleList/{feedId}"`, `"reader/{feedId}/{itemId}"`, etc.) — see the `composable(...)` blocks in `MainActivity.kt` for the full route table. Each screen package (`feedlist`, `articlelist`, `reader`, `queue`, `settings`, `addfeed`, `feedproperties`) follows Screen (Compose) + ViewModel (Hilt `@HiltViewModel`), with the ViewModel exposing a `StateFlow` of UI state.
 
@@ -34,7 +34,7 @@ Single-module Android app (`app/`), Kotlin, Jetpack Compose UI, Hilt DI, Room fo
 
 ## Manual UI verification
 
-Don't drive the UI yourself via `adb shell input tap`/screenshots to verify a change — scripting taps through screenshot coordinates is very token-intensive and brittle. Instead: build, install, and launch the app on the connected device (`./gradlew installDebug`, then `adb shell am start -n io.pitman.myfeeds/.MainActivity`), and hand back a numbered list of test steps for the user to perform themselves and report results.
+Don't drive the UI yourself via `adb shell input tap`/screenshots to verify a change — scripting taps through screenshot coordinates is very token-intensive and brittle. Instead: build, install, and launch the app on the connected device (`./gradlew installDebug`, then `adb shell am start -n com.bugzapperlabs.myfeeds.debug/.MainActivity` -- debug builds carry a `.debug` applicationId suffix so they can coexist with a release-signed install, see "Releases" below), and hand back a numbered list of test steps for the user to perform themselves and report results.
 
 ## Releases
 
@@ -47,7 +47,10 @@ stored (base64) in the `RELEASE_KEYSTORE_BASE64` secret, decoded to a temp file 
 `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` are the matching secrets --
 `scripts/set-release-secrets.sh /path/to/keystore.jks` pushes all four via the `gh` CLI. Tags are
 append-only -- never delete and re-push a release tag. Local `assembleRelease` without these env
-vars builds an unsigned APK (succeeds, just not signed).
+vars builds an unsigned APK (succeeds, just not signed). Debug builds use applicationId
+`com.bugzapperlabs.myfeeds.debug` (vs. the release build's `com.bugzapperlabs.myfeeds`) so a debug
+install and a release-signed install can coexist on the same device instead of colliding at
+install time over a signing-certificate mismatch.
 
 ## Conventions
 

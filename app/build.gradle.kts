@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "io.pitman.myfeeds"
+    namespace = "com.bugzapperlabs.myfeeds"
     compileSdk = 36
 
     // Set from CI via -PreleaseVersionName/-PreleaseVersionCode when a release tag is pushed
@@ -17,7 +17,7 @@ android {
     val releaseVersionCode = (project.findProperty("releaseVersionCode") as String?)?.toIntOrNull() ?: 1
 
     defaultConfig {
-        applicationId = "io.pitman.myfeeds"
+        applicationId = "com.bugzapperlabs.myfeeds"
         minSdk = 31
         targetSdk = 36
         versionCode = releaseVersionCode
@@ -47,6 +47,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Distinct applicationId (issue #258) so a debug build installs alongside a
+            // release-signed one instead of colliding on install -- same applicationId with a
+            // different signing certificate is an install-time conflict Android refuses to
+            // resolve, forcing an uninstall (and data loss) to switch between them otherwise.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            resValue("string", "app_name", "MyFeeds Debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

@@ -1,0 +1,6 @@
+<resources>
+    <!-- Overrides the release icon's brand orange (issue #258) so the debug build's launcher
+         icon is visually distinct at a glance: this build-type source set's resources take
+         priority over main's for the debug variant only, leaving the release icon untouched. -->
+    <color name="ic_launcher_background">#2E7D32</color>
+</resources>
