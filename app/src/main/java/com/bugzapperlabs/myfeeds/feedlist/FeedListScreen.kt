@@ -68,12 +68,20 @@ fun FeedListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val feedListFontSize by viewModel.feedListFontSize.collectAsState()
     val refreshError by viewModel.refreshError.collectAsState()
+    val opmlImportResult by viewModel.opmlImportResult.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(refreshError) {
         refreshError?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.consumeRefreshError()
+        }
+    }
+
+    LaunchedEffect(opmlImportResult) {
+        opmlImportResult?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeOpmlImportResult()
         }
     }
 

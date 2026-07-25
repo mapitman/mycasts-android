@@ -133,6 +133,10 @@
     <string name="add_feed_imported_count">%1$d flux importés</string>
     <string name="add_feed_no_feeds_found_in_opml">Aucun flux trouvé dans l\'OPML</string>
     <string name="add_feed_all_feeds_already_subscribed">Tous les flux de cet OPML sont déjà suivis</string>
+    <plurals name="add_feed_import_started">
+        <item quantity="one">Importation de %1$d flux en arrière-plan…</item>
+        <item quantity="other">Importation de %1$d flux en arrière-plan…</item>
+    </plurals>
     <string name="add_feed_invalid_opml">Impossible de lire ce fichier OPML</string>
     <string name="add_feed_working">Traitement en cours…</string>
     <string name="add_feed_some_feeds_could_not_be_imported">Certains flux n\'ont pas pu être importés (invalides ou inaccessibles)</string>

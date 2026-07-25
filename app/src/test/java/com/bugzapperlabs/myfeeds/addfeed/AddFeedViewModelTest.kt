@@ -10,6 +10,7 @@ import com.bugzapperlabs.myfeeds.data.directory.FeedDirectory
 import com.bugzapperlabs.myfeeds.data.feed.FeedFetcher
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.myfeeds.data.local.AppDatabase
+import com.bugzapperlabs.myfeeds.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.myfeeds.data.opml.OpmlImporter
 import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
 import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
@@ -52,6 +53,7 @@ class AddFeedViewModelTest {
     private lateinit var server: MockWebServer
     private lateinit var db: AppDatabase
     private lateinit var viewModel: AddFeedViewModel
+    private lateinit var opmlImportCoordinator: OpmlImportCoordinator
 
     private val rssXml = """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -84,11 +86,13 @@ class AddFeedViewModelTest {
         val httpClient = OkHttpClient()
         val feedFetcher = FeedFetcher(httpClient)
         val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore)
+        val opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore)
+        opmlImportCoordinator = OpmlImportCoordinator(opmlImporter, context)
         viewModel = AddFeedViewModel(
             feedFetcher = feedFetcher,
             feedUpdateEngine = feedUpdateEngine,
             feedRepository = repository,
-            opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore),
+            opmlImportCoordinator = opmlImportCoordinator,
             httpClient = httpClient,
             feedDirectory = FeedDirectory(context),
             context = context,
@@ -164,8 +168,12 @@ class AddFeedViewModelTest {
         viewModel.importOpml(opml.byteInputStream())
         val feedback = viewModel.opmlImportMessage.first { it != null }
 
-        assertEquals("Imported 1 feeds", feedback?.message)
+        // The screen closes on this "started" message immediately (issue #271); validating and
+        // subscribing candidate feeds continues on OpmlImportCoordinator's own scope afterward.
+        assertEquals("Importing 1 feed in the background…", feedback?.message)
         assertEquals(true, feedback?.success)
+        val importResult = opmlImportCoordinator.result.first { it != null }
+        assertEquals("Imported 1 feeds", importResult)
         val feeds = db.feedDao().observeAll().first()
         assertEquals(listOf("A New Feed"), feeds.map { it.title })
     }
@@ -195,8 +203,10 @@ class AddFeedViewModelTest {
         viewModel.importOpmlFromText(opml)
         val feedback = viewModel.opmlImportMessage.first { it != null }
 
-        assertEquals("Imported 1 feeds", feedback?.message)
+        assertEquals("Importing 1 feed in the background…", feedback?.message)
         assertEquals(true, feedback?.success)
+        val importResult = opmlImportCoordinator.result.first { it != null }
+        assertEquals("Imported 1 feeds", importResult)
         val feeds = db.feedDao().observeAll().first()
         assertEquals(listOf("A New Feed"), feeds.map { it.title })
     }

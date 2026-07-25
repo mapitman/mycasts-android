@@ -10,6 +10,7 @@ import com.bugzapperlabs.myfeeds.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateResult
 import com.bugzapperlabs.myfeeds.data.local.Feed
+import com.bugzapperlabs.myfeeds.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
 import com.bugzapperlabs.myfeeds.data.settings.FontSize
 import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
@@ -54,6 +55,7 @@ class FeedListViewModel @Inject constructor(
     private val feedUpdateEngine: FeedUpdateEngine,
     private val autoQueueAndDownloadEnforcer: AutoQueueAndDownloadEnforcer,
     private val feedRefreshState: FeedRefreshState,
+    private val opmlImportCoordinator: OpmlImportCoordinator,
     settingsDataStore: SettingsDataStore,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -65,6 +67,15 @@ class FeedListViewModel @Inject constructor(
 
     /** One-shot refresh-failure message for a Snackbar; cleared via [consumeRefreshError]. */
     val refreshError: StateFlow<String?> = _refreshError
+
+    // A background OPML import (issue #271) can finish well after the Add Feed screen that
+    // started it has already closed, so its result is surfaced here instead, on the screen the
+    // user lands back on.
+    val opmlImportResult: StateFlow<String?> = opmlImportCoordinator.result
+
+    fun consumeOpmlImportResult() {
+        opmlImportCoordinator.consumeResult()
+    }
 
     // Holds the last snapshot taken while NOT refreshing (issue #152): a refresh inserts/evicts
     // items one feed at a time, so reacting to every intermediate write made unread counts

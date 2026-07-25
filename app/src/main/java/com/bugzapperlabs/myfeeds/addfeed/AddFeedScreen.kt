@@ -1,6 +1,7 @@
 package com.bugzapperlabs.myfeeds.addfeed
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -81,6 +82,12 @@ fun AddFeedScreen(
         if (uiState is AddFeedUiState.Success) onDone()
     }
 
+    // Add/import work runs in AddFeedViewModel's own scope, cleared the moment this screen leaves
+    // the back stack -- backing out mid-OPML-import used to silently cancel it partway through,
+    // leaving only whichever feeds had already been persisted subscribed with no indication
+    // anything was cut short (issue #271). Block back navigation until it's done instead.
+    BackHandler(enabled = uiState is AddFeedUiState.Loading) {}
+
     LaunchedEffect(opmlImportMessage) {
         opmlImportMessage?.let { feedback ->
             if (feedback.success) {
@@ -103,7 +110,7 @@ fun AddFeedScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.add_feed_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, enabled = uiState !is AddFeedUiState.Loading) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
                     }
                 },

@@ -13,7 +13,7 @@ import com.bugzapperlabs.myfeeds.data.feed.FeedFetcher
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.myfeeds.data.local.Feed
 import com.bugzapperlabs.myfeeds.data.opml.OpmlDocument
-import com.bugzapperlabs.myfeeds.data.opml.OpmlImporter
+import com.bugzapperlabs.myfeeds.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.myfeeds.data.opml.OpmlParser
 import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +40,7 @@ class AddFeedViewModel @Inject constructor(
     private val feedFetcher: FeedFetcher,
     private val feedUpdateEngine: FeedUpdateEngine,
     private val feedRepository: FeedRepository,
-    private val opmlImporter: OpmlImporter,
+    private val opmlImportCoordinator: OpmlImportCoordinator,
     private val httpClient: OkHttpClient,
     private val feedDirectory: FeedDirectory,
     @ApplicationContext private val context: Context,
@@ -187,18 +187,24 @@ class AddFeedViewModel @Inject constructor(
         }
     }
 
-    private suspend fun finishImport(document: OpmlDocument) {
-        val result = opmlImporter.import(document)
+    // The OPML parsed either way (issue #267), so the screen closes right away regardless of what
+    // eventually comes of the entries in it -- there's nothing left for the user to fix here.
+    // Validating/subscribing each candidate feed happens on OpmlImportCoordinator's own
+    // app-lifetime scope rather than this ViewModel's (issue #271): that step fetches every
+    // candidate feed to validate it (issue #231), which for a large OPML file can take long
+    // enough that staying on this screen (or blocking back navigation) until it finished was an
+    // unacceptable wait -- the result is instead reported later via a Snackbar on the feed list.
+    private fun finishImport(document: OpmlDocument) {
+        opmlImportCoordinator.startImport(document)
         _uiState.value = AddFeedUiState.Idle
-        val message = when {
-            result.importedCount > 0 -> context.getString(R.string.add_feed_imported_count, result.importedCount)
-            document.feeds.isEmpty() -> context.getString(R.string.add_feed_no_feeds_found_in_opml)
-            result.invalidCount > 0 -> context.getString(R.string.add_feed_some_feeds_could_not_be_imported)
-            else -> context.getString(R.string.add_feed_all_feeds_already_subscribed)
-        }
-        // The OPML parsed either way (issue #267), so the screen closes regardless of whether
-        // anything new actually got subscribed -- there's nothing left for the user to fix here.
-        _opmlImportMessage.value = OpmlImportFeedback(message, success = true)
+        _opmlImportMessage.value = OpmlImportFeedback(
+            context.resources.getQuantityString(
+                R.plurals.add_feed_import_started,
+                document.feeds.size,
+                document.feeds.size,
+            ),
+            success = true,
+        )
     }
 
     fun resetState() {

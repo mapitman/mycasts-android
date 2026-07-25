@@ -12,6 +12,8 @@ import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.myfeeds.data.local.AppDatabase
 import com.bugzapperlabs.myfeeds.data.local.Feed
 import com.bugzapperlabs.myfeeds.data.local.FeedItem
+import com.bugzapperlabs.myfeeds.data.opml.OpmlImportCoordinator
+import com.bugzapperlabs.myfeeds.data.opml.OpmlImporter
 import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
 import com.bugzapperlabs.myfeeds.data.repository.QueueRepository
 import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
@@ -84,11 +86,16 @@ class FeedListViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
+        val feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
         viewModel = FeedListViewModel(
             feedRepository = repository,
-            feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore),
+            feedUpdateEngine = feedUpdateEngine,
             autoQueueAndDownloadEnforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository),
             feedRefreshState = FeedRefreshState(),
+            opmlImportCoordinator = OpmlImportCoordinator(
+                OpmlImporter(db.feedDao(), FeedFetcher(OkHttpClient()), feedUpdateEngine, settingsDataStore),
+                context,
+            ),
             settingsDataStore = settingsDataStore,
             context = context,
         )

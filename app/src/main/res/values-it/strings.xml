@@ -133,6 +133,10 @@
     <string name="add_feed_imported_count">%1$d feed importati</string>
     <string name="add_feed_no_feeds_found_in_opml">Nessun feed trovato nell\'OPML</string>
     <string name="add_feed_all_feeds_already_subscribed">Tutti i feed di questo OPML sono già sottoscritti</string>
+    <plurals name="add_feed_import_started">
+        <item quantity="one">Importazione di %1$d feed in corso in background…</item>
+        <item quantity="other">Importazione di %1$d feed in corso in background…</item>
+    </plurals>
     <string name="add_feed_invalid_opml">Impossibile leggere questo file OPML</string>
     <string name="add_feed_working">In corso…</string>
     <string name="add_feed_some_feeds_could_not_be_imported">Alcuni feed non è stato possibile importarli (non validi o irraggiungibili)</string>
