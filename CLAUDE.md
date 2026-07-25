@@ -41,7 +41,8 @@ Don't drive the UI yourself via `adb shell input tap`/screenshots to verify a ch
 Tag pushes matching `vMAJOR.MINOR.PATCH` (e.g. `v1.2.3`) trigger `.github/workflows/release.yml`,
 which builds a signed release APK, derives `versionName`/`versionCode` from the tag
 (versionCode = major*10000 + minor*100 + patch -- keep minor/patch under 100), and publishes a
-GitHub Release with the APK attached and an auto-generated changelog. Signing uses a keystore
+GitHub Release with the APK attached and an auto-generated changelog. `scripts/generate-release-keystore.sh`
+creates the signing keystore (wraps `keytool`, prompts for passwords). Signing uses that keystore
 stored (base64) in the `RELEASE_KEYSTORE_BASE64` secret, decoded to a temp file at build time;
 `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` are the matching secrets --
 `scripts/set-release-secrets.sh /path/to/keystore.jks` pushes all four via the `gh` CLI. Tags are
