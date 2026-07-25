@@ -186,9 +186,15 @@ class MainActivity : ComponentActivity() {
                     // is force-hidden below (issue #97) since that page already has its own full
                     // player -- expanding it alone left a stuck, empty peek with nothing shown (issue
                     // #248), so pop back off that page first to reveal the sheet before expanding it.
+                    // Nothing to show at all (issue #264): with no current episode and an empty
+                    // queue, sheetContent stays hidden and sheetPeekHeight is 0, so the sheet has no
+                    // real anchors -- expanding it then crashes BottomSheetScaffold's drag math on a
+                    // NaN. Just no-op instead.
                     val onQueueClick: () -> Unit = {
-                        if (isOnPlayingEpisodeReader) navController.popBackStack()
-                        coroutineScope.launch { scaffoldState.bottomSheetState.expand() }
+                        if (playbackState.currentItemId != null || queue.isNotEmpty()) {
+                            if (isOnPlayingEpisodeReader) navController.popBackStack()
+                            coroutineScope.launch { scaffoldState.bottomSheetState.expand() }
+                        }
                     }
 
                     // Swiped down past peek to just NowPlayingMiniStrip (issue #197) -- the sheet
