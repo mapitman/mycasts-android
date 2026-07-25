@@ -36,6 +36,7 @@
 
     <!-- Feed list -->
     <string name="feed_list_no_feeds_yet">Aucun flux pour le moment</string>
+    <string name="feed_list_empty_hint">Appuyez sur + pour ajouter votre premier flux ou importer un fichier OPML</string>
     <string name="feed_list_total_unread">%1$d non lus</string>
     <string name="feed_list_section_unread">%1$d non lus</string>
     <string name="feed_list_section_unplayed">%1$d non écoutés</string>

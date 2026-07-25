@@ -36,6 +36,7 @@
 
     <!-- Feed list -->
     <string name="feed_list_no_feeds_yet">Noch keine Feeds</string>
+    <string name="feed_list_empty_hint">Tippe auf +, um deinen ersten Feed hinzuzufügen oder eine OPML-Datei zu importieren</string>
     <string name="feed_list_total_unread">%1$d ungelesen</string>
     <string name="feed_list_section_unread">%1$d ungelesen</string>
     <string name="feed_list_section_unplayed">%1$d ungespielt</string>

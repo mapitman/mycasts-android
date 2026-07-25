@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -12,6 +14,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Download
@@ -39,7 +42,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.myfeeds.R
@@ -108,9 +113,34 @@ fun FeedListScreen(
         if (uiState.sections.all { it.feeds.isEmpty() }) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
-                contentAlignment = Alignment.Center,
             ) {
-                Text(stringResource(R.string.feed_list_no_feeds_yet))
+                Text(
+                    text = stringResource(R.string.feed_list_no_feeds_yet),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 24.dp, bottom = 96.dp)
+                        .widthIn(max = 220.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.feed_list_empty_hint),
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.End,
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .size(40.dp)
+                            .rotate(90f),
+                    )
+                }
             }
             return@Scaffold
         }
