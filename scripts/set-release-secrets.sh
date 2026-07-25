@@ -16,11 +16,18 @@ if [[ ! -f "$KEYSTORE_PATH" ]]; then
   exit 1
 fi
 
-read -rp "Key alias: " KEY_ALIAS
+read -rp "Key alias [myfeeds]: " KEY_ALIAS
+KEY_ALIAS="${KEY_ALIAS:-myfeeds}"
 read -rsp "Keystore (store) password: " KEYSTORE_PASSWORD
 echo
-read -rsp "Key password: " KEY_PASSWORD
+read -rsp "Key password (press enter to reuse the keystore password): " KEY_PASSWORD
 echo
+KEY_PASSWORD="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+
+if [[ -z "$KEYSTORE_PASSWORD" ]]; then
+  echo "Keystore password can't be empty." >&2
+  exit 1
+fi
 
 base64 -w0 "$KEYSTORE_PATH" | gh secret set RELEASE_KEYSTORE_BASE64
 gh secret set RELEASE_KEYSTORE_PASSWORD --body "$KEYSTORE_PASSWORD"
