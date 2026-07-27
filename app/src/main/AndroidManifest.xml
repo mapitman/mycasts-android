@@ -10,6 +10,10 @@
     <!-- ExoPlayer's WAKE_MODE_NETWORK (below) needs this to hold a CPU/Wi-Fi wake lock so a new
          episode's stream can actually open while the screen is off (issue #179). -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Lets Settings prompt for exemption from Doze battery optimization (issue #273): even with
+         the wake lock above, Doze can still defer/block network access for a non-exempt app in the
+         gap right after an episode ends, intermittently breaking background auto-advance. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".MyFeedsApp"

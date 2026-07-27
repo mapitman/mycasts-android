@@ -1,9 +1,13 @@
 package com.bugzapperlabs.myfeeds.settings
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -34,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -51,6 +57,8 @@ import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.bugzapperlabs.myfeeds.BuildConfig
 import com.bugzapperlabs.myfeeds.R
 import com.bugzapperlabs.myfeeds.data.settings.AppSettings
@@ -148,6 +156,7 @@ fun SettingsScreen(
                 settings.autoDeleteFinishedDownloads,
                 viewModel::setAutoDeleteFinishedDownloads,
             )
+            BatteryOptimizationSetting()
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_actions))
@@ -250,6 +259,64 @@ private fun FeedRefreshConcurrencySetting(settings: AppSettings, viewModel: Sett
             valueRange = 1f..10f,
             steps = 8,
         )
+    }
+}
+
+/**
+ * Nudges the user toward exempting the app from Doze battery optimization (issue #273): even
+ * with a wake lock held across the STATE_ENDED-to-next-episode gap (issues #179, #241), Doze can
+ * still independently defer/block network access for a non-exempt app in that window, which
+ * intermittently broke background auto-advance despite those earlier fixes. Re-checks on resume
+ * since [AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS]'s system dialog returns
+ * straight to this screen rather than navigating away from it.
+ */
+@Composable
+private fun BatteryOptimizationSetting() {
+    val context = LocalContext.current
+    val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as PowerManager }
+    var isIgnoringOptimizations by remember {
+        mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isIgnoringOptimizations = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Text(stringResource(R.string.settings_battery_optimization_heading), style = MaterialTheme.typography.bodyLarge)
+        Text(
+            stringResource(R.string.settings_battery_optimization_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+        )
+        if (isIgnoringOptimizations) {
+            Text(
+                stringResource(R.string.settings_battery_optimization_granted),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        } else {
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(
+                        Intent(
+                            AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:${context.packageName}"),
+                        ),
+                    )
+                },
+            ) {
+                Text(stringResource(R.string.settings_battery_optimization_button))
+            }
+        }
     }
 }
 

@@ -37,6 +37,8 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
             lastFeedUpdateEpochMillis = prefs[Keys.LAST_FEED_UPDATE_EPOCH_MILLIS],
             lastPlayingFeedId = prefs[Keys.LAST_PLAYING_FEED_ID],
             lastPlayingItemId = prefs[Keys.LAST_PLAYING_ITEM_ID],
+            batteryOptimizationPromptShown = prefs[Keys.BATTERY_OPTIMIZATION_PROMPT_SHOWN]
+                ?: AppSettings().batteryOptimizationPromptShown,
         )
     }
 
@@ -120,6 +122,10 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it.clear() }
     }
 
+    suspend fun setBatteryOptimizationPromptShown(shown: Boolean) {
+        dataStore.edit { it[Keys.BATTERY_OPTIMIZATION_PROMPT_SHOWN] = shown }
+    }
+
     private object Keys {
         val UPDATE_INTERVAL_MINUTES = longPreferencesKey("update_interval_minutes")
         val LIST_FONT_SIZE = intPreferencesKey("list_font_size")
@@ -138,5 +144,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         val LAST_FEED_UPDATE_EPOCH_MILLIS = longPreferencesKey("last_feed_update_epoch_millis")
         val LAST_PLAYING_FEED_ID = longPreferencesKey("last_playing_feed_id")
         val LAST_PLAYING_ITEM_ID = stringPreferencesKey("last_playing_item_id")
+        val BATTERY_OPTIMIZATION_PROMPT_SHOWN = booleanPreferencesKey("battery_optimization_prompt_shown")
     }
 }

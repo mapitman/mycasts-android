@@ -3,6 +3,8 @@ package com.bugzapperlabs.myfeeds
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings as AndroidSettings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -23,10 +25,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
@@ -43,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -158,6 +164,24 @@ class MainActivity : ComponentActivity() {
                         bottomSheetState = rememberStandardBottomSheetState(skipHiddenState = false),
                     )
                     val coroutineScope = rememberCoroutineScope()
+
+                    // One-time nudge (issue #273) toward exempting the app from Doze battery
+                    // optimization: even with the wake lock PlaybackService holds across the
+                    // STATE_ENDED-to-next-episode gap (issues #179, #241), Doze can still
+                    // independently defer/block network access for a non-exempt app in that
+                    // window, intermittently breaking background auto-advance. Triggered off
+                    // actual playback starting, rather than e.g. app launch, so it's shown at a
+                    // moment the exemption is obviously relevant.
+                    val settings by settingsDataStore.settings.collectAsState(initial = null)
+                    var showBatteryOptimizationPrompt by remember { mutableStateOf(false) }
+                    LaunchedEffect(playbackState.currentItemId, settings?.batteryOptimizationPromptShown) {
+                        val currentSettings = settings ?: return@LaunchedEffect
+                        if (playbackState.currentItemId == null || currentSettings.batteryOptimizationPromptShown) return@LaunchedEffect
+                        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+                        if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                            showBatteryOptimizationPrompt = true
+                        }
+                    }
 
                     // The reader screen has its own full player for the episode it's showing (issue #97),
                     // so the player sheet would be redundant there -- hide it only in that exact case, not
@@ -359,6 +383,38 @@ class MainActivity : ComponentActivity() {
                             onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
                             modifier = Modifier.align(Alignment.BottomCenter).onGloballyPositioned {
                                 miniStripHeight = with(density) { it.size.height.toDp() }
+                            },
+                        )
+                    }
+                    if (showBatteryOptimizationPrompt) {
+                        AlertDialog(
+                            onDismissRequest = {
+                                showBatteryOptimizationPrompt = false
+                                coroutineScope.launch { settingsDataStore.setBatteryOptimizationPromptShown(true) }
+                            },
+                            title = { Text(stringResource(R.string.battery_optimization_prompt_title)) },
+                            text = { Text(stringResource(R.string.battery_optimization_prompt_message)) },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showBatteryOptimizationPrompt = false
+                                    coroutineScope.launch { settingsDataStore.setBatteryOptimizationPromptShown(true) }
+                                    startActivity(
+                                        Intent(
+                                            AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                            Uri.parse("package:$packageName"),
+                                        ),
+                                    )
+                                }) {
+                                    Text(stringResource(R.string.battery_optimization_prompt_allow))
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = {
+                                    showBatteryOptimizationPrompt = false
+                                    coroutineScope.launch { settingsDataStore.setBatteryOptimizationPromptShown(true) }
+                                }) {
+                                    Text(stringResource(R.string.action_cancel))
+                                }
                             },
                         )
                     }

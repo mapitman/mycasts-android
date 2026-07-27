@@ -27,4 +27,8 @@ data class AppSettings(
     /** The episode last loaded into the player, restored on app relaunch (issue #108). */
     val lastPlayingFeedId: Long? = null,
     val lastPlayingItemId: String? = null,
+    /** Whether the one-time battery-optimization exemption nudge (issue #273) has already been
+     *  shown -- shown at most once regardless of the user's choice, since it's a system dialog
+     *  they can always revisit from Settings if they change their mind. */
+    val batteryOptimizationPromptShown: Boolean = false,
 )

@@ -96,6 +96,13 @@
     <string name="settings_download_on_cellular">Télécharger sur réseau mobile</string>
     <string name="settings_allow_streaming">Autoriser le streaming</string>
     <string name="settings_auto_delete_finished_downloads">Supprimer automatiquement les téléchargements écoutés</string>
+    <string name="settings_battery_optimization_heading">Utilisation de la batterie en arrière-plan</string>
+    <string name="settings_battery_optimization_description">Pour un passage automatique fiable à l\'épisode suivant et des téléchargements fiables écran éteint, autorisez MyFeeds à fonctionner sans restriction de batterie.</string>
+    <string name="settings_battery_optimization_granted">Sans restriction</string>
+    <string name="settings_battery_optimization_button">Autoriser l\'utilisation sans restriction</string>
+    <string name="battery_optimization_prompt_title">Garder une lecture fiable des épisodes ?</string>
+    <string name="battery_optimization_prompt_message">Pour un passage automatique fiable à l\'épisode suivant écran éteint, autorisez MyFeeds à fonctionner sans restriction de batterie. Vous pourrez modifier cela plus tard dans les paramètres.</string>
+    <string name="battery_optimization_prompt_allow">Autoriser</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_description">Un lecteur de flux RSS/Atom et client podcast.</string>
     <string name="settings_export_opml">Exporter en OPML</string>
