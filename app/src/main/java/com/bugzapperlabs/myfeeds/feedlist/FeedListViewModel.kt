@@ -112,6 +112,16 @@ class FeedListViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            // Whether stableSource has ever been populated yet (issue #276): a scheduled refresh
+            // (e.g. FeedRefreshWorker firing right at launch) can already be running by the time
+            // this collector's very first emission arrives, before any real snapshot has ever been
+            // stored -- unconditionally requiring `!refreshing` then left stableSource stuck at its
+            // empty default, rendering the feed list as blank/empty-state for the whole refresh
+            // instead of showing whatever's already in the DB. The first emission is let through
+            // regardless of `refreshing` so cold start always shows current data immediately; only
+            // *subsequent* emissions freeze while a refresh is in flight, preserving #152's
+            // original anti-flicker behavior for refreshes triggered after the list is populated.
+            var hasEmittedInitialSnapshot = false
             combine(
                 feedRepository.observeAllFeeds(),
                 feedRepository.observeUnreadCountsByFeed(),
@@ -119,7 +129,12 @@ class FeedListViewModel @Inject constructor(
                 isRefreshing,
             ) { feeds, unreadCounts, totalUnread, refreshing ->
                 FeedListSourceData(feeds, unreadCounts, totalUnread, refreshing)
-            }.collect { source -> if (!source.refreshing) stableSource.value = source }
+            }.collect { source ->
+                if (!source.refreshing || !hasEmittedInitialSnapshot) {
+                    stableSource.value = source
+                    hasEmittedInitialSnapshot = true
+                }
+            }
         }
     }
 

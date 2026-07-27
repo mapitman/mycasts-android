@@ -20,6 +20,7 @@ import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
 import com.bugzapperlabs.myfeeds.download.DownloadScheduling
 import com.bugzapperlabs.myfeeds.download.EnclosureDownloadRepository
 import com.bugzapperlabs.myfeeds.refresh.FeedRefreshState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -64,20 +65,10 @@ class FeedListViewModelTest {
     private lateinit var repository: FeedRepository
     private lateinit var queueRepository: QueueRepository
     private lateinit var settingsDataStore: SettingsDataStore
+    private lateinit var context: android.content.Context
     private lateinit var viewModel: FeedListViewModel
 
-    @Before
-    fun setUp() = runTest(testDispatcher) {
-        Dispatchers.setMain(testDispatcher)
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
-        repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
-        )
-        settingsDataStore = SettingsDataStore(dataStore)
-
-        queueRepository = QueueRepository(db.queueDao())
+    private fun newViewModel(feedRefreshState: FeedRefreshState): FeedListViewModel {
         val downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
             downloadScheduling = object : DownloadScheduling {
@@ -87,11 +78,11 @@ class FeedListViewModelTest {
             settingsDataStore = settingsDataStore,
         )
         val feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
-        viewModel = FeedListViewModel(
+        return FeedListViewModel(
             feedRepository = repository,
             feedUpdateEngine = feedUpdateEngine,
             autoQueueAndDownloadEnforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository),
-            feedRefreshState = FeedRefreshState(),
+            feedRefreshState = feedRefreshState,
             opmlImportCoordinator = OpmlImportCoordinator(
                 OpmlImporter(db.feedDao(), FeedFetcher(OkHttpClient()), feedUpdateEngine, settingsDataStore),
                 context,
@@ -99,6 +90,21 @@ class FeedListViewModelTest {
             settingsDataStore = settingsDataStore,
             context = context,
         )
+    }
+
+    @Before
+    fun setUp() = runTest(testDispatcher) {
+        Dispatchers.setMain(testDispatcher)
+        context = ApplicationProvider.getApplicationContext()
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
+        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
+            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
+        )
+        settingsDataStore = SettingsDataStore(dataStore)
+        queueRepository = QueueRepository(db.queueDao())
+
+        viewModel = newViewModel(FeedRefreshState())
         viewModelStore.put("feedList", viewModel)
     }
 
@@ -226,6 +232,41 @@ class FeedListViewModelTest {
         } finally {
             server.shutdown()
         }
+    }
+
+    @Test
+    fun uiState_showsExistingFeedsImmediatelyEvenIfARefreshIsAlreadyRunningAtLaunch() = runTest(testDispatcher) {
+        // issue #276: a scheduled refresh (e.g. FeedRefreshWorker firing right at launch) can
+        // already be running by the time this screen's own collector takes its first snapshot.
+        // Requiring `!refreshing` unconditionally left stableSource stuck at its empty default for
+        // the whole refresh, rendering the feed list as blank instead of showing what's already in
+        // the DB. Builds a fresh ViewModel against a FeedRefreshState that's already marked
+        // refreshing *before* construction, reproducing the exact race.
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        repository.insertItems(listOf(FeedItem(id = "existing-1", feedId = feedId, itemGuid = "g-existing")))
+
+        val refreshState = FeedRefreshState()
+        val refreshStarted = CompletableDeferred<Unit>()
+        val releaseRefresh = CompletableDeferred<Unit>()
+        val trackingJob = launch {
+            refreshState.track {
+                refreshStarted.complete(Unit)
+                releaseRefresh.await()
+            }
+        }
+        refreshStarted.await()
+
+        val freshViewModel = newViewModel(refreshState)
+        viewModelStore.put("freshFeedList", freshViewModel)
+        val collectJob = launch { freshViewModel.uiState.collect {} }
+
+        val state = freshViewModel.uiState.first { it.sections.any { section -> section.feeds.isNotEmpty() } }
+        assertEquals(1, state.sections.sumOf { it.feeds.size })
+        assertTrue(state.isRefreshing)
+
+        collectJob.cancel()
+        releaseRefresh.complete(Unit)
+        trackingJob.join()
     }
 
     @Test
