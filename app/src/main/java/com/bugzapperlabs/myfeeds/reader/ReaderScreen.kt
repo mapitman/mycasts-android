@@ -157,7 +157,11 @@ fun ReaderScreen(
                 },
                 actions = {
                     if (currentItem?.isPodcastEpisode == true) {
-                        val isQueued = currentItem.id in queuedItemIds
+                        // The currently-playing episode has no literal queue-table row (issue
+                        // #171 removes it once playback starts, since it's shown pinned to the
+                        // top of Next Up via the mini player instead) -- without this it's the
+                        // one episode that would misleadingly read as "not queued" (issue #281).
+                        val isQueued = currentItem.id in queuedItemIds || currentItem.id == playbackState.currentItemId
                         IconButton(onClick = {
                             if (isQueued) viewModel.removeFromQueue(currentItem.id) else viewModel.addToQueue(currentItem.id)
                         }) {
