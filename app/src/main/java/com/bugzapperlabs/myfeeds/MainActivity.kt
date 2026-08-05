@@ -230,6 +230,15 @@ class MainActivity : ComponentActivity() {
                     val bottomSheetHidden = scaffoldState.bottomSheetState.currentValue == SheetValue.Hidden &&
                         playbackState.currentItemId != null &&
                         !isOnPlayingEpisodeReader
+                    // issue #279: currentValue only flips once the drag has fully settled -- by
+                    // then the medium bar has already finished sliding off-screen as part of the
+                    // drag itself, so triggering the MiniPlayerBar<->NowPlayingMiniStrip crossfade
+                    // off it left a visible gap where neither was showing. targetValue predicts
+                    // where the drag is heading and updates mid-gesture, so gating the crossfade on
+                    // it instead starts the handoff while the drag is still finishing, not after.
+                    val bottomSheetCollapsing = scaffoldState.bottomSheetState.targetValue == SheetValue.Hidden &&
+                        playbackState.currentItemId != null &&
+                        !isOnPlayingEpisodeReader
                     var miniStripHeight by remember { mutableStateOf(0.dp) }
                     val density = LocalDensity.current
                     val layoutDirection = LocalLayoutDirection.current
@@ -253,7 +262,21 @@ class MainActivity : ComponentActivity() {
                         },
                         sheetContent = {
                             AnimatedVisibility(
-                                visible = !isOnPlayingEpisodeReader && (playbackState.currentItemId != null || queue.isNotEmpty()),
+                                // issue #279: also gated on !bottomSheetCollapsing so this exits in
+                                // lockstep with NowPlayingMiniStrip's own AnimatedVisibility
+                                // entering -- sharedBounds/sharedElement need exactly one holder of
+                                // PLAYER_CONTAINER_KEY/PLAYER_ARTWORK_KEY visible at a time to
+                                // animate the handoff between them (same as the reader<->mini-bar
+                                // transition, issue #112); otherwise both sides read as "visible"
+                                // simultaneously and the transition doesn't render correctly.
+                                visible = !bottomSheetCollapsing && !isOnPlayingEpisodeReader &&
+                                    (playbackState.currentItemId != null || queue.isNotEmpty()),
+                                // issue #279: plain fade, not the default expand/shrink -- the
+                                // shared-bounds transition already animates this container's size
+                                // continuously; layering a clip-based shrink on top of that fights
+                                // it and reads as a squish/glitch rather than a clean resize.
+                                enter = fadeIn(),
+                                exit = fadeOut(),
                             ) {
                                 PlayerBottomSheetContent(
                                     playbackState = playbackState,
@@ -376,12 +399,24 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
-                    if (bottomSheetHidden) {
+                    // issue #279: shares PLAYER_CONTAINER_KEY/PLAYER_ARTWORK_KEY with MiniPlayerBar
+                    // (the same mechanism issue #112 uses for the mini-bar<->reader transition), so
+                    // Compose animates the container's bounds and artwork continuously between the
+                    // two instead of an instant swap or a plain cross-fade -- a genuine resize morph.
+                    AnimatedVisibility(
+                        visible = bottomSheetCollapsing,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    ) {
                         NowPlayingMiniStrip(
                             playbackState = playbackState,
                             onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
                             onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
-                            modifier = Modifier.align(Alignment.BottomCenter).onGloballyPositioned {
+                            onSwipeUp = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = this,
+                            modifier = Modifier.onGloballyPositioned {
                                 miniStripHeight = with(density) { it.size.height.toDp() }
                             },
                         )

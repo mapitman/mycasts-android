@@ -3,13 +3,19 @@ package com.bugzapperlabs.myfeeds.playback
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +36,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -37,12 +48,16 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.bugzapperlabs.myfeeds.R
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /** Shared-element keys (issue #112) matching across [MiniPlayerBar] and the reader's hero image --
  * only one of those two is ever on-screen carrying a given key at once (except mid-transition,
@@ -56,6 +71,14 @@ private val TRANSPORT_BUTTON_SIZE = 64.dp
 private val TRANSPORT_ICON_SIZE = 40.dp
 private val PLAY_BUTTON_SIZE = 88.dp
 private val PLAY_ICON_SIZE = 56.dp
+
+/** issue #279: minimum upward drag on [NowPlayingMiniStrip] before it's treated as a deliberate
+ *  swipe-up-to-expand rather than an incidental touch/scroll. */
+private val MINI_STRIP_SWIPE_UP_THRESHOLD = 24.dp
+
+/** issue #279: caps how far the strip visually follows the finger before the drag commits, so a
+ *  long drag doesn't send it sliding off past where it's actually heading. */
+private val MINI_STRIP_SWIPE_UP_MAX_DRAG = 120.dp
 
 /**
  * Persistent "now playing" bar (issue #66) shown across the app whenever [PlaybackController] has
@@ -269,19 +292,103 @@ fun MiniPlayerBar(
  * An even more minimal now-playing indicator (issue #197) -- swiping [MiniPlayerBar] down further
  * (past its own resting/peek position, when it's the player sheet's collapsed header) shrinks to
  * this instead of dismissing playback entirely: just enough to see what's playing and toggle it.
+ *
+ * Shares [PLAYER_CONTAINER_KEY]/[PLAYER_ARTWORK_KEY] with [MiniPlayerBar] (issue #279), the same
+ * mechanism issue #112 uses for the mini-bar<->reader transition, so Compose continuously resizes
+ * the container and artwork between the two instead of an instant swap or a plain cross-fade.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun NowPlayingMiniStrip(
     playbackState: PlaybackUiState,
     onClick: () -> Unit,
     onTogglePlayPause: () -> Unit,
+    // issue #279: swiping the strip back up restores the medium player, mirroring tapping it.
+    onSwipeUp: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        tonalElevation = 3.dp,
-    ) {
+    val coroutineScope = rememberCoroutineScope()
+    // issue #279: liveDragPx tracks the finger 1:1 while the drag is active (a plain float, no
+    // animation, so it never lags behind touch); settleAnim only takes over once the finger lifts,
+    // either springing back to 0 (drag didn't clear the threshold) or quickly relaxing to 0 while
+    // onSwipeUp's partialExpand() hands off to the sharedBounds transition for the rest of the trip.
+    var liveDragPx by remember { mutableFloatStateOf(0f) }
+    val settleAnim = remember { Animatable(0f) }
+    with(sharedTransitionScope) {
+        Surface(
+            // issue #279: clickable's own press/tap recognizer was consuming the touch before the
+            // drag detector below got a chance to see the movement, so a swipe up registered as an
+            // instant tap instead of a tracked drag. Detecting taps in our own pointerInput instead
+            // -- as a sibling to (not layered with) the drag detector -- lets both observe the same
+            // raw gesture and resolve it correctly as one or the other.
+            modifier = modifier.fillMaxWidth()
+                .sharedBounds(
+                    rememberSharedContentState(key = PLAYER_CONTAINER_KEY),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                )
+                .offset { IntOffset(0, (liveDragPx + settleAnim.value).roundToInt()) }
+                .pointerInput(onClick) {
+                    detectTapGestures(onTap = { onClick() })
+                }
+                .pointerInput(onSwipeUp) {
+                    val maxDrag = MINI_STRIP_SWIPE_UP_MAX_DRAG.toPx()
+                    val commitThreshold = MINI_STRIP_SWIPE_UP_THRESHOLD.toPx()
+                    // issue #279: commits as soon as the drag crosses the threshold -- not on
+                    // release -- so onSwipeUp's partialExpand() (and the sharedBounds growth it
+                    // triggers) starts while the finger is still moving, the same way the sheet's
+                    // own down-drag flips its target mid-gesture rather than waiting for lift-off.
+                    var committed = false
+                    detectVerticalDragGestures(
+                        onDragStart = {
+                            committed = false
+                            coroutineScope.launch { settleAnim.snapTo(0f) }
+                        },
+                        onVerticalDrag = { change, dragAmount ->
+                            change.consume()
+                            if (!committed) {
+                                val newValue = (liveDragPx + dragAmount).coerceIn(-maxDrag, 0f)
+                                if (newValue < -commitThreshold) {
+                                    // issue #279: snap our manual offset away immediately (no
+                                    // animateTo back to 0) rather than run it concurrently with
+                                    // the sharedBounds resize that onSwipeUp triggers -- two
+                                    // simultaneous animations moving the same surface at once was
+                                    // the actual cause of the stutter, not the resize itself.
+                                    committed = true
+                                    liveDragPx = 0f
+                                    coroutineScope.launch { settleAnim.snapTo(0f) }
+                                    onSwipeUp()
+                                } else {
+                                    liveDragPx = newValue
+                                }
+                            }
+                        },
+                        onDragEnd = {
+                            if (!committed) {
+                                val start = liveDragPx
+                                liveDragPx = 0f
+                                coroutineScope.launch {
+                                    settleAnim.snapTo(start)
+                                    settleAnim.animateTo(0f, spring(Spring.DampingRatioMediumBouncy))
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            if (!committed) {
+                                val start = liveDragPx
+                                liveDragPx = 0f
+                                coroutineScope.launch {
+                                    settleAnim.snapTo(start)
+                                    settleAnim.animateTo(0f, spring(Spring.DampingRatioMediumBouncy))
+                                }
+                            }
+                        },
+                    )
+                },
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            tonalElevation = 3.dp,
+        ) {
         Row(
             modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -290,7 +397,11 @@ fun NowPlayingMiniStrip(
                 AsyncImage(
                     model = playbackState.artworkUrl,
                     contentDescription = null,
-                    modifier = Modifier.size(40.dp).clip(RoundedCornerShape(4.dp)),
+                    modifier = Modifier.size(40.dp).clip(RoundedCornerShape(4.dp))
+                        .sharedElement(
+                            rememberSharedContentState(key = PLAYER_ARTWORK_KEY),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        ),
                 )
             }
             Text(
@@ -310,6 +421,7 @@ fun NowPlayingMiniStrip(
                     )
                 }
             }
+        }
         }
     }
 }
