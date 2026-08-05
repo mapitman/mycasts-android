@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -54,9 +57,11 @@ fun PlayerBottomSheetContent(
     playbackState: PlaybackUiState,
     queue: List<QueuedEpisode>,
     onOpenCurrentEpisode: () -> Unit,
-    onQueueEpisodeClick: (QueuedEpisode) -> Unit,
+    onOpenQueueEpisode: (QueuedEpisode) -> Unit,
+    onPlayQueueEpisode: (QueuedEpisode) -> Unit,
     onReorder: (List<String>, onComplete: () -> Unit) -> Unit,
     onRemoveFromQueue: (String) -> Unit,
+    queueSnackbarHostState: SnackbarHostState,
     onTogglePlayPause: () -> Unit,
     onSkipBackward: () -> Unit,
     onSkipForward: () -> Unit,
@@ -71,44 +76,56 @@ fun PlayerBottomSheetContent(
 ) {
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp - statusBarHeight - DRAG_HANDLE_ALLOWANCE
-    Column(modifier = modifier.fillMaxWidth().heightIn(max = maxHeight)) {
-        if (playbackState.currentItemId != null) {
-            MiniPlayerBar(
-                playbackState = playbackState,
-                onClick = onOpenCurrentEpisode,
-                onTogglePlayPause = onTogglePlayPause,
-                onSkipBackward = onSkipBackward,
-                onSkipForward = onSkipForward,
-                onNextChapter = onNextChapter,
-                onPreviousChapter = onPreviousChapter,
-                onSpeedChange = onSpeedChange,
-                onVolumeBoostChange = onVolumeBoostChange,
-                onStop = onStop,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                // false (issue #197): here MiniPlayerBar is a sticky header with the Next Up list
-                // following below it, not pinned at the screen's actual bottom edge, so reserving
-                // nav-bar space here just leaves unwanted blank space above that list.
-                applyNavigationBarsPadding = false,
-            )
-        }
-        Text(
-            text = stringResource(R.string.queue_title),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-        if (queue.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.queue_empty))
+    // Wrapped in a Box, not just the Column directly, so the Undo snackbar (issue #284) can float
+    // over the Next Up list -- where the removal that triggered it just happened -- rather than
+    // through BottomSheetScaffold's own default snackbarHost slot, which sits in the body behind
+    // the sheet and would be hidden the moment this content is fully expanded.
+    Box(modifier = modifier.fillMaxWidth().heightIn(max = maxHeight)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            if (playbackState.currentItemId != null) {
+                MiniPlayerBar(
+                    playbackState = playbackState,
+                    onClick = onOpenCurrentEpisode,
+                    onTogglePlayPause = onTogglePlayPause,
+                    onSkipBackward = onSkipBackward,
+                    onSkipForward = onSkipForward,
+                    onNextChapter = onNextChapter,
+                    onPreviousChapter = onPreviousChapter,
+                    onSpeedChange = onSpeedChange,
+                    onVolumeBoostChange = onVolumeBoostChange,
+                    onStop = onStop,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    // false (issue #197): here MiniPlayerBar is a sticky header with the Next Up
+                    // list following below it, not pinned at the screen's actual bottom edge, so
+                    // reserving nav-bar space here just leaves unwanted blank space above that list.
+                    applyNavigationBarsPadding = false,
+                )
             }
-        } else {
-            ReorderableQueueList(
-                modifier = Modifier.heightIn(max = maxHeight),
-                queue = queue,
-                onReorder = onReorder,
-                onRemove = onRemoveFromQueue,
-                onClick = onQueueEpisodeClick,
+            Text(
+                text = stringResource(R.string.queue_title),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
+            if (queue.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.queue_empty))
+                }
+            } else {
+                ReorderableQueueList(
+                    modifier = Modifier.heightIn(max = maxHeight),
+                    queue = queue,
+                    currentItemId = playbackState.currentItemId,
+                    onReorder = onReorder,
+                    onRemove = onRemoveFromQueue,
+                    onOpen = onOpenQueueEpisode,
+                    onPlay = onPlayQueueEpisode,
+                )
+            }
         }
+        SnackbarHost(
+            queueSnackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+        ) { Snackbar(it) }
     }
 }

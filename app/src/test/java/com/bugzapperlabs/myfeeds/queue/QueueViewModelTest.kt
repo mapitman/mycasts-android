@@ -129,6 +129,29 @@ class QueueViewModelTest {
     }
 
     @Test
+    fun remove_stashesEpisodeForUndo() = runTest(testDispatcher) {
+        viewModel.queue.first { it.size == 2 }
+
+        viewModel.remove("ep-1")
+
+        val removed = viewModel.removedEpisode.first { it != null }
+        assertEquals("ep-1", removed?.episode?.item?.id)
+    }
+
+    @Test
+    fun undoRemove_restoresEpisodeToItsFormerPosition() = runTest(testDispatcher) {
+        viewModel.queue.first { it.size == 2 }
+        viewModel.remove("ep-1")
+        val removed = viewModel.removedEpisode.first { it != null }!!
+        viewModel.queue.first { it.size == 1 }
+
+        viewModel.undoRemove(removed)
+
+        val state = viewModel.queue.first { it.size == 2 }
+        assertEquals(listOf("ep-1", "ep-2"), state.map { it.item.id })
+    }
+
+    @Test
     fun playNow_removesEpisodeFromQueue() = runTest(testDispatcher) {
         val episode = viewModel.queue.first { it.size == 2 }.first()
 

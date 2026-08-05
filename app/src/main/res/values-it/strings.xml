@@ -33,6 +33,9 @@
     <string name="cd_open_downloads">Download</string>
     <string name="cd_open_feed_settings">Impostazioni del feed</string>
     <string name="cd_reorder_queue_item">Trascina per riordinare</string>
+    <string name="cd_move_to_top_of_queue">Sposta in alto in In arrivo</string>
+    <string name="cd_move_to_bottom_of_queue">Sposta in basso in In arrivo</string>
+    <string name="cd_play_queue_item">Riproduci ora</string>
 
     <!-- Feed list -->
     <string name="feed_list_no_feeds_yet">Nessun feed ancora</string>
@@ -64,6 +67,8 @@
     <string name="queue_feedback_added">Aggiunto a In arrivo</string>
     <string name="queue_feedback_added_multiple">%1$d episodi aggiunti a In arrivo</string>
     <string name="queue_feedback_already_queued">Già in In arrivo</string>
+    <string name="queue_feedback_removed">\"%1$s\" rimosso</string>
+    <string name="action_undo">Annulla</string>
 
     <!-- Downloads -->
     <string name="downloads_title">Download</string>

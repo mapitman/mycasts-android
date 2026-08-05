@@ -33,6 +33,9 @@
     <string name="cd_open_downloads">Descargas</string>
     <string name="cd_open_feed_settings">Ajustes de la fuente</string>
     <string name="cd_reorder_queue_item">Arrastra para reordenar</string>
+    <string name="cd_move_to_top_of_queue">Mover al principio de Reproducir a continuación</string>
+    <string name="cd_move_to_bottom_of_queue">Mover al final de Reproducir a continuación</string>
+    <string name="cd_play_queue_item">Reproducir ahora</string>
 
     <!-- Feed list -->
     <string name="feed_list_no_feeds_yet">Aún no hay fuentes</string>
@@ -64,6 +67,8 @@
     <string name="queue_feedback_added">Añadido a Reproducir a continuación</string>
     <string name="queue_feedback_added_multiple">%1$d episodios añadidos a Reproducir a continuación</string>
     <string name="queue_feedback_already_queued">Ya está en Reproducir a continuación</string>
+    <string name="queue_feedback_removed">Se eliminó \"%1$s\"</string>
+    <string name="action_undo">Deshacer</string>
 
     <!-- Downloads -->
     <string name="downloads_title">Descargas</string>

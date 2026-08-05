@@ -35,6 +35,9 @@
     <string name="cd_open_downloads">Downloads</string>
     <string name="cd_open_feed_settings">Feed settings</string>
     <string name="cd_reorder_queue_item">Drag to reorder</string>
+    <string name="cd_move_to_top_of_queue">Move to top of Next Up</string>
+    <string name="cd_move_to_bottom_of_queue">Move to bottom of Next Up</string>
+    <string name="cd_play_queue_item">Play now</string>
 
     <!-- Feed list -->
     <string name="feed_list_no_feeds_yet">No feeds yet</string>
@@ -66,6 +69,8 @@
     <string name="queue_feedback_added">Added to Next Up</string>
     <string name="queue_feedback_added_multiple">Added %1$d episodes to Next Up</string>
     <string name="queue_feedback_already_queued">Already in Next Up</string>
+    <string name="queue_feedback_removed">Removed \"%1$s\"</string>
+    <string name="action_undo">Undo</string>
 
     <!-- Downloads -->
     <string name="downloads_title">Downloads</string>

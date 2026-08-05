@@ -33,6 +33,9 @@
     <string name="cd_open_downloads">Téléchargements</string>
     <string name="cd_open_feed_settings">Paramètres du flux</string>
     <string name="cd_reorder_queue_item">Glisser pour réorganiser</string>
+    <string name="cd_move_to_top_of_queue">Déplacer en haut de À suivre</string>
+    <string name="cd_move_to_bottom_of_queue">Déplacer en bas de À suivre</string>
+    <string name="cd_play_queue_item">Lire maintenant</string>
 
     <!-- Feed list -->
     <string name="feed_list_no_feeds_yet">Aucun flux pour le moment</string>
@@ -64,6 +67,8 @@
     <string name="queue_feedback_added">Ajouté à À suivre</string>
     <string name="queue_feedback_added_multiple">%1$d épisodes ajoutés à À suivre</string>
     <string name="queue_feedback_already_queued">Déjà dans À suivre</string>
+    <string name="queue_feedback_removed">« %1$s » retiré</string>
+    <string name="action_undo">Annuler</string>
 
     <!-- Downloads -->
     <string name="downloads_title">Téléchargements</string>

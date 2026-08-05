@@ -30,6 +30,9 @@ import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
@@ -46,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -154,6 +158,28 @@ class MainActivity : ComponentActivity() {
                     val playbackState by miniPlayerViewModel.playbackState.collectAsState()
                     val queue by queueViewModel.queue.collectAsState()
                     LaunchedEffect(Unit) { miniPlayerViewModel.restoreLastPlayingItem() }
+                    // Undo snackbar for swipe-left removal from Next Up (issue #284). Hosted
+                    // inside PlayerBottomSheetContent itself (see its doc) rather than
+                    // BottomSheetScaffold's own snackbarHost slot, so it's visible while the
+                    // sheet is expanded.
+                    val queueSnackbarHostState = remember { SnackbarHostState() }
+                    val removedQueueEpisode by queueViewModel.removedEpisode.collectAsState()
+                    val context = LocalContext.current
+                    LaunchedEffect(removedQueueEpisode) {
+                        val removed = removedQueueEpisode ?: return@LaunchedEffect
+                        val result = queueSnackbarHostState.showSnackbar(
+                            message = context.getString(
+                                R.string.queue_feedback_removed,
+                                removed.episode.item.title.orEmpty(),
+                            ),
+                            actionLabel = context.getString(R.string.action_undo),
+                            duration = SnackbarDuration.Short,
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            queueViewModel.undoRemove(removed)
+                        }
+                        queueViewModel.consumeRemovedEpisode()
+                    }
                     val currentBackStackEntry by navController.currentBackStackEntryAsState()
                     var currentReaderItemId by remember { mutableStateOf<String?>(null) }
                     // skipHiddenState=false (issue #197) adds a third, further-than-peek anchor:
@@ -282,12 +308,22 @@ class MainActivity : ComponentActivity() {
                                     playbackState = playbackState,
                                     queue = queue,
                                     onOpenCurrentEpisode = onOpenCurrentEpisode,
-                                    onQueueEpisodeClick = { episode ->
-                                        queueViewModel.playNow(episode)
+                                    onOpenQueueEpisode = { episode ->
                                         navController.navigate("reader/${episode.item.feedId}/${episode.item.id}")
+                                        // The auto-collapse LaunchedEffect above only fires once
+                                        // the reader lands on the *actively playing* episode (issue
+                                        // #97) -- opening a Next Up item without playing it
+                                        // (issue #283) never satisfies that, so the sheet would
+                                        // otherwise stay expanded and hide the reader underneath it.
+                                        // hide() (not partialExpand()) so it collapses all the way
+                                        // to the mini player (NowPlayingMiniStrip), out of the way
+                                        // of the reader it just opened.
+                                        coroutineScope.launch { scaffoldState.bottomSheetState.hide() }
                                     },
+                                    onPlayQueueEpisode = queueViewModel::playNow,
                                     onReorder = { ids, onComplete -> queueViewModel.reorder(ids, onComplete) },
                                     onRemoveFromQueue = queueViewModel::remove,
+                                    queueSnackbarHostState = queueSnackbarHostState,
                                     onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
                                     onSkipBackward = miniPlayerViewModel::skipBackward,
                                     onSkipForward = miniPlayerViewModel::skipForward,

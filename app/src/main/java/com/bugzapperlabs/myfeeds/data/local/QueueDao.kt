@@ -26,6 +26,11 @@ interface QueueDao {
     @Query("SELECT itemId FROM queue_entries WHERE itemId = :itemId LIMIT 1")
     suspend fun findItemId(itemId: String): String?
 
+    // Fetched before a remove (issue #284) so the exact entry -- position, addedAt, autoQueued --
+    // can be handed back to insert() unchanged if the removal is undone.
+    @Query("SELECT * FROM queue_entries WHERE itemId = :itemId LIMIT 1")
+    suspend fun getEntry(itemId: String): QueueEntry?
+
     @Query("SELECT itemId FROM queue_entries ORDER BY position")
     suspend fun orderedItemIds(): List<String>
 

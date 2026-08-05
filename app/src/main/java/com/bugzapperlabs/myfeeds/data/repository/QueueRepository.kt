@@ -40,7 +40,16 @@ class QueueRepository @Inject constructor(
         )
     }
 
-    suspend fun remove(itemId: String) = queueDao.remove(itemId)
+    /** Returns the entry that was removed (for issue #284's undo), or null if it wasn't queued. */
+    suspend fun remove(itemId: String): QueueEntry? {
+        val entry = queueDao.getEntry(itemId) ?: return null
+        queueDao.remove(itemId)
+        return entry
+    }
+
+    /** Re-inserts an entry previously returned by [remove], undoing it -- a no-op (via the DAO's
+     *  IGNORE conflict strategy) if the episode has since been queued again some other way. */
+    suspend fun restore(entry: QueueEntry) = queueDao.insert(entry)
 
     /** Renumbers positions to match [orderedItemIds] exactly, for drag-to-reorder in the queue screen. */
     suspend fun reorder(orderedItemIds: List<String>) {
