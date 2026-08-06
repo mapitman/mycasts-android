@@ -105,6 +105,7 @@
     <string name="settings_update_interval">Intervallo di aggiornamento: %1$d min</string>
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_articles_per_feed">Elementi massimi per feed: %1$d</string>
+    <string name="settings_max_articles_per_feed_unlimited">Elementi massimi per feed: Tutti</string>
     <string name="settings_feed_refresh_concurrency">Feed aggiornati contemporaneamente: %1$d</string>
     <string name="settings_article_font_size">Dimensione carattere lettura</string>
     <string name="settings_article_list_font_size">Dimensione carattere elenco</string>
@@ -189,9 +190,13 @@
     <string name="feed_properties_url_label">URL del feed (tocca per copiare)</string>
     <string name="feed_properties_url_copied">URL del feed copiato negli appunti</string>
     <string name="feed_properties_use_global_max">Usa impostazione globale di articoli massimi (%1$d)</string>
+    <string name="feed_properties_use_global_max_unlimited">Usa impostazione globale di articoli massimi (Tutti)</string>
     <string name="feed_properties_use_global_max_episodes">Usa impostazione globale di episodi massimi (%1$d)</string>
+    <string name="feed_properties_use_global_max_episodes_unlimited">Usa impostazione globale di episodi massimi (Tutti)</string>
     <string name="feed_properties_max_articles_for_feed">Articoli massimi per questo feed: %1$d</string>
+    <string name="feed_properties_max_articles_for_feed_unlimited">Articoli massimi per questo feed: Tutti</string>
     <string name="feed_properties_max_episodes_for_feed">Episodi massimi per questo feed: %1$d</string>
+    <string name="feed_properties_max_episodes_for_feed_unlimited">Episodi massimi per questo feed: Tutti</string>
     <string name="feed_properties_auto_download">Scarica automaticamente i nuovi episodi</string>
     <string name="feed_properties_max_downloads_to_keep">Numero massimo di episodi scaricati per questo feed</string>
     <string name="feed_properties_auto_queue">Aggiungi automaticamente i nuovi episodi alla coda</string>

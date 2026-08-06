@@ -6,6 +6,7 @@ import com.bugzapperlabs.myfeeds.data.local.FeedDao
 import com.bugzapperlabs.myfeeds.data.local.FeedItem
 import com.bugzapperlabs.myfeeds.data.local.FeedItemDao
 import com.bugzapperlabs.myfeeds.data.local.QueueDao
+import com.bugzapperlabs.myfeeds.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -104,6 +105,7 @@ class FeedRepository @Inject constructor(
      * which falls back to [com.bugzapperlabs.myfeeds.data.settings.AppSettings.maxArticles] the same way)
      * -- it does NOT mean unlimited, so [defaultItemsToKeep] is required rather than skipping the
      * trim (issue #82: feeds that never had a per-feed override set grew unbounded).
+     * [UNLIMITED_ITEMS_TO_KEEP], once resolved, means unlimited (issue #302).
      *
      * Items currently in the Next Up queue are exempt, even if they'd otherwise be old enough to
      * evict -- deleting a queued [FeedItem] cascades to its `queue_entries` row (issue #125:
@@ -111,6 +113,7 @@ class FeedRepository @Inject constructor(
      */
     suspend fun trimToItemsToKeep(feedId: Long, defaultItemsToKeep: Int): List<FeedItem> {
         val itemsToKeep = feedDao.getById(feedId)?.itemsToKeep ?: defaultItemsToKeep
+        if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) return emptyList()
         val items = feedItemDao.observeByFeed(feedId).first()
         if (items.size <= itemsToKeep) return emptyList()
 

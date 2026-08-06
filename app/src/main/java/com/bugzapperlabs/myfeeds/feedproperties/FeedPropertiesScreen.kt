@@ -45,6 +45,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.myfeeds.R
 import com.bugzapperlabs.myfeeds.data.local.AutoQueuePosition
+import com.bugzapperlabs.myfeeds.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
+import com.bugzapperlabs.myfeeds.data.settings.UNLIMITED_ITEMS_TO_KEEP
+import com.bugzapperlabs.myfeeds.data.settings.itemsToKeepFromSliderPosition
+import com.bugzapperlabs.myfeeds.ui.components.excludeFromSystemGestures
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,14 +136,24 @@ fun FeedPropertiesScreen(
                     .padding(top = 24.dp),
             ) {
                 Text(
-                    text = stringResource(
-                        if (uiState.isPodcastFeed) {
-                            R.string.feed_properties_use_global_max_episodes
-                        } else {
-                            R.string.feed_properties_use_global_max
-                        },
-                        uiState.globalMaxArticles,
-                    ),
+                    text = if (uiState.globalMaxArticles == UNLIMITED_ITEMS_TO_KEEP) {
+                        stringResource(
+                            if (uiState.isPodcastFeed) {
+                                R.string.feed_properties_use_global_max_episodes_unlimited
+                            } else {
+                                R.string.feed_properties_use_global_max_unlimited
+                            },
+                        )
+                    } else {
+                        stringResource(
+                            if (uiState.isPodcastFeed) {
+                                R.string.feed_properties_use_global_max_episodes
+                            } else {
+                                R.string.feed_properties_use_global_max
+                            },
+                            uiState.globalMaxArticles,
+                        )
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Switch(checked = useGlobalMax, onCheckedChange = null)
@@ -147,21 +161,36 @@ fun FeedPropertiesScreen(
             if (!useGlobalMax) {
                 val itemsToKeep = uiState.itemsToKeep ?: uiState.globalMaxArticles
                 Text(
-                    stringResource(
-                        if (uiState.isPodcastFeed) {
-                            R.string.feed_properties_max_episodes_for_feed
-                        } else {
-                            R.string.feed_properties_max_articles_for_feed
-                        },
-                        itemsToKeep,
-                    ),
+                    if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) {
+                        stringResource(
+                            if (uiState.isPodcastFeed) {
+                                R.string.feed_properties_max_episodes_for_feed_unlimited
+                            } else {
+                                R.string.feed_properties_max_articles_for_feed_unlimited
+                            },
+                        )
+                    } else {
+                        stringResource(
+                            if (uiState.isPodcastFeed) {
+                                R.string.feed_properties_max_episodes_for_feed
+                            } else {
+                                R.string.feed_properties_max_articles_for_feed
+                            },
+                            itemsToKeep,
+                        )
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Slider(
-                    value = itemsToKeep.toFloat(),
-                    onValueChange = { viewModel.setItemsToKeep(it.toInt()) },
-                    valueRange = 5f..100f,
-                    steps = 18,
+                    value = if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) MAX_ARTICLES_SLIDER_UNLIMITED_POSITION else itemsToKeep.toFloat(),
+                    onValueChange = { viewModel.setItemsToKeep(itemsToKeepFromSliderPosition(it)) },
+                    valueRange = 5f..MAX_ARTICLES_SLIDER_UNLIMITED_POSITION,
+                    steps = 19,
+                    // Reserves the slider's own bounds from the system back-gesture swipe (issue
+                    // #302) -- padding away from the edge instead just moved the dead zone rather
+                    // than removing it, since a drag starting right at the old edge position landed
+                    // in blank space instead of on the slider.
+                    modifier = Modifier.excludeFromSystemGestures(),
                 )
             }
 
