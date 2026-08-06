@@ -13,6 +13,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -128,10 +129,11 @@ class PlaybackService : MediaSessionService() {
         // Without an explicit small icon, DefaultMediaNotificationProvider falls back to the
         // app's adaptive launcher icon (android.R.attr.icon), which the system can't flatten
         // into the monochrome silhouette a notification/lock-screen icon needs, so it renders
-        // blank. Reuse the same pre-flattened monochrome icon FeedRefreshWorker already uses for
-        // its notifications. (issue #116)
+        // blank. (issue #116) MyFeedsMediaNotificationProvider also swaps in skip-forward/
+        // skip-backward/cycle-speed buttons in place of the default (non-functional here)
+        // seek-to-next/seek-to-previous actions (issue #293).
         setMediaNotificationProvider(
-            DefaultMediaNotificationProvider.Builder(this).build().apply {
+            MyFeedsMediaNotificationProvider(this).apply {
                 setSmallIcon(R.drawable.ic_notification)
             },
         )
@@ -146,6 +148,19 @@ class PlaybackService : MediaSessionService() {
             .setSessionActivity(sessionActivityIntent)
             .setCallback(mediaSessionCallback)
             .build()
+        updateMediaButtonPreferences()
+    }
+
+    /** Pushes the skip/speed buttons through the session itself, not just the notification
+     *  provider (issue #293) -- see [buildSkipAndSpeedMediaButtonPreferences]'s doc for why both
+     *  are needed. Called again whenever the speed changes so the system media card's speed
+     *  button label stays in sync, mirroring how the notification's own label refreshes on every
+     *  rebuild via [MyFeedsMediaNotificationProvider.getMediaButtons]. */
+    @OptIn(markerClass = [UnstableApi::class])
+    private fun updateMediaButtonPreferences() {
+        mediaSession?.setMediaButtonPreferences(
+            buildSkipAndSpeedMediaButtonPreferences(this, player.playbackParameters.speed),
+        )
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
@@ -171,8 +186,23 @@ class PlaybackService : MediaSessionService() {
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
             val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
                 .add(SessionCommand(CUSTOM_COMMAND_SET_VOLUME_BOOST, Bundle.EMPTY))
+                .add(SessionCommand(CUSTOM_COMMAND_SKIP_FORWARD, Bundle.EMPTY))
+                .add(SessionCommand(CUSTOM_COMMAND_SKIP_BACKWARD, Bundle.EMPTY))
+                .add(SessionCommand(CUSTOM_COMMAND_CYCLE_SPEED, Bundle.EMPTY))
                 .build()
-            return MediaSession.ConnectionResult.accept(sessionCommands, MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS)
+            // COMMAND_SEEK_TO_PREVIOUS is Media3's generic "restart the current item" command --
+            // distinct from COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM (real playlist navigation, already
+            // unavailable per the class-level comment on MyFeedsMediaNotificationProvider) -- and
+            // it's *always* available since it doesn't need an actual previous item. Left granted,
+            // the system's media notification/lock-screen UI renders it as its own restart-from-0
+            // button alongside our skip-backward-15/skip-forward-30 buttons (issue #293), which is
+            // redundant and confusing. Removing it (and its seek-to-next counterpart, for symmetry)
+            // leaves only our own custom skip buttons as the transport controls.
+            val playerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
+                .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
+                .remove(Player.COMMAND_SEEK_TO_NEXT)
+                .build()
+            return MediaSession.ConnectionResult.accept(sessionCommands, playerCommands)
         }
 
         // Bluetooth remotes vary in which key codes their forward/back buttons actually send --
@@ -211,11 +241,35 @@ class PlaybackService : MediaSessionService() {
             customCommand: SessionCommand,
             args: Bundle,
         ): ListenableFuture<SessionResult> {
-            if (customCommand.customAction == CUSTOM_COMMAND_SET_VOLUME_BOOST) {
-                applyVolumeBoost(args.getInt(EXTRA_VOLUME_BOOST_MILLIBELS, 0))
-                return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+            when (customCommand.customAction) {
+                CUSTOM_COMMAND_SET_VOLUME_BOOST -> {
+                    applyVolumeBoost(args.getInt(EXTRA_VOLUME_BOOST_MILLIBELS, 0))
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+                // The notification's own skip-forward/skip-backward buttons (issue #293), using the
+                // same fixed seek amounts as onMediaButtonEvent above and PlaybackController's
+                // skipForward()/skipBackward(), since the standard seek-to-next/previous player
+                // commands don't apply here (see the class-level comment on
+                // MyFeedsMediaNotificationProvider).
+                CUSTOM_COMMAND_SKIP_FORWARD -> {
+                    player.seekTo((player.currentPosition + SKIP_FORWARD_MS).coerceAtMost(player.duration.coerceAtLeast(0)))
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+                CUSTOM_COMMAND_SKIP_BACKWARD -> {
+                    player.seekTo((player.currentPosition - SKIP_BACKWARD_MS).coerceAtLeast(0))
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+                // Cycles through the same speed presets as the in-app player's speed control
+                // (issue #293), wrapping back to the first once the last preset is passed.
+                CUSTOM_COMMAND_CYCLE_SPEED -> {
+                    val currentSpeed = player.playbackParameters.speed
+                    val currentIndex = NOTIFICATION_PLAYBACK_SPEEDS.indexOfFirst { (it - currentSpeed).let { d -> d < 0.01f && d > -0.01f } }
+                    val nextSpeed = NOTIFICATION_PLAYBACK_SPEEDS[(currentIndex + 1).mod(NOTIFICATION_PLAYBACK_SPEEDS.size)]
+                    player.setPlaybackSpeed(nextSpeed)
+                    return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+                else -> return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
             }
-            return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
         }
     }
 
@@ -223,6 +277,13 @@ class PlaybackService : MediaSessionService() {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             val millibels = mediaItem?.mediaMetadata?.extras?.getInt(VOLUME_BOOST_EXTRA_KEY, 0) ?: 0
             applyVolumeBoost(millibels)
+        }
+
+        // Keeps the media button preferences' speed-cycle button label in sync (issue #293),
+        // covering both CUSTOM_COMMAND_CYCLE_SPEED presses and a new episode loading at its feed's
+        // configured default speed.
+        override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+            updateMediaButtonPreferences()
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {

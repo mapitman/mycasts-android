@@ -39,6 +39,20 @@ const val CUSTOM_COMMAND_SET_VOLUME_BOOST = "com.bugzapperlabs.myfeeds.SET_VOLUM
 /** Bundle key for the millibel value sent with [CUSTOM_COMMAND_SET_VOLUME_BOOST]. */
 const val EXTRA_VOLUME_BOOST_MILLIBELS = "millibels"
 
+/** Custom [androidx.media3.session.SessionCommand]s backing the media notification's
+ *  skip-forward/skip-backward/cycle-speed buttons (issue #293). Standard seek-to-next/previous
+ *  player commands don't apply here since Next Up is managed externally rather than through
+ *  ExoPlayer's own timeline (issue #179), so [PlaybackService] can't rely on Media3's default
+ *  notification actions for them and instead handles these directly in its session callback,
+ *  the same way [CUSTOM_COMMAND_SET_VOLUME_BOOST] is handled. */
+const val CUSTOM_COMMAND_SKIP_FORWARD = "com.bugzapperlabs.myfeeds.SKIP_FORWARD"
+const val CUSTOM_COMMAND_SKIP_BACKWARD = "com.bugzapperlabs.myfeeds.SKIP_BACKWARD"
+const val CUSTOM_COMMAND_CYCLE_SPEED = "com.bugzapperlabs.myfeeds.CYCLE_SPEED"
+
+/** Speeds cycled by the notification's speed button (issue #293), matching [PLAYBACK_SPEEDS] in
+ *  MiniPlayerBar/ReaderScreen so the notification offers the same presets as the in-app player. */
+val NOTIFICATION_PLAYBACK_SPEEDS = listOf(1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+
 /**
  * Resolves a [FeedItem] into playable Media3 pieces, shared by [PlaybackController] (playback
  * requests from the UI) and [PlaybackService] (issue #179: auto-advancing to the next Next Up

@@ -26,6 +26,7 @@
     <string name="cd_rewind">Indietro di 15 secondi</string>
     <string name="cd_forward">Avanti di 30 secondi</string>
     <string name="cd_volume_boost">Aumento del volume</string>
+    <string name="notification_cd_speed">Velocità di riproduzione: %1$s</string>
     <string name="cd_previous_chapter">Capitolo precedente</string>
     <string name="cd_next_chapter">Capitolo successivo</string>
     <string name="cd_pause">Pausa</string>

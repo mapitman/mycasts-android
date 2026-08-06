@@ -26,6 +26,7 @@
     <string name="cd_rewind">15 Sekunden zurückspulen</string>
     <string name="cd_forward">30 Sekunden vorspulen</string>
     <string name="cd_volume_boost">Lautstärkeverstärkung</string>
+    <string name="notification_cd_speed">Wiedergabegeschwindigkeit: %1$s</string>
     <string name="cd_previous_chapter">Vorheriges Kapitel</string>
     <string name="cd_next_chapter">Nächstes Kapitel</string>
     <string name="cd_pause">Pause</string>

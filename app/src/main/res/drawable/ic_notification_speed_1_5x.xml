@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification speed-cycle button icon showing the 1.5x preset as baked-in text
+     (issue #293), matching the style of Media3's own built-in numbered skip icons
+     (ICON_SKIP_BACK_15/ICON_SKIP_FORWARD_30). Glyph outlines extracted from DejaVu Sans Bold via
+     fontTools rather than hand-drawn, since VectorDrawable has no <text> element; ½ (U+00BD) keeps this to 2 glyphs instead of spelling out ".5" -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48.3dp"
+    android:height="24dp"
+    android:viewportWidth="48.3"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M2.88,17.928L6.96,17.928L6.96,6.348L2.772,7.212L2.772,4.068L6.936,3.204L11.328,3.204L11.328,17.928L15.408,17.928L15.408,21.12L2.88,21.12Z M25.908,21.468L23.22,21.468L34.428,2.88L37.116,2.88ZM36.912,19.104L41.352,19.104L41.352,21.12L33.276,21.12L33.276,19.284L37.032,16.092Q37.764,15.456 38.076,14.976Q38.388,14.496 38.388,14.016Q38.388,13.416 37.95,13.044Q37.512,12.672 36.804,12.672Q36.06,12.672 35.208,12.942Q34.356,13.212 33.348,13.776L33.348,11.544Q34.392,11.22 35.37,11.058Q36.348,10.896 37.248,10.896Q39.144,10.896 40.224,11.67Q41.304,12.444 41.304,13.776Q41.304,14.64 40.878,15.366Q40.452,16.092 39.24,17.124ZM18.516,11.22L21,11.22L21,4.968L18.3,5.592L18.3,3.672L21.048,3.084L23.76,3.084L23.76,11.22L26.208,11.22L26.208,13.104L18.516,13.104Z" />
+</vector>
