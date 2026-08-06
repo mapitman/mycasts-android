@@ -175,6 +175,13 @@
     <string name="add_feed_search_add_button">Añadir</string>
     <string name="add_feed_podcast_search_hint">Añade una clave de API gratuita de podcastindex.org para obtener mejores resultados de búsqueda.</string>
 
+    <!-- Podcast details (issue #300) -->
+    <string name="podcast_details_title">Podcast</string>
+    <string name="podcast_details_subscribe_button">Suscribirse</string>
+    <string name="podcast_details_visit_website">Visitar sitio web</string>
+    <string name="podcast_details_episodes_heading">Episodios recientes</string>
+    <string name="podcast_details_no_episodes">No se encontraron episodios</string>
+
     <!-- Feed properties -->
     <string name="feed_properties_title">Propiedades de la fuente</string>
     <string name="feed_properties_title_label">Título</string>

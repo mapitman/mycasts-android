@@ -61,6 +61,7 @@ fun AddFeedScreen(
     onDone: () -> Unit = {},
     onBack: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onPodcastClick: (PodcastSearchResult) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -166,6 +167,7 @@ fun AddFeedScreen(
                                 entry = entry,
                                 enabled = uiState !is AddFeedUiState.Loading,
                                 onAdd = { viewModel.addFromDirectory(entry) },
+                                onClick = { onPodcastClick(entry) },
                             )
                         }
                     }
@@ -265,9 +267,12 @@ fun AddFeedScreen(
 }
 
 @Composable
-private fun PodcastSearchResultRow(entry: PodcastSearchResult, enabled: Boolean, onAdd: () -> Unit) {
+private fun PodcastSearchResultRow(entry: PodcastSearchResult, enabled: Boolean, onAdd: () -> Unit, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
