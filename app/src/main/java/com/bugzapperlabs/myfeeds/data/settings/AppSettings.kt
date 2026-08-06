@@ -1,5 +1,20 @@
 package com.bugzapperlabs.myfeeds.data.settings
 
+/** Sentinel for [AppSettings.maxArticles] / [com.bugzapperlabs.myfeeds.data.local.Feed.itemsToKeep]
+ *  meaning "keep every item, never trim" (issue #302) -- outside the sliders' normal 5..100 range,
+ *  so it can't collide with a real user-chosen count. */
+const val UNLIMITED_ITEMS_TO_KEEP = 0
+
+/** The max-items sliders (Settings, Feed Properties) put "unlimited" past the numeric range,
+ *  at the right/max end where a bigger number is expected to live, rather than at the left/min
+ *  end where [UNLIMITED_ITEMS_TO_KEEP]'s own value of 0 would otherwise place it (issue #302). */
+const val MAX_ARTICLES_SLIDER_UNLIMITED_POSITION = 105f
+
+/** Maps a max-items slider's raw thumb position back to the value to store -- the top position
+ *  ([MAX_ARTICLES_SLIDER_UNLIMITED_POSITION]) means unlimited, everything else is a literal count. */
+fun itemsToKeepFromSliderPosition(position: Float): Int =
+    if (position >= MAX_ARTICLES_SLIDER_UNLIMITED_POSITION) UNLIMITED_ITEMS_TO_KEEP else position.toInt()
+
 /**
  * Ported from SettingsViewModel.cs. Dropped fields with no Android equivalent in this plan:
  * Instapaper username/password (Instapaper integration dropped, see port plan), and

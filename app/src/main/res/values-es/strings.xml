@@ -105,6 +105,7 @@
     <string name="settings_update_interval">Intervalo de actualización: %1$d min</string>
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_articles_per_feed">Máximo de elementos por fuente: %1$d</string>
+    <string name="settings_max_articles_per_feed_unlimited">Máximo de elementos por fuente: Todos</string>
     <string name="settings_feed_refresh_concurrency">Fuentes actualizadas a la vez: %1$d</string>
     <string name="settings_article_font_size">Tamaño de fuente de lectura</string>
     <string name="settings_article_list_font_size">Tamaño de fuente de la lista</string>
@@ -189,9 +190,13 @@
     <string name="feed_properties_url_label">URL del feed (toca para copiar)</string>
     <string name="feed_properties_url_copied">URL del feed copiada al portapapeles</string>
     <string name="feed_properties_use_global_max">Usar el ajuste global de máximo de artículos (%1$d)</string>
+    <string name="feed_properties_use_global_max_unlimited">Usar el ajuste global de máximo de artículos (Todos)</string>
     <string name="feed_properties_use_global_max_episodes">Usar el ajuste global de máximo de episodios (%1$d)</string>
+    <string name="feed_properties_use_global_max_episodes_unlimited">Usar el ajuste global de máximo de episodios (Todos)</string>
     <string name="feed_properties_max_articles_for_feed">Máximo de artículos para esta fuente: %1$d</string>
+    <string name="feed_properties_max_articles_for_feed_unlimited">Máximo de artículos para esta fuente: Todos</string>
     <string name="feed_properties_max_episodes_for_feed">Máximo de episodios para esta fuente: %1$d</string>
+    <string name="feed_properties_max_episodes_for_feed_unlimited">Máximo de episodios para esta fuente: Todos</string>
     <string name="feed_properties_auto_download">Descargar automáticamente episodios nuevos</string>
     <string name="feed_properties_max_downloads_to_keep">Máx. episodios descargados para esta fuente</string>
     <string name="feed_properties_auto_queue">Añadir automáticamente episodios nuevos a la cola</string>

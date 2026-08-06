@@ -109,6 +109,7 @@
     <string name="settings_update_interval">Update interval: %1$d min</string>
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_articles_per_feed">Max items per feed: %1$d</string>
+    <string name="settings_max_articles_per_feed_unlimited">Max items per feed: All</string>
     <string name="settings_feed_refresh_concurrency">Feeds refreshed at once: %1$d</string>
     <string name="settings_article_font_size">Reader font size</string>
     <string name="settings_article_list_font_size">List font size</string>
@@ -193,9 +194,13 @@
     <string name="feed_properties_url_label">Feed URL (tap to copy)</string>
     <string name="feed_properties_url_copied">Feed URL copied to clipboard</string>
     <string name="feed_properties_use_global_max">Use global max articles setting (%1$d)</string>
+    <string name="feed_properties_use_global_max_unlimited">Use global max articles setting (All)</string>
     <string name="feed_properties_use_global_max_episodes">Use global max episodes setting (%1$d)</string>
+    <string name="feed_properties_use_global_max_episodes_unlimited">Use global max episodes setting (All)</string>
     <string name="feed_properties_max_articles_for_feed">Max articles for this feed: %1$d</string>
+    <string name="feed_properties_max_articles_for_feed_unlimited">Max articles for this feed: All</string>
     <string name="feed_properties_max_episodes_for_feed">Max episodes for this feed: %1$d</string>
+    <string name="feed_properties_max_episodes_for_feed_unlimited">Max episodes for this feed: All</string>
     <string name="feed_properties_auto_download">Auto-download new episodes</string>
     <string name="feed_properties_max_downloads_to_keep">Max downloaded episodes to keep for this feed</string>
     <string name="feed_properties_auto_queue">Automatically add new episodes to queue</string>

@@ -105,6 +105,7 @@
     <string name="settings_update_interval">Aktualisierungsintervall: %1$d Min.</string>
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_articles_per_feed">Max. Elemente pro Feed: %1$d</string>
+    <string name="settings_max_articles_per_feed_unlimited">Max. Elemente pro Feed: Alle</string>
     <string name="settings_feed_refresh_concurrency">Gleichzeitig aktualisierte Feeds: %1$d</string>
     <string name="settings_article_font_size">Schriftgröße des Lesebereichs</string>
     <string name="settings_article_list_font_size">Schriftgröße der Liste</string>
@@ -189,9 +190,13 @@
     <string name="feed_properties_url_label">Feed-URL (zum Kopieren tippen)</string>
     <string name="feed_properties_url_copied">Feed-URL in die Zwischenablage kopiert</string>
     <string name="feed_properties_use_global_max">Globale Einstellung für maximale Artikel verwenden (%1$d)</string>
+    <string name="feed_properties_use_global_max_unlimited">Globale Einstellung für maximale Artikel verwenden (Alle)</string>
     <string name="feed_properties_use_global_max_episodes">Globale Einstellung für maximale Episoden verwenden (%1$d)</string>
+    <string name="feed_properties_use_global_max_episodes_unlimited">Globale Einstellung für maximale Episoden verwenden (Alle)</string>
     <string name="feed_properties_max_articles_for_feed">Max. Artikel für diesen Feed: %1$d</string>
+    <string name="feed_properties_max_articles_for_feed_unlimited">Max. Artikel für diesen Feed: Alle</string>
     <string name="feed_properties_max_episodes_for_feed">Max. Episoden für diesen Feed: %1$d</string>
+    <string name="feed_properties_max_episodes_for_feed_unlimited">Max. Episoden für diesen Feed: Alle</string>
     <string name="feed_properties_auto_download">Neue Episoden automatisch herunterladen</string>
     <string name="feed_properties_max_downloads_to_keep">Max. heruntergeladene Episoden für diesen Feed</string>
     <string name="feed_properties_auto_queue">Neue Episoden automatisch zur Warteschlange hinzufügen</string>

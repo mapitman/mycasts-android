@@ -64,6 +64,10 @@ import com.bugzapperlabs.myfeeds.BuildConfig
 import com.bugzapperlabs.myfeeds.R
 import com.bugzapperlabs.myfeeds.data.settings.AppSettings
 import com.bugzapperlabs.myfeeds.data.settings.FontSize
+import com.bugzapperlabs.myfeeds.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
+import com.bugzapperlabs.myfeeds.data.settings.UNLIMITED_ITEMS_TO_KEEP
+import com.bugzapperlabs.myfeeds.data.settings.itemsToKeepFromSliderPosition
+import com.bugzapperlabs.myfeeds.ui.components.excludeFromSystemGestures
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -239,14 +243,23 @@ private fun UpdateIntervalSetting(settings: AppSettings, viewModel: SettingsView
 private fun MaxArticlesSetting(settings: AppSettings, viewModel: SettingsViewModel) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text(
-            stringResource(R.string.settings_max_articles_per_feed, settings.maxArticles),
+            if (settings.maxArticles == UNLIMITED_ITEMS_TO_KEEP) {
+                stringResource(R.string.settings_max_articles_per_feed_unlimited)
+            } else {
+                stringResource(R.string.settings_max_articles_per_feed, settings.maxArticles)
+            },
             style = MaterialTheme.typography.bodyLarge,
         )
         Slider(
-            value = settings.maxArticles.toFloat(),
-            onValueChange = { viewModel.setMaxArticles(it.toInt()) },
-            valueRange = 5f..100f,
-            steps = 18,
+            value = if (settings.maxArticles == UNLIMITED_ITEMS_TO_KEEP) MAX_ARTICLES_SLIDER_UNLIMITED_POSITION else settings.maxArticles.toFloat(),
+            onValueChange = { viewModel.setMaxArticles(itemsToKeepFromSliderPosition(it)) },
+            valueRange = 5f..MAX_ARTICLES_SLIDER_UNLIMITED_POSITION,
+            steps = 19,
+            // Reserves the slider's own bounds from the system back-gesture swipe (issue #302) --
+            // padding away from the edge instead just moved the dead zone rather than removing it,
+            // since a drag starting right at the old edge position landed in blank space instead of
+            // on the slider.
+            modifier = Modifier.excludeFromSystemGestures(),
         )
     }
 }

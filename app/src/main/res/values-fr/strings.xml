@@ -105,6 +105,7 @@
     <string name="settings_update_interval">Intervalle de mise à jour : %1$d min</string>
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_articles_per_feed">Éléments max. par flux : %1$d</string>
+    <string name="settings_max_articles_per_feed_unlimited">Éléments max. par flux : Tous</string>
     <string name="settings_feed_refresh_concurrency">Flux actualisés simultanément : %1$d</string>
     <string name="settings_article_font_size">Taille de police de lecture</string>
     <string name="settings_article_list_font_size">Taille de police de la liste</string>
@@ -189,9 +190,13 @@
     <string name="feed_properties_url_label">URL du flux (appuyer pour copier)</string>
     <string name="feed_properties_url_copied">URL du flux copiée dans le presse-papiers</string>
     <string name="feed_properties_use_global_max">Utiliser le réglage global du nombre max. d\'articles (%1$d)</string>
+    <string name="feed_properties_use_global_max_unlimited">Utiliser le réglage global du nombre max. d\'articles (Tous)</string>
     <string name="feed_properties_use_global_max_episodes">Utiliser le réglage global du nombre max. d\'épisodes (%1$d)</string>
+    <string name="feed_properties_use_global_max_episodes_unlimited">Utiliser le réglage global du nombre max. d\'épisodes (Tous)</string>
     <string name="feed_properties_max_articles_for_feed">Articles max. pour ce flux : %1$d</string>
+    <string name="feed_properties_max_articles_for_feed_unlimited">Articles max. pour ce flux : Tous</string>
     <string name="feed_properties_max_episodes_for_feed">Épisodes max. pour ce flux : %1$d</string>
+    <string name="feed_properties_max_episodes_for_feed_unlimited">Épisodes max. pour ce flux : Tous</string>
     <string name="feed_properties_auto_download">Téléchargement automatique des nouveaux épisodes</string>
     <string name="feed_properties_max_downloads_to_keep">Nb. max. d\'épisodes téléchargés pour ce flux</string>
     <string name="feed_properties_auto_queue">Ajouter automatiquement les nouveaux épisodes à la file d\'attente</string>

@@ -6,6 +6,7 @@ import com.bugzapperlabs.myfeeds.data.local.AppDatabase
 import com.bugzapperlabs.myfeeds.data.local.Feed
 import com.bugzapperlabs.myfeeds.data.local.FeedItem
 import com.bugzapperlabs.myfeeds.data.local.QueueEntry
+import com.bugzapperlabs.myfeeds.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -200,6 +201,40 @@ class FeedRepositoryTest {
 
         assertEquals(listOf("oldest"), evicted.map { it.id })
         assertEquals(listOf("newest"), repository.observeItems(feedId).first().map { it.id })
+    }
+
+    @Test
+    fun trimToItemsToKeep_perFeedUnlimited_keepsEverything() = runTest {
+        // issue #302: UNLIMITED_ITEMS_TO_KEEP (0) means "never trim" -- naively passing 0 to
+        // List.drop() would evict everything instead, so this guards the fix stays in place.
+        val feedId = repository.subscribe(Feed(title = "A Feed", itemsToKeep = UNLIMITED_ITEMS_TO_KEEP))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "oldest", feedId = feedId, itemGuid = "g1", publishDate = 1L),
+                FeedItem(id = "newest", feedId = feedId, itemGuid = "g2", publishDate = 2L),
+            ),
+        )
+
+        val evicted = repository.trimToItemsToKeep(feedId, defaultItemsToKeep = 1)
+
+        assertEquals(emptyList<String>(), evicted.map { it.id })
+        assertEquals(2, repository.observeItems(feedId).first().size)
+    }
+
+    @Test
+    fun trimToItemsToKeep_globalDefaultUnlimited_keepsEverything() = runTest {
+        val feedId = repository.subscribe(Feed(title = "A Feed", itemsToKeep = null))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "oldest", feedId = feedId, itemGuid = "g1", publishDate = 1L),
+                FeedItem(id = "newest", feedId = feedId, itemGuid = "g2", publishDate = 2L),
+            ),
+        )
+
+        val evicted = repository.trimToItemsToKeep(feedId, defaultItemsToKeep = UNLIMITED_ITEMS_TO_KEEP)
+
+        assertEquals(emptyList<String>(), evicted.map { it.id })
+        assertEquals(2, repository.observeItems(feedId).first().size)
     }
 
     @Test
