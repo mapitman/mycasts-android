@@ -9,6 +9,7 @@ import com.bugzapperlabs.myfeeds.R
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateResult
 import com.bugzapperlabs.myfeeds.data.local.FeedItem
+import com.bugzapperlabs.myfeeds.data.local.isPodcastEpisode
 import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
 import com.bugzapperlabs.myfeeds.data.repository.QueueRepository
 import com.bugzapperlabs.myfeeds.data.settings.FontSize
@@ -35,6 +36,15 @@ data class FeedRiverUiState(
     val isRefreshing: Boolean = false,
 ) {
     val isSelectionMode: Boolean get() = selectedIds.isNotEmpty()
+
+    /** Whether the bulk "add to queue" toolbar action should be enabled (issue #286) -- only when
+     *  every selected article is a podcast episode. Unlike [com.bugzapperlabs.myfeeds.articlelist.ArticleListViewModel]'s
+     *  equivalent, which silently filters the selection down to just the episodes instead, a River
+     *  selection spans every non-podcast feed at once and so is much more likely to mix plain
+     *  articles and audio episodes -- disabling instead of filtering keeps the button's effect
+     *  from silently diverging from what the user thinks they selected. */
+    val canAddSelectedToQueue: Boolean
+        get() = selectedIds.isNotEmpty() && articles.filter { it.id in selectedIds }.all { it.isPodcastEpisode }
 }
 
 /**
@@ -152,6 +162,23 @@ class FeedRiverViewModel @Inject constructor(
         viewModelScope.launch {
             val items = uiState.value.articles.filter { it.id in ids }
             feedRepository.deleteItems(items)
+            clearSelection()
+        }
+    }
+
+    /** Only ever invoked with an all-podcast-episode selection (issue #286) -- the toolbar button
+     *  that triggers this is disabled otherwise (see [FeedRiverUiState.canAddSelectedToQueue]), so
+     *  unlike [com.bugzapperlabs.myfeeds.articlelist.ArticleListViewModel.addSelectedToQueue] this
+     *  doesn't need to filter the selection itself. */
+    fun addSelectedToQueue() {
+        val ids = selectedIds.value
+        viewModelScope.launch {
+            val addedCount = ids.count { queueRepository.addToEnd(it) }
+            _queueFeedback.value = when (addedCount) {
+                0 -> context.getString(R.string.queue_feedback_already_queued)
+                1 -> context.getString(R.string.queue_feedback_added)
+                else -> context.getString(R.string.queue_feedback_added_multiple, addedCount)
+            }
             clearSelection()
         }
     }
