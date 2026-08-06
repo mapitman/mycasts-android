@@ -81,6 +81,10 @@
     <string name="downloads_title">Descargas</string>
     <string name="downloads_empty">Sin descargas</string>
     <string name="downloads_item_subtitle">%1$s • %2$s</string>
+    <string name="unit_bytes">B</string>
+    <string name="unit_kilobytes">KB</string>
+    <string name="unit_megabytes">MB</string>
+    <string name="unit_gigabytes">GB</string>
 
     <!-- Reader -->
     <string name="reader_no_content_to_show">No hay contenido que mostrar</string>

@@ -36,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.myfeeds.R
 import com.bugzapperlabs.myfeeds.data.local.FeedItem
 import com.bugzapperlabs.myfeeds.ui.components.ConfirmDeleteDialog
+import java.util.Locale
 import kotlin.math.log10
 import kotlin.math.pow
 
@@ -131,9 +132,15 @@ private fun DownloadedEpisodeRow(episode: DownloadedEpisodeUiState, onDelete: ()
     }
 }
 
+@Composable
 private fun formatBytes(bytes: Long): String {
-    if (bytes <= 0) return "0 B"
-    val units = arrayOf("B", "KB", "MB", "GB")
+    val units = listOf(
+        stringResource(R.string.unit_bytes),
+        stringResource(R.string.unit_kilobytes),
+        stringResource(R.string.unit_megabytes),
+        stringResource(R.string.unit_gigabytes),
+    )
+    if (bytes <= 0) return "0 ${units[0]}"
     val digitGroups = (log10(bytes.toDouble()) / log10(1024.0)).toInt().coerceIn(0, units.size - 1)
-    return "%.1f %s".format(bytes / 1024.0.pow(digitGroups), units[digitGroups])
+    return String.format(Locale.getDefault(), "%.1f %s", bytes / 1024.0.pow(digitGroups), units[digitGroups])
 }
