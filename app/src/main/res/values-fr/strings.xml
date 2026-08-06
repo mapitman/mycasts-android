@@ -120,6 +120,11 @@
     <string name="battery_optimization_prompt_title">Garder une lecture fiable des épisodes ?</string>
     <string name="battery_optimization_prompt_message">Pour un passage automatique fiable à l\'épisode suivant écran éteint, autorisez MyFeeds à fonctionner sans restriction de batterie. Vous pourrez modifier cela plus tard dans les paramètres.</string>
     <string name="battery_optimization_prompt_allow">Autoriser</string>
+    <string name="settings_section_podcast_search">Recherche de podcasts</string>
+    <string name="settings_podcast_search_description">Saisissez une clé/secret d\'API gratuits de podcastindex.org pour rechercher des podcasts en direct lors de l\'ajout d\'un flux. Si le champ est vide, la recherche revient au répertoire de flux hors ligne.</string>
+    <string name="settings_podcast_search_get_key_button">Obtenir une clé API gratuite</string>
+    <string name="settings_podcast_search_api_key_label">Clé API</string>
+    <string name="settings_podcast_search_api_secret_label">Secret API</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_description">Un lecteur de flux RSS/Atom et client podcast.</string>
     <string name="settings_export_opml">Exporter en OPML</string>
@@ -168,6 +173,7 @@
     <string name="add_feed_search_label">Rechercher par thème ou titre</string>
     <string name="add_feed_search_no_results">Aucun flux trouvé</string>
     <string name="add_feed_search_add_button">Ajouter</string>
+    <string name="add_feed_podcast_search_hint">Ajoutez une clé API gratuite de podcastindex.org pour de meilleurs résultats de recherche.</string>
 
     <!-- Feed properties -->
     <string name="feed_properties_title">Propriétés du flux</string>

@@ -50,7 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.directory.FeedDirectoryEntry
+import com.bugzapperlabs.myfeeds.data.directory.PodcastSearchResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,10 +60,12 @@ fun AddFeedScreen(
     initialUrl: String? = null,
     onDone: () -> Unit = {},
     onBack: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
+    val hasPodcastIndexCredentials by viewModel.hasPodcastIndexCredentials.collectAsState()
     val opmlImportMessage by viewModel.opmlImportMessage.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -124,6 +126,25 @@ fun AddFeedScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             Text(stringResource(R.string.add_feed_search_heading), style = MaterialTheme.typography.titleMedium)
+            if (!hasPodcastIndexCredentials) {
+                // Nudges toward configuring live search (issue #93) -- without a key/secret,
+                // search silently falls back to the bundled offline directory, which is easy to
+                // mistake for "this is all the results there are."
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.add_feed_podcast_search_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onNavigateToSettings) {
+                        Text(stringResource(R.string.settings_title))
+                    }
+                }
+            }
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = viewModel::setSearchQuery,
@@ -141,7 +162,7 @@ fun AddFeedScreen(
                 } else {
                     Column(modifier = Modifier.padding(top = 8.dp)) {
                         searchResults.forEach { entry ->
-                            FeedDirectoryResultRow(
+                            PodcastSearchResultRow(
                                 entry = entry,
                                 enabled = uiState !is AddFeedUiState.Loading,
                                 onAdd = { viewModel.addFromDirectory(entry) },
@@ -244,18 +265,20 @@ fun AddFeedScreen(
 }
 
 @Composable
-private fun FeedDirectoryResultRow(entry: FeedDirectoryEntry, enabled: Boolean, onAdd: () -> Unit) {
+private fun PodcastSearchResultRow(entry: PodcastSearchResult, enabled: Boolean, onAdd: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(entry.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                entry.category,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            if (entry.subtitle.isNotBlank()) {
+                Text(
+                    entry.subtitle,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             if (!entry.description.isNullOrBlank()) {
                 Text(
                     entry.description,

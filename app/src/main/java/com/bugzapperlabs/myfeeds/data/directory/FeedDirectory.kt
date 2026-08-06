@@ -10,25 +10,20 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class FeedDirectoryEntry(
-    val title: String,
-    val xmlUrl: String,
-    val category: String,
-    val description: String?,
-)
-
 /**
  * Local, offline keyword search over a bundled directory of feeds (issue #62): since no free,
- * ToS-compliant API exists anymore for live feed-topic search (see the research on issue #31),
- * this searches a snapshot combined from https://github.com/plenaryapp/awesome-rss-feeds
- * (CC0-licensed) rather than calling out to a server. See assets/feed_directory.opml.
+ * ToS-compliant API existed at the time for live feed-topic search (see the research on issue
+ * #31), this searches a snapshot combined from https://github.com/plenaryapp/awesome-rss-feeds
+ * (CC0-licensed) rather than calling out to a server. See assets/feed_directory.opml. Now one of
+ * two [PodcastSearchProvider] implementations (issue #93) -- [PodcastSearchService] prefers the
+ * live podcastindex.org search when configured and falls back to this one otherwise/on failure.
  */
 @Singleton
-class FeedDirectory @Inject constructor(@ApplicationContext private val context: Context) {
+class FeedDirectory @Inject constructor(@ApplicationContext private val context: Context) : PodcastSearchProvider {
     private val mutex = Mutex()
-    private var entries: List<FeedDirectoryEntry>? = null
+    private var entries: List<PodcastSearchResult>? = null
 
-    suspend fun search(query: String, limit: Int = 50): List<FeedDirectoryEntry> {
+    override suspend fun search(query: String, limit: Int): List<PodcastSearchResult> {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return emptyList()
 
@@ -43,15 +38,15 @@ class FeedDirectory @Inject constructor(@ApplicationContext private val context:
             .toList()
     }
 
-    /** Lower is more relevant: title match ranks above description/category-only matches. */
-    private fun FeedDirectoryEntry.matchScore(needle: String): Int? = when {
+    /** Lower is more relevant: title match ranks above description/category(subtitle)-only matches. */
+    private fun PodcastSearchResult.matchScore(needle: String): Int? = when {
         title.contains(needle, ignoreCase = true) -> 0
         description?.contains(needle, ignoreCase = true) == true -> 1
-        category.contains(needle, ignoreCase = true) -> 2
+        subtitle.contains(needle, ignoreCase = true) -> 2
         else -> null
     }
 
-    private suspend fun loadEntries(): List<FeedDirectoryEntry> {
+    private suspend fun loadEntries(): List<PodcastSearchResult> {
         entries?.let { return it }
         return mutex.withLock {
             entries?.let { return it }
@@ -59,10 +54,10 @@ class FeedDirectory @Inject constructor(@ApplicationContext private val context:
                 context.assets.open(DIRECTORY_ASSET).use { OpmlParser.parse(it) }
                     .folders.flatMap { folder ->
                         folder.feeds.map { feed ->
-                            FeedDirectoryEntry(
+                            PodcastSearchResult(
                                 title = feed.title,
-                                xmlUrl = feed.xmlUrl,
-                                category = folder.name,
+                                feedUrl = feed.xmlUrl,
+                                subtitle = folder.name,
                                 description = feed.description,
                             )
                         }

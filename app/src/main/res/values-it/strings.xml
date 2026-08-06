@@ -120,6 +120,11 @@
     <string name="battery_optimization_prompt_title">Riprodurre gli episodi in modo affidabile?</string>
     <string name="battery_optimization_prompt_message">Per un avanzamento automatico affidabile all\'episodio successivo a schermo spento, consenti a MyFeeds di funzionare senza restrizioni sulla batteria. Potrai modificarlo in seguito nelle Impostazioni.</string>
     <string name="battery_optimization_prompt_allow">Consenti</string>
+    <string name="settings_section_podcast_search">Ricerca podcast</string>
+    <string name="settings_podcast_search_description">Inserisci una chiave/secret API gratuiti di podcastindex.org per cercare podcast online durante l\'aggiunta di un feed. Se lasciato vuoto, la ricerca utilizza la directory dei feed offline.</string>
+    <string name="settings_podcast_search_get_key_button">Ottieni una chiave API gratuita</string>
+    <string name="settings_podcast_search_api_key_label">Chiave API</string>
+    <string name="settings_podcast_search_api_secret_label">Secret API</string>
     <string name="settings_about_version">Versione %1$s</string>
     <string name="settings_about_description">Un lettore di feed RSS/Atom e client per podcast.</string>
     <string name="settings_export_opml">Esporta OPML</string>
@@ -168,6 +173,7 @@
     <string name="add_feed_search_label">Cerca per argomento o titolo</string>
     <string name="add_feed_search_no_results">Nessun feed trovato</string>
     <string name="add_feed_search_add_button">Aggiungi</string>
+    <string name="add_feed_podcast_search_hint">Aggiungi una chiave API gratuita di podcastindex.org per risultati di ricerca migliori.</string>
 
     <!-- Feed properties -->
     <string name="feed_properties_title">Proprietà del feed</string>

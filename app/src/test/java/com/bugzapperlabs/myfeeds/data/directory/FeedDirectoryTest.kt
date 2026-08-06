@@ -14,7 +14,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class FeedDirectoryTest {
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-    private val feedDirectory = FeedDirectory(context)
+    private val feedDirectory: PodcastSearchProvider = FeedDirectory(context)
 
     @Test
     fun search_blankQuery_returnsNoResults() = runTest {
@@ -30,7 +30,7 @@ class FeedDirectoryTest {
         results.forEach { entry ->
             val matches = entry.title.contains("android", ignoreCase = true) ||
                 entry.description?.contains("android", ignoreCase = true) == true ||
-                entry.category.contains("android", ignoreCase = true)
+                entry.subtitle.contains("android", ignoreCase = true)
             assertTrue("expected a match for '${entry.title}'", matches)
         }
     }
@@ -41,8 +41,8 @@ class FeedDirectoryTest {
         val upper = feedDirectory.search("TECH")
         val mixed = feedDirectory.search("TeCh")
 
-        assertEquals(lower.map { it.xmlUrl }, upper.map { it.xmlUrl })
-        assertEquals(lower.map { it.xmlUrl }, mixed.map { it.xmlUrl })
+        assertEquals(lower.map { it.feedUrl }, upper.map { it.feedUrl })
+        assertEquals(lower.map { it.feedUrl }, mixed.map { it.feedUrl })
     }
 
     @Test

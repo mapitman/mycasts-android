@@ -397,6 +397,7 @@ class MainActivity : ComponentActivity() {
                                     initialUrl = backStackEntry.arguments?.getString("sharedUrl"),
                                     onDone = { navController.popBackStack() },
                                     onBack = { navController.popBackStack() },
+                                    onNavigateToSettings = { navController.navigate("settings") },
                                 )
                             }
                             composable(

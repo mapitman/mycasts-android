@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.directory.FeedDirectory
-import com.bugzapperlabs.myfeeds.data.directory.FeedDirectoryEntry
+import com.bugzapperlabs.myfeeds.data.directory.PodcastSearchProvider
+import com.bugzapperlabs.myfeeds.data.directory.PodcastSearchResult
 import com.bugzapperlabs.myfeeds.data.feed.FeedFetchResult
 import com.bugzapperlabs.myfeeds.data.feed.FeedFetcher
 import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
@@ -16,6 +16,7 @@ import com.bugzapperlabs.myfeeds.data.opml.OpmlDocument
 import com.bugzapperlabs.myfeeds.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.myfeeds.data.opml.OpmlParser
 import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
+import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -42,7 +44,8 @@ class AddFeedViewModel @Inject constructor(
     private val feedRepository: FeedRepository,
     private val opmlImportCoordinator: OpmlImportCoordinator,
     private val httpClient: OkHttpClient,
-    private val feedDirectory: FeedDirectory,
+    private val podcastSearchProvider: PodcastSearchProvider,
+    private val settingsDataStore: SettingsDataStore,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<AddFeedUiState>(AddFeedUiState.Idle)
@@ -61,16 +64,23 @@ class AddFeedViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
-    val searchResults: StateFlow<List<FeedDirectoryEntry>> = _searchQuery
+    val searchResults: StateFlow<List<PodcastSearchResult>> = _searchQuery
         .debounce(SEARCH_DEBOUNCE_MS)
         .flatMapLatest { query ->
-            if (query.isBlank()) flowOf(emptyList()) else flowOf(query).mapLatest { feedDirectory.search(it) }
+            if (query.isBlank()) flowOf(emptyList()) else flowOf(query).mapLatest { podcastSearchProvider.search(it) }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
     }
+
+    /** Whether search will use live podcastindex.org results (issue #93) -- surfaced so the
+     *  screen can nudge the user toward Settings when it's still falling back to the offline
+     *  directory. */
+    val hasPodcastIndexCredentials: StateFlow<Boolean> = settingsDataStore.settings
+        .map { !it.podcastIndexApiKey.isNullOrBlank() && !it.podcastIndexApiSecret.isNullOrBlank() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     fun addFeedByUrl(url: String) {
         val trimmedUrl = url.trim()
@@ -85,10 +95,10 @@ class AddFeedViewModel @Inject constructor(
         }
     }
 
-    fun addFromDirectory(entry: FeedDirectoryEntry) {
+    fun addFromDirectory(entry: PodcastSearchResult) {
         viewModelScope.launch {
             _uiState.value = AddFeedUiState.Loading
-            addFeed(entry.xmlUrl)
+            addFeed(entry.feedUrl)
         }
     }
 

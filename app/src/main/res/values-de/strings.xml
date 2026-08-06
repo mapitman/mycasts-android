@@ -120,6 +120,11 @@
     <string name="battery_optimization_prompt_title">Episoden zuverlässig weiterspielen?</string>
     <string name="battery_optimization_prompt_message">Damit Podcasts bei ausgeschaltetem Bildschirm zuverlässig zur nächsten Episode wechseln, erlaube MyFeeds den Betrieb ohne Akku-Einschränkungen. Du kannst dies später in den Einstellungen ändern.</string>
     <string name="battery_optimization_prompt_allow">Erlauben</string>
+    <string name="settings_section_podcast_search">Podcast-Suche</string>
+    <string name="settings_podcast_search_description">Geben Sie einen kostenlosen podcastindex.org-API-Schlüssel/-Secret ein, um beim Hinzufügen eines Feeds live nach Podcasts zu suchen. Bleibt das Feld leer, greift die Suche auf das Offline-Feed-Verzeichnis zurück.</string>
+    <string name="settings_podcast_search_get_key_button">Kostenlosen API-Schlüssel anfordern</string>
+    <string name="settings_podcast_search_api_key_label">API-Schlüssel</string>
+    <string name="settings_podcast_search_api_secret_label">API-Secret</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_description">Ein RSS/Atom-Feedreader und Podcast-Client.</string>
     <string name="settings_export_opml">OPML exportieren</string>
@@ -168,6 +173,7 @@
     <string name="add_feed_search_label">Nach Thema oder Titel suchen</string>
     <string name="add_feed_search_no_results">Keine Feeds gefunden</string>
     <string name="add_feed_search_add_button">Hinzufügen</string>
+    <string name="add_feed_podcast_search_hint">Fügen Sie einen kostenlosen podcastindex.org-API-Schlüssel für bessere Suchergebnisse hinzu.</string>
 
     <!-- Feed properties -->
     <string name="feed_properties_title">Feedeigenschaften</string>

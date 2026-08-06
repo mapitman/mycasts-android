@@ -98,6 +98,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setNotifyOnNewItems(value) }
     }
 
+    fun setPodcastIndexApiKey(key: String) {
+        viewModelScope.launch { settingsDataStore.setPodcastIndexApiKey(key) }
+    }
+
+    fun setPodcastIndexApiSecret(secret: String) {
+        viewModelScope.launch { settingsDataStore.setPodcastIndexApiSecret(secret) }
+    }
+
     fun clearPodcasts() {
         viewModelScope.launch { feedRepository.clearAllEnclosurePositions() }
     }

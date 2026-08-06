@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Snackbar
@@ -157,6 +158,10 @@ fun SettingsScreen(
                 viewModel::setAutoDeleteFinishedDownloads,
             )
             BatteryOptimizationSetting()
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            SectionHeader(stringResource(R.string.settings_section_podcast_search))
+            PodcastSearchSetting(settings, viewModel)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_actions))
@@ -317,6 +322,67 @@ private fun BatteryOptimizationSetting() {
                 Text(stringResource(R.string.settings_battery_optimization_button))
             }
         }
+    }
+}
+
+/** Free API credentials for live podcast search via podcastindex.org (issue #93) -- search
+ *  silently falls back to the offline directory when either field is blank, see
+ *  [com.bugzapperlabs.myfeeds.data.directory.PodcastSearchService]. Local text-field state tracks
+ *  whether the user has actually edited it: until they do, it keeps re-syncing from [settings]
+ *  (a [SharingStarted.WhileSubscribed] StateFlow can briefly show the empty default here on
+ *  re-navigation, before the real persisted value finishes loading from DataStore -- syncing only
+ *  pre-edit means that catches up instead of leaving the field stuck on the stale default). Once
+ *  the user types, local edits win outright so a DataStore write round trip doesn't fight typing. */
+@Composable
+private fun PodcastSearchSetting(settings: AppSettings, viewModel: SettingsViewModel) {
+    val context = LocalContext.current
+    var apiKey by remember { mutableStateOf(settings.podcastIndexApiKey.orEmpty()) }
+    var apiSecret by remember { mutableStateOf(settings.podcastIndexApiSecret.orEmpty()) }
+    var apiKeyEdited by remember { mutableStateOf(false) }
+    var apiSecretEdited by remember { mutableStateOf(false) }
+
+    LaunchedEffect(settings.podcastIndexApiKey) {
+        if (!apiKeyEdited) apiKey = settings.podcastIndexApiKey.orEmpty()
+    }
+    LaunchedEffect(settings.podcastIndexApiSecret) {
+        if (!apiSecretEdited) apiSecret = settings.podcastIndexApiSecret.orEmpty()
+    }
+
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Text(
+            stringResource(R.string.settings_podcast_search_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        OutlinedButton(
+            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://podcastindex.org/signup"))) },
+            modifier = Modifier.padding(bottom = 8.dp),
+        ) {
+            Text(stringResource(R.string.settings_podcast_search_get_key_button))
+        }
+        OutlinedTextField(
+            value = apiKey,
+            onValueChange = {
+                apiKey = it
+                apiKeyEdited = true
+                viewModel.setPodcastIndexApiKey(it)
+            },
+            label = { Text(stringResource(R.string.settings_podcast_search_api_key_label)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        )
+        OutlinedTextField(
+            value = apiSecret,
+            onValueChange = {
+                apiSecret = it
+                apiSecretEdited = true
+                viewModel.setPodcastIndexApiSecret(it)
+            },
+            label = { Text(stringResource(R.string.settings_podcast_search_api_secret_label)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        )
     }
 }
 

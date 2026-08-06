@@ -31,4 +31,10 @@ data class AppSettings(
      *  shown -- shown at most once regardless of the user's choice, since it's a system dialog
      *  they can always revisit from Settings if they change their mind. */
     val batteryOptimizationPromptShown: Boolean = false,
+    /** Free API credentials for live podcast search via podcastindex.org (issue #93), registered
+     *  by the user themselves -- there's no ToS-compliant way to bundle a single shared key in an
+     *  open-source app. Search silently falls back to the offline directory when either is unset,
+     *  see [com.bugzapperlabs.myfeeds.data.directory.PodcastSearchService]. */
+    val podcastIndexApiKey: String? = null,
+    val podcastIndexApiSecret: String? = null,
 )
