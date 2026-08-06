@@ -67,6 +67,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
 import com.bugzapperlabs.myfeeds.addfeed.AddFeedScreen
+import com.bugzapperlabs.myfeeds.podcastdetails.PodcastDetailsScreen
 import com.bugzapperlabs.myfeeds.articlelist.ArticleListScreen
 import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
 import com.bugzapperlabs.myfeeds.downloads.DownloadsScreen
@@ -398,6 +399,30 @@ class MainActivity : ComponentActivity() {
                                     onDone = { navController.popBackStack() },
                                     onBack = { navController.popBackStack() },
                                     onNavigateToSettings = { navController.navigate("settings") },
+                                    onPodcastClick = { entry ->
+                                        navController.navigate(
+                                            "podcastDetails?feedUrl=${Uri.encode(entry.feedUrl)}&title=${Uri.encode(entry.title)}",
+                                        )
+                                    },
+                                )
+                            }
+                            composable(
+                                "podcastDetails?feedUrl={feedUrl}&title={title}",
+                                arguments = listOf(
+                                    navArgument("feedUrl") { type = NavType.StringType },
+                                    navArgument("title") {
+                                        type = NavType.StringType
+                                        nullable = true
+                                        defaultValue = null
+                                    },
+                                ),
+                            ) {
+                                // Subscribing pops both this screen and the add-feed search screen
+                                // beneath it (issue #300) rather than leaving the user on a details
+                                // page for a podcast they already left behind.
+                                PodcastDetailsScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onDone = { navController.popBackStack("feedList", inclusive = false) },
                                 )
                             }
                             composable(
