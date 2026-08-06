@@ -134,7 +134,11 @@ class FeedListViewModelTest {
             ),
         )
 
-        val state = viewModel.uiState.first { it.sections.any { section -> section.feeds.isNotEmpty() } }
+        // Waits for *both* feeds to have landed, not just one section going non-empty (issue
+        // #261) -- Room delivers each subscribed feed's Flow update from its own background
+        // invalidation-tracker thread, so the two sections can populate at different times and
+        // `.any { isNotEmpty }` can return on that partial, still-settling state.
+        val state = viewModel.uiState.first { it.sections.sumOf { section -> section.feeds.size } == 2 }
 
         val podcastsSection = state.sections.first { it.section == FeedListSection.PODCASTS }
         assertEquals(listOf(podcastFeedId), podcastsSection.feeds.map { it.feed.id })
@@ -203,18 +207,25 @@ class FeedListViewModelTest {
             val baseline = viewModel.uiState.first { it.totalUnread > 0 }
             assertEquals(1, baseline.totalUnread)
 
-            // A real (small) network delay so the refresh coroutine is genuinely still in-flight
-            // (suspended on FeedFetcher's withContext(Dispatchers.IO) network call, a real
-            // dispatcher switch, not virtual test time) when this test writes to the DB below.
-            server.enqueue(
-                MockResponse().setResponseCode(200).setBodyDelay(300, java.util.concurrent.TimeUnit.MILLISECONDS).setBody(
-                    """
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <rss version="2.0"><channel><title>A Feed</title><link>https://example.com</link>
-                    <description>desc</description></channel></rss>
-                    """.trimIndent(),
-                ),
-            )
+            // Blocks the mock response on a latch the test releases explicitly, rather than a
+            // real wall-clock delay (issue #261) -- the refresh coroutine still genuinely
+            // suspends on FeedFetcher's withContext(Dispatchers.IO) network call (a real
+            // dispatcher switch, not virtual test time) when this test writes to the DB below,
+            // but the response no longer races a fixed real-time duration against however fast
+            // (or slow, under CI load) the request actually reaches that point.
+            val responseGate = java.util.concurrent.CountDownLatch(1)
+            server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+                override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+                    responseGate.await()
+                    return MockResponse().setResponseCode(200).setBody(
+                        """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <rss version="2.0"><channel><title>A Feed</title><link>https://example.com</link>
+                        <description>desc</description></channel></rss>
+                        """.trimIndent(),
+                    )
+                }
+            }
 
             val refreshJob = launch { viewModel.refresh() }
             advanceUntilIdle()
@@ -225,6 +236,7 @@ class FeedListViewModelTest {
             advanceUntilIdle()
             assertEquals(1, viewModel.uiState.value.totalUnread)
 
+            responseGate.countDown()
             refreshJob.join()
             val settled = viewModel.uiState.first { !it.isRefreshing && it.totalUnread == 2 }
             assertEquals(2, settled.totalUnread)
@@ -284,24 +296,31 @@ class FeedListViewModelTest {
             val baseline = viewModel.uiState.first { it.sections.any { s -> s.feeds.isNotEmpty() } }
             assertEquals(0, baseline.totalUnread)
 
-            // Same single item, unchanged -- a real refresh with genuinely nothing new.
-            server.enqueue(
-                MockResponse().setResponseCode(200).setBodyDelay(300, java.util.concurrent.TimeUnit.MILLISECONDS).setBody(
-                    """
-                    <?xml version="1.0" encoding="UTF-8"?>
-                    <rss version="2.0"><channel><title>A Feed</title><link>https://example.com</link>
-                    <description>desc</description>
-                    <item><title>Existing</title><link>https://example.com/existing</link><guid>g-existing</guid>
-                    <description>Body</description><pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate></item>
-                    </channel></rss>
-                    """.trimIndent(),
-                ),
-            )
+            // Same single item, unchanged -- a real refresh with genuinely nothing new. Blocked on
+            // a latch the test releases explicitly rather than a real wall-clock delay (issue
+            // #261), same as uiState_freezesUnreadCountWhileRefreshing above.
+            val responseGate = java.util.concurrent.CountDownLatch(1)
+            server.dispatcher = object : okhttp3.mockwebserver.Dispatcher() {
+                override fun dispatch(request: okhttp3.mockwebserver.RecordedRequest): MockResponse {
+                    responseGate.await()
+                    return MockResponse().setResponseCode(200).setBody(
+                        """
+                        <?xml version="1.0" encoding="UTF-8"?>
+                        <rss version="2.0"><channel><title>A Feed</title><link>https://example.com</link>
+                        <description>desc</description>
+                        <item><title>Existing</title><link>https://example.com/existing</link><guid>g-existing</guid>
+                        <description>Body</description><pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate></item>
+                        </channel></rss>
+                        """.trimIndent(),
+                    )
+                }
+            }
 
             val refreshJob = launch { viewModel.refresh() }
             advanceUntilIdle()
             assertEquals(0, viewModel.uiState.value.totalUnread)
 
+            responseGate.countDown()
             refreshJob.join()
             val settled = viewModel.uiState.first { !it.isRefreshing }
             assertEquals(0, settled.totalUnread)
