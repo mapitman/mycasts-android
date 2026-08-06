@@ -3,6 +3,13 @@
     <string name="action_cancel">Annulla</string>
     <string name="action_confirm">Conferma</string>
     <string name="action_save">Salva</string>
+    <string name="action_delete">Elimina</string>
+
+    <plurals name="delete_confirm_title">
+        <item quantity="one">Eliminare questo elemento?</item>
+        <item quantity="other">Eliminare %1$d elementi?</item>
+    </plurals>
+    <string name="delete_confirm_message">Questa azione non può essere annullata.</string>
 
     <!-- Content descriptions -->
     <string name="cd_back">Indietro</string>

@@ -24,6 +24,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -31,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.myfeeds.R
+import com.bugzapperlabs.myfeeds.data.local.FeedItem
+import com.bugzapperlabs.myfeeds.ui.components.ConfirmDeleteDialog
 import kotlin.math.log10
 import kotlin.math.pow
 
@@ -42,6 +47,7 @@ fun DownloadsScreen(
     onBack: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var pendingDelete by remember { mutableStateOf<FeedItem?>(null) }
 
     Scaffold(
         modifier = modifier,
@@ -71,10 +77,21 @@ fun DownloadsScreen(
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
                 items(uiState.episodes, key = { it.item.id }) { episode ->
-                    DownloadedEpisodeRow(episode = episode, onDelete = { viewModel.delete(episode.item) })
+                    DownloadedEpisodeRow(episode = episode, onDelete = { pendingDelete = episode.item })
                 }
             }
         }
+    }
+
+    pendingDelete?.let { item ->
+        ConfirmDeleteDialog(
+            itemCount = 1,
+            onConfirm = {
+                viewModel.delete(item)
+                pendingDelete = null
+            },
+            onDismiss = { pendingDelete = null },
+        )
     }
 }
 

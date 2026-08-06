@@ -4,7 +4,16 @@
     <!-- Common actions -->
     <string name="action_cancel">Cancel</string>
     <string name="action_confirm">Confirm</string>
+    <string name="action_delete">Delete</string>
     <string name="action_save">Save</string>
+
+    <!-- Delete confirmation dialog (issue #288), shared by the Item List, Feed River, and
+         Downloads screens -->
+    <plurals name="delete_confirm_title">
+        <item quantity="one">Delete this item?</item>
+        <item quantity="other">Delete %1$d items?</item>
+    </plurals>
+    <string name="delete_confirm_message">This can\'t be undone.</string>
 
     <!-- Content descriptions -->
     <string name="cd_back">Back</string>

@@ -39,7 +39,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +58,7 @@ import com.bugzapperlabs.myfeeds.articlelist.ArticleDateFormatter
 import com.bugzapperlabs.myfeeds.data.local.FeedItem
 import com.bugzapperlabs.myfeeds.data.local.isPodcastEpisode
 import com.bugzapperlabs.myfeeds.data.settings.scaleFactor
+import com.bugzapperlabs.myfeeds.ui.components.ConfirmDeleteDialog
 import com.bugzapperlabs.myfeeds.ui.components.SwipeToToggleReadBox
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -72,6 +75,7 @@ fun FeedRiverScreen(
     val refreshError by viewModel.refreshError.collectAsState()
     val queueFeedback by viewModel.queueFeedback.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(refreshError) {
         refreshError?.let {
@@ -112,7 +116,7 @@ fun FeedRiverScreen(
                         IconButton(onClick = viewModel::addSelectedToQueue, enabled = uiState.canAddSelectedToQueue) {
                             Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = stringResource(R.string.cd_add_to_queue))
                         }
-                        IconButton(onClick = viewModel::deleteSelected) {
+                        IconButton(onClick = { showDeleteConfirm = true }) {
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete))
                         }
                     },
@@ -207,6 +211,17 @@ fun FeedRiverScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteConfirm) {
+        ConfirmDeleteDialog(
+            itemCount = uiState.selectedIds.size,
+            onConfirm = {
+                showDeleteConfirm = false
+                viewModel.deleteSelected()
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
     }
 }
 
