@@ -82,10 +82,19 @@ class ArticleListViewModel @Inject constructor(
         state.copy(isPodcastFeed = feedId in podcastFeedIds)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticleListUiState())
 
+    // Guards the init block below from clobbering an explicit setShowUnreadOnly() call that
+    // arrives before settingsDataStore.settings.first() resolves (issue #215) -- if that read
+    // requires a real suspension (e.g. a cold DataStore file read) rather than completing
+    // synchronously, the caller's explicit choice can otherwise be silently overwritten once the
+    // deferred default-loading coroutine finally runs.
+    private var showUnreadOnlyExplicitlySet = false
+
     init {
         viewModelScope.launch {
             val defaultToAllView = settingsDataStore.settings.first().defaultToAllArticleView
-            showUnreadOnly.value = !defaultToAllView
+            if (!showUnreadOnlyExplicitlySet) {
+                showUnreadOnly.value = !defaultToAllView
+            }
 
             val feed = feedRepository.getFeed(feedId)
             feedTitle.value = feed?.userTitle ?: feed?.title.orEmpty()
@@ -116,6 +125,7 @@ class ArticleListViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
 
     fun setShowUnreadOnly(unreadOnly: Boolean) {
+        showUnreadOnlyExplicitlySet = true
         showUnreadOnly.value = unreadOnly
     }
 

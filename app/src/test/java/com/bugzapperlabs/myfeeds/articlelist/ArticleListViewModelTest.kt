@@ -33,7 +33,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -46,14 +45,13 @@ import java.io.File
 /**
  * Config pins Robolectric to API 35 -- Robolectric 4.14 doesn't support compileSdk 36 yet.
  *
- * Skipped in CI only (see setUp): several tests in this class hang or fail with a plain
- * AssertionError in GitHub Actions, but reliably pass locally regardless of ordering or
- * isolation -- confirmed (issue #215) it isn't cross-test corruption, since even isolating one
- * of the affected tests into its own dedicated JVM fork with nothing run before it still hung in
- * CI. Whichever specific test fails moves around from run to run (issue #60's original skip was
- * on a different test than the ones later found flaky), so skipping individual tests one at a
- * time doesn't converge -- the whole class is skipped in CI instead. Tracked in
- * https://github.com/mapitman/myfeeds-android/issues/54, #60, and #215.
+ * Formerly skipped in CI (issues #54/#60/#215): `addSelectedToQueue_queuesOnlyPodcastEpisodesAndClearsSelection`
+ * hung whenever run after another test that called `viewModel.refresh()`. Root-caused to a real
+ * race in `ArticleListViewModel`'s `init` block -- its asynchronous settings-derived default for
+ * `showUnreadOnly` could silently clobber an explicit `setShowUnreadOnly()` call made before that
+ * read resolved, if the read required a genuine suspension rather than completing synchronously.
+ * Fixed in `ArticleListViewModel` (a `showUnreadOnlyExplicitlySet` guard), not just this test --
+ * see the fix commit for the full diagnosis. Skip removed accordingly.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -92,9 +90,6 @@ class ArticleListViewModelTest {
 
     @Before
     fun setUp() {
-        // See the class doc: this class is skipped in CI (issues #54/#60/#215) but runs fine
-        // locally, so it's skipped there for now rather than blocking unrelated work.
-        assumeTrue("Skipped in CI: see issue #215", System.getenv("CI") == null)
         runTestBody()
     }
 
@@ -130,9 +125,6 @@ class ArticleListViewModelTest {
 
     @After
     fun tearDown() {
-        // setUp bails out early via Assume when skipped in CI (see setUp), leaving db
-        // uninitialized -- guard against that so the skip doesn't itself register as a failure.
-        if (!::db.isInitialized) return
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
         // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
         runTest(testDispatcher) { viewModelStore.clearAndJoin() }
@@ -223,7 +215,13 @@ class ArticleListViewModelTest {
         viewModel.refresh()
 
         assertNotNull(viewModel.refreshError.first { it != null })
-        assertFalse(viewModel.uiState.value.isRefreshing)
+        // Waits for isRefreshing to actually settle rather than reading .value immediately after
+        // refreshError resolves (issue #215) -- refresh()'s _refreshError.value = ... and
+        // isRefreshing.value = false run on whatever thread completed the feedRepository.getFeed
+        // suspension (a real Room dispatch, not virtual test time), so nothing guarantees the
+        // second write has landed yet just because a collector observed the first.
+        val settled = viewModel.uiState.first { !it.isRefreshing }
+        assertFalse(settled.isRefreshing)
     }
 
     @Test
