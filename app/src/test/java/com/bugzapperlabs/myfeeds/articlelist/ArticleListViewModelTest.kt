@@ -21,6 +21,7 @@ import com.bugzapperlabs.myfeeds.download.EnclosureDownloadRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -346,5 +347,89 @@ class ArticleListViewModelTest {
 
         val items = repository.observeItems(feedId).first { it.size == 1 }
         assertEquals(listOf("unread-1"), items.map { it.id })
+    }
+
+    /**
+     * Regression coverage for issue #156 ("app crashes interacting with feed items during a feed
+     * refresh", reported case: marking a large number of checked episodes as read while feeds
+     * refreshed in the background). No stack trace was ever captured, and this couldn't actually
+     * be reproduced (12 clean stress runs across this test and the repository/engine-level
+     * equivalent in FeedUpdateEngineTest), but the scenario -- a bulk mark-read racing a refresh's
+     * trim-to-itemsToKeep step on the very items being marked -- is real and worth permanent
+     * coverage against regressing.
+     */
+    @Test
+    fun bulkMarkReadWhileRefreshTrimsSameFeed() = runTest(testDispatcher) {
+        settingsDataStore.setMaxArticles(5)
+        val server = MockWebServer()
+        server.start()
+        try {
+            val url = server.url("/feed.xml").toString()
+            feedId = repository.subscribe(Feed(title = "Big Feed", feedUrl = url))
+            val bulkItems = (1..30).map { i ->
+                FeedItem(id = "bulk-$i", feedId = feedId, itemGuid = "bg$i", title = "Item $i", isRead = false)
+            }
+            repository.insertItems(bulkItems)
+            val itemsXml = (1..30).joinToString("\n") { i ->
+                """
+                <item>
+                  <title>Item $i</title>
+                  <link>https://example.com/item-$i</link>
+                  <guid>bg$i</guid>
+                  <description>Body</description>
+                  <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+                </item>
+                """.trimIndent()
+            }
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <rss version="2.0"><channel><title>Big Feed</title><link>https://example.com</link>
+                    <description>desc</description>
+                    $itemsXml
+                    </channel></rss>
+                    """.trimIndent(),
+                ),
+            )
+            val viewModel = createViewModel()
+
+            var caught: Throwable? = null
+            val collectJob = launch {
+                try {
+                    viewModel.uiState.collect {}
+                } catch (t: Throwable) {
+                    caught = t
+                }
+            }
+
+            viewModel.setShowUnreadOnly(false)
+            viewModel.uiState.first { !it.showUnreadOnly && it.articles.size == 30 }
+            bulkItems.forEach { viewModel.toggleSelection(it.id) }
+            viewModel.uiState.first { it.selectedIds.size == 30 }
+
+            val refreshJob = launch {
+                try {
+                    viewModel.refresh()
+                } catch (t: Throwable) {
+                    caught = t
+                }
+            }
+            val markReadJob = launch {
+                try {
+                    repeat(20) { viewModel.markSelectedRead(true) }
+                } catch (t: Throwable) {
+                    caught = t
+                }
+            }
+            refreshJob.join()
+            markReadJob.join()
+            viewModel.uiState.first { !it.isRefreshing }
+            collectJob.cancel()
+
+            if (caught != null) throw AssertionError("Bulk markSelectedRead concurrent with refresh() threw: $caught", caught)
+        } finally {
+            server.shutdown()
+        }
     }
 }

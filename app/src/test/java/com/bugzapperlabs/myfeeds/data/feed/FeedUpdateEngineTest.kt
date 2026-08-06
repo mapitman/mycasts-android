@@ -7,10 +7,14 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.myfeeds.data.local.AppDatabase
 import com.bugzapperlabs.myfeeds.data.local.Feed
+import com.bugzapperlabs.myfeeds.data.local.FeedItem
 import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
 import com.bugzapperlabs.myfeeds.data.repository.QueueRepository
 import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
@@ -332,5 +336,86 @@ class FeedUpdateEngineTest {
         engine.updateFeeds(listOf(feedA, feedB))
 
         assertEquals(1, maxObservedConcurrency.get())
+    }
+
+    /**
+     * Regression coverage for issue #156 ("app crashes interacting with feed items during a feed
+     * refresh", reported case: marking a large number of checked episodes as read while feeds
+     * refreshed in the background). No stack trace was ever captured, and this couldn't be
+     * reproduced -- 12 clean stress runs across this test and the [ArticleListViewModel]-level
+     * equivalent, both before and after the concurrent-refresh hardening already landed for
+     * issues #152/#189/#269/#276 -- but the scenario (a bulk item mutation racing a refresh's
+     * trim-to-[itemsToKeep] step on the very rows being mutated) is a real, plausible one worth
+     * permanent coverage against regressing.
+     */
+    @Test
+    fun trimDuringRefresh_concurrentWithBulkMarkReadOnTrimmedItems_doesNotThrow() = runTest {
+        settingsDataStore.setMaxArticles(5)
+        val feed = subscribeFeed()
+        val existingItems = (1..30).map { i ->
+            FeedItem(id = "item-$i", feedId = feed.id, itemGuid = "g$i", title = "Item $i", isRead = false)
+        }
+        repository.insertItems(existingItems)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems(*(1..30).map { "g$it" to "Item $it" }.toTypedArray())))
+
+        var caught: Throwable? = null
+        coroutineScope {
+            val refreshJob = async { engine.updateFeed(repository.getFeed(feed.id)!!) }
+            val markReadJob = launch {
+                repeat(50) {
+                    existingItems.forEach { item ->
+                        try {
+                            repository.markRead(item.id, true)
+                        } catch (t: Throwable) {
+                            caught = t
+                        }
+                    }
+                }
+            }
+            try {
+                refreshJob.await()
+            } catch (t: Throwable) {
+                caught = t
+            }
+            markReadJob.join()
+        }
+
+        if (caught != null) throw AssertionError("Concurrent markRead during refresh threw: $caught", caught)
+    }
+
+    /** See [trimDuringRefresh_concurrentWithBulkMarkReadOnTrimmedItems_doesNotThrow] -- same
+     *  scenario but with a bulk delete instead of a bulk mark-read, another real user action that
+     *  can target items a concurrent refresh is about to trim. */
+    @Test
+    fun trimDuringRefresh_concurrentWithBulkDeleteOfSoonToBeTrimmedItems_doesNotThrow() = runTest {
+        settingsDataStore.setMaxArticles(5)
+        val feed = subscribeFeed()
+        val existingItems = (1..30).map { i ->
+            FeedItem(id = "item-$i", feedId = feed.id, itemGuid = "g$i", title = "Item $i", isRead = false)
+        }
+        repository.insertItems(existingItems)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems(*(1..30).map { "g$it" to "Item $it" }.toTypedArray())))
+
+        var caught: Throwable? = null
+        coroutineScope {
+            val refreshJob = async { engine.updateFeed(repository.getFeed(feed.id)!!) }
+            val deleteJob = launch {
+                repeat(10) {
+                    try {
+                        repository.deleteItems(existingItems)
+                    } catch (t: Throwable) {
+                        caught = t
+                    }
+                }
+            }
+            try {
+                refreshJob.await()
+            } catch (t: Throwable) {
+                caught = t
+            }
+            deleteJob.join()
+        }
+
+        if (caught != null) throw AssertionError("Concurrent deleteItems during refresh threw: $caught", caught)
     }
 }
