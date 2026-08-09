@@ -115,11 +115,11 @@
     <string name="settings_allow_streaming">Consenti streaming</string>
     <string name="settings_auto_delete_finished_downloads">Elimina automaticamente i download riprodotti</string>
     <string name="settings_battery_optimization_heading">Utilizzo della batteria in background</string>
-    <string name="settings_battery_optimization_description">Per un avanzamento automatico dei podcast e download affidabili a schermo spento, consenti a MyFeeds di funzionare senza restrizioni sulla batteria.</string>
+    <string name="settings_battery_optimization_description">Per un avanzamento automatico dei podcast e download affidabili a schermo spento, consenti a MyCasts di funzionare senza restrizioni sulla batteria.</string>
     <string name="settings_battery_optimization_granted">Senza restrizioni</string>
     <string name="settings_battery_optimization_button">Consenti utilizzo senza restrizioni</string>
     <string name="battery_optimization_prompt_title">Riprodurre gli episodi in modo affidabile?</string>
-    <string name="battery_optimization_prompt_message">Per un avanzamento automatico affidabile all\'episodio successivo a schermo spento, consenti a MyFeeds di funzionare senza restrizioni sulla batteria. Potrai modificarlo in seguito nelle Impostazioni.</string>
+    <string name="battery_optimization_prompt_message">Per un avanzamento automatico affidabile all\'episodio successivo a schermo spento, consenti a MyCasts di funzionare senza restrizioni sulla batteria. Potrai modificarlo in seguito nelle Impostazioni.</string>
     <string name="battery_optimization_prompt_allow">Consenti</string>
     <string name="settings_section_podcast_search">Ricerca podcast</string>
     <string name="settings_podcast_search_description">Inserisci una chiave/secret API gratuiti di podcastindex.org per cercare podcast online durante l\'aggiunta di un feed. Se lasciato vuoto, la ricerca utilizza la directory dei feed offline.</string>
@@ -127,7 +127,7 @@
     <string name="settings_podcast_search_api_key_label">Chiave API</string>
     <string name="settings_podcast_search_api_secret_label">Secret API</string>
     <string name="settings_about_version">Versione %1$s</string>
-    <string name="settings_about_description">Un lettore di feed RSS/Atom e client per podcast.</string>
+    <string name="settings_about_description">Un client per podcast.</string>
     <string name="settings_export_opml">Esporta OPML</string>
     <string name="settings_save_opml_to_file">Salva OPML su file</string>
     <string name="settings_export_feeds_chooser_title">Esporta feed</string>
