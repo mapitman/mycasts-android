@@ -118,33 +118,28 @@ class FeedListViewModelTest {
     }
 
     @Test
-    fun uiState_splitsPodcastAndOtherFeedsIntoFixedSections() = runTest(testDispatcher) {
-        val podcastFeedId = repository.subscribe(Feed(title = "Podcast Feed"))
-        val articleFeedId = repository.subscribe(Feed(title = "Article Feed"))
+    fun uiState_listsAllSubscribedFeeds() = runTest(testDispatcher) {
+        val firstFeedId = repository.subscribe(Feed(title = "First Feed"))
+        val secondFeedId = repository.subscribe(Feed(title = "Second Feed"))
         repository.insertItems(
             listOf(
                 FeedItem(
                     id = "ep-1",
-                    feedId = podcastFeedId,
+                    feedId = firstFeedId,
                     itemGuid = "g1",
                     enclosureUrl = "https://example.com/ep1.mp3",
                     enclosureType = "audio/mpeg",
                 ),
-                FeedItem(id = "art-1", feedId = articleFeedId, itemGuid = "g2"),
+                FeedItem(id = "ep-2", feedId = secondFeedId, itemGuid = "g2"),
             ),
         )
 
-        // Waits for *both* feeds to have landed, not just one section going non-empty (issue
-        // #261) -- Room delivers each subscribed feed's Flow update from its own background
-        // invalidation-tracker thread, so the two sections can populate at different times and
-        // `.any { isNotEmpty }` can return on that partial, still-settling state.
-        val state = viewModel.uiState.first { it.sections.sumOf { section -> section.feeds.size } == 2 }
+        // Waits for both feeds to have landed (issue #261) -- Room delivers each subscribed
+        // feed's Flow update from its own background invalidation-tracker thread, so a naive
+        // `.isNotEmpty()` check can return on a partial, still-settling state.
+        val state = viewModel.uiState.first { it.feeds.size == 2 }
 
-        val podcastsSection = state.sections.first { it.section == FeedListSection.PODCASTS }
-        assertEquals(listOf(podcastFeedId), podcastsSection.feeds.map { it.feed.id })
-
-        val feedsSection = state.sections.first { it.section == FeedListSection.FEEDS }
-        assertEquals(listOf(articleFeedId), feedsSection.feeds.map { it.feed.id })
+        assertEquals(setOf(firstFeedId, secondFeedId), state.feeds.map { it.feed.id }.toSet())
     }
 
     @Test
@@ -272,8 +267,8 @@ class FeedListViewModelTest {
         viewModelStore.put("freshFeedList", freshViewModel)
         val collectJob = launch { freshViewModel.uiState.collect {} }
 
-        val state = freshViewModel.uiState.first { it.sections.any { section -> section.feeds.isNotEmpty() } }
-        assertEquals(1, state.sections.sumOf { it.feeds.size })
+        val state = freshViewModel.uiState.first { it.feeds.isNotEmpty() }
+        assertEquals(1, state.feeds.size)
         assertTrue(state.isRefreshing)
 
         collectJob.cancel()
@@ -293,7 +288,7 @@ class FeedListViewModelTest {
 
             val feedId = repository.subscribe(Feed(title = "A Feed", feedUrl = server.url("/feed.xml").toString()))
             repository.insertItems(listOf(FeedItem(id = "existing-1", feedId = feedId, itemGuid = "g-existing", isRead = true)))
-            val baseline = viewModel.uiState.first { it.sections.any { s -> s.feeds.isNotEmpty() } }
+            val baseline = viewModel.uiState.first { it.feeds.isNotEmpty() }
             assertEquals(0, baseline.totalUnread)
 
             // Same single item, unchanged -- a real refresh with genuinely nothing new. Blocked on
@@ -331,13 +326,11 @@ class FeedListViewModelTest {
     }
 
     @Test
-    fun uiState_bothSectionsPresentEvenWithNoPodcastFeeds() = runTest(testDispatcher) {
-        repository.subscribe(Feed(title = "Article Feed"))
+    fun uiState_listsSubscribedFeedWithNoEpisodesYet() = runTest(testDispatcher) {
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
 
-        val state = viewModel.uiState.first { it.sections.isNotEmpty() }
+        val state = viewModel.uiState.first { it.feeds.isNotEmpty() }
 
-        assertEquals(setOf(FeedListSection.PODCASTS, FeedListSection.FEEDS), state.sections.map { it.section }.toSet())
-        val podcastsSection = state.sections.first { it.section == FeedListSection.PODCASTS }
-        assertTrue(podcastsSection.feeds.isEmpty())
+        assertEquals(listOf(feedId), state.feeds.map { it.feed.id })
     }
 }

@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -23,11 +21,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -36,7 +32,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -47,7 +42,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.settings.scaleFactor
 import com.bugzapperlabs.mycasts.ui.components.ListItemRow
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,7 +108,7 @@ fun FeedListScreen(
             }
         },
     ) { innerPadding ->
-        if (uiState.sections.all { it.feeds.isEmpty() }) {
+        if (uiState.feeds.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
             ) {
@@ -149,75 +143,31 @@ fun FeedListScreen(
             return@Scaffold
         }
 
-        val pagerState = rememberPagerState(pageCount = { uiState.sections.size })
-        val scope = rememberCoroutineScope()
-
-        Column(modifier = Modifier.padding(innerPadding)) {
-            ScrollableTabRow(selectedTabIndex = pagerState.currentPage) {
-                uiState.sections.forEachIndexed { index, section ->
-                    val tabTitle = when (section.section) {
-                        FeedListSection.PODCASTS -> stringResource(R.string.feed_list_podcasts_tab)
-                        FeedListSection.FEEDS -> stringResource(R.string.feed_list_feeds_tab)
-                    }
-                    Tab(
-                        selected = pagerState.currentPage == index,
-                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(tabTitle) },
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.feed_list_section_unplayed, uiState.totalUnread),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
-            }
-            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
-                val section = uiState.sections[page]
-                FeedSectionList(
-                    section = section,
-                    isRefreshing = uiState.isRefreshing,
-                    titleFontScale = feedListFontSize.scaleFactor,
-                    onRefresh = viewModel::refresh,
-                    onFeedClick = onFeedClick,
-                    onFeedLongClick = onFeedLongClick,
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FeedSectionList(
-    section: FeedListSectionUiState,
-    isRefreshing: Boolean,
-    titleFontScale: Float,
-    onRefresh: () -> Unit,
-    onFeedClick: (Long) -> Unit,
-    onFeedLongClick: (Long) -> Unit,
-) {
-    PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            item {
-                Text(
-                    text = stringResource(
-                        if (section.section == FeedListSection.PODCASTS) {
-                            R.string.feed_list_section_unplayed
-                        } else {
-                            R.string.feed_list_section_unread
-                        },
-                        section.totalUnread,
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-            items(section.feeds, key = { it.feed.id }) { item ->
-                ListItemRow(
-                    title = item.feed.userTitle ?: item.feed.title.orEmpty(),
-                    subtitle = item.feed.description,
-                    imageUrl = item.feed.imageUrl,
-                    unreadCount = item.unreadCount,
-                    titleFontScale = titleFontScale,
-                    onClick = { onFeedClick(item.feed.id) },
-                    onLongClick = { onFeedLongClick(item.feed.id) },
-                )
+                items(uiState.feeds, key = { it.feed.id }) { item ->
+                    ListItemRow(
+                        title = item.feed.userTitle ?: item.feed.title.orEmpty(),
+                        subtitle = item.feed.description,
+                        imageUrl = item.feed.imageUrl,
+                        unreadCount = item.unreadCount,
+                        titleFontScale = feedListFontSize.scaleFactor,
+                        onClick = { onFeedClick(item.feed.id) },
+                        onLongClick = { onFeedLongClick(item.feed.id) },
+                    )
+                }
             }
         }
     }
