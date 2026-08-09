@@ -1,4 +1,4 @@
-package com.bugzapperlabs.mycasts.articlelist
+package com.bugzapperlabs.mycasts.episodelist
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
@@ -28,21 +28,20 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class ArticleListUiState(
+data class EpisodeListUiState(
     val feedTitle: String = "",
     val showUnreadOnly: Boolean = true,
-    val articles: List<FeedItem> = emptyList(),
+    val episodes: List<FeedItem> = emptyList(),
     val unreadCount: Int = 0,
     val selectedIds: Set<String> = emptySet(),
     val isRefreshing: Boolean = false,
-    val isPodcastFeed: Boolean = false,
 ) {
     val isSelectionMode: Boolean get() = selectedIds.isNotEmpty()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
-class ArticleListViewModel @Inject constructor(
+class EpisodeListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val feedRepository: FeedRepository,
     private val feedUpdateEngine: FeedUpdateEngine,
@@ -66,7 +65,7 @@ class ArticleListViewModel @Inject constructor(
     /** One-shot add-to-queue confirmation for a Snackbar (issue #126); cleared via [consumeQueueFeedback]. */
     val queueFeedback: StateFlow<String?> = _queueFeedback
 
-    val uiState: StateFlow<ArticleListUiState> = combine(
+    val uiState: StateFlow<EpisodeListUiState> = combine(
         feedTitle,
         showUnreadOnly,
         showUnreadOnly.flatMapLatest { unreadOnly ->
@@ -74,13 +73,11 @@ class ArticleListViewModel @Inject constructor(
         },
         feedRepository.observeUnreadCount(feedId),
         selectedIds,
-    ) { title, unreadOnly, articles, unreadCount, selected ->
-        ArticleListUiState(title, unreadOnly, articles, unreadCount, selected)
+    ) { title, unreadOnly, episodes, unreadCount, selected ->
+        EpisodeListUiState(title, unreadOnly, episodes, unreadCount, selected)
     }.combine(isRefreshing) { state, refreshing ->
         state.copy(isRefreshing = refreshing)
-    }.combine(feedRepository.observePodcastFeedIds()) { state, podcastFeedIds ->
-        state.copy(isPodcastFeed = feedId in podcastFeedIds)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ArticleListUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EpisodeListUiState())
 
     // Guards the init block below from clobbering an explicit setShowUnreadOnly() call that
     // arrives before settingsDataStore.settings.first() resolves (issue #215) -- if that read
@@ -141,9 +138,9 @@ class ArticleListViewModel @Inject constructor(
         selectedIds.value = emptySet()
     }
 
-    /** Selects every currently-visible/filtered article (issue #72). */
+    /** Selects every currently-visible/filtered episode (issue #72). */
     fun selectAll() {
-        selectedIds.value = uiState.value.articles.map { it.id }.toSet()
+        selectedIds.value = uiState.value.episodes.map { it.id }.toSet()
     }
 
     fun markSelectedRead(isRead: Boolean) {
@@ -162,7 +159,7 @@ class ArticleListViewModel @Inject constructor(
     fun deleteSelected() {
         val ids = selectedIds.value
         viewModelScope.launch {
-            val items = uiState.value.articles.filter { it.id in ids }
+            val items = uiState.value.episodes.filter { it.id in ids }
             feedRepository.deleteItems(items)
             clearSelection()
         }
@@ -179,12 +176,12 @@ class ArticleListViewModel @Inject constructor(
 
     /**
      * Adds every selected podcast episode to Next Up (issue #159). Selection mode isn't
-     * podcast-specific, so non-episode articles in the selection are silently skipped.
+     * podcast-specific, so non-episode items in the selection are silently skipped.
      */
     fun addSelectedToQueue() {
         val ids = selectedIds.value
         viewModelScope.launch {
-            val episodeIds = uiState.value.articles.filter { it.id in ids && it.isPodcastEpisode }.map { it.id }
+            val episodeIds = uiState.value.episodes.filter { it.id in ids && it.isPodcastEpisode }.map { it.id }
             val addedCount = episodeIds.count { queueRepository.addToEnd(it) }
             _queueFeedback.value = when (addedCount) {
                 0 -> context.getString(R.string.queue_feedback_already_queued)

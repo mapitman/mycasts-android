@@ -76,7 +76,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.bugzapperlabs.mycasts.R
-import com.bugzapperlabs.mycasts.articlelist.ArticleDateFormatter
+import com.bugzapperlabs.mycasts.episodelist.EpisodeDateFormatter
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.settings.scaleFactor
@@ -296,7 +296,7 @@ private fun ArticlePage(
                 modifier = Modifier.padding(16.dp),
             )
             Text(
-                text = ArticleDateFormatter.format(item.publishDate),
+                text = EpisodeDateFormatter.format(item.publishDate),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp),

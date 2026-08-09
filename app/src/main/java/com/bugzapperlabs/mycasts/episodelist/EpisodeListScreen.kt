@@ -1,4 +1,4 @@
-package com.bugzapperlabs.mycasts.articlelist
+package com.bugzapperlabs.mycasts.episodelist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -64,10 +64,10 @@ import com.bugzapperlabs.mycasts.ui.components.SwipeToToggleReadBox
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun ArticleListScreen(
+fun EpisodeListScreen(
     modifier: Modifier = Modifier,
-    viewModel: ArticleListViewModel = hiltViewModel(),
-    onArticleClick: (String) -> Unit = {},
+    viewModel: EpisodeListViewModel = hiltViewModel(),
+    onEpisodeClick: (String) -> Unit = {},
     onBack: () -> Unit = {},
     onQueueClick: () -> Unit = {},
     onFeedSettingsClick: () -> Unit = {},
@@ -131,10 +131,7 @@ fun ArticleListScreen(
                             // the unread/unplayed count below out of the TopAppBar's fixed height.
                             Text(uiState.feedTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
-                                text = stringResource(
-                                    if (uiState.isPodcastFeed) R.string.article_list_unplayed_count else R.string.article_list_unread_count,
-                                    uiState.unreadCount,
-                                ),
+                                text = stringResource(R.string.article_list_unplayed_count, uiState.unreadCount),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         }
@@ -162,13 +159,7 @@ fun ArticleListScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { viewModel.setShowUnreadOnly(true) },
-                    text = {
-                        Text(
-                            stringResource(
-                                if (uiState.isPodcastFeed) R.string.article_list_tab_unplayed else R.string.article_list_tab_unread,
-                            ),
-                        )
-                    },
+                    text = { Text(stringResource(R.string.article_list_tab_unplayed)) },
                 )
                 Tab(
                     selected = selectedTab == 1,
@@ -181,47 +172,42 @@ fun ArticleListScreen(
                 onRefresh = viewModel::refresh,
                 modifier = Modifier.fillMaxSize(),
             ) {
-                if (uiState.articles.isEmpty()) {
+                if (uiState.episodes.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             stringResource(
-                                when {
-                                    !uiState.showUnreadOnly && uiState.isPodcastFeed -> R.string.article_list_no_episodes
-                                    !uiState.showUnreadOnly -> R.string.article_list_no_articles
-                                    uiState.isPodcastFeed -> R.string.article_list_no_unplayed_episodes
-                                    else -> R.string.article_list_no_unread_articles
-                                },
+                                if (uiState.showUnreadOnly) R.string.article_list_no_unplayed_episodes else R.string.article_list_no_episodes,
                             ),
                         )
                     }
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(uiState.articles, key = { it.id }) { article ->
+                        items(uiState.episodes, key = { it.id }) { episode ->
                             // Selection mode already has its own per-row tap target (the
                             // checkbox); swiping to toggle read state there would fight with it.
                             if (uiState.isSelectionMode) {
-                                ArticleRow(
-                                    article = article,
-                                    selected = article.id in uiState.selectedIds,
+                                EpisodeRow(
+                                    episode = episode,
+                                    selected = episode.id in uiState.selectedIds,
                                     selectionMode = true,
                                     titleFontScale = listFontSize.scaleFactor,
-                                    onClick = { viewModel.toggleSelection(article.id) },
-                                    onLongClick = { viewModel.toggleSelection(article.id) },
-                                    onAddToQueue = { viewModel.addToQueue(article.id) },
+                                    onClick = { viewModel.toggleSelection(episode.id) },
+                                    onLongClick = { viewModel.toggleSelection(episode.id) },
+                                    onAddToQueue = { viewModel.addToQueue(episode.id) },
                                 )
                             } else {
                                 SwipeToToggleReadBox(
-                                    isRead = article.isRead,
-                                    onToggleRead = { viewModel.toggleRead(article) },
+                                    isRead = episode.isRead,
+                                    onToggleRead = { viewModel.toggleRead(episode) },
                                 ) {
-                                    ArticleRow(
-                                        article = article,
+                                    EpisodeRow(
+                                        episode = episode,
                                         selected = false,
                                         selectionMode = false,
                                         titleFontScale = listFontSize.scaleFactor,
-                                        onClick = { onArticleClick(article.id) },
-                                        onLongClick = { viewModel.toggleSelection(article.id) },
-                                        onAddToQueue = { viewModel.addToQueue(article.id) },
+                                        onClick = { onEpisodeClick(episode.id) },
+                                        onLongClick = { viewModel.toggleSelection(episode.id) },
+                                        onAddToQueue = { viewModel.addToQueue(episode.id) },
                                     )
                                 }
                             }
@@ -246,8 +232,8 @@ fun ArticleListScreen(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ArticleRow(
-    article: FeedItem,
+private fun EpisodeRow(
+    episode: FeedItem,
     selected: Boolean,
     selectionMode: Boolean,
     titleFontScale: Float,
@@ -269,35 +255,35 @@ private fun ArticleRow(
         }
         Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
             Text(
-                text = article.title.orEmpty(),
+                text = episode.title.orEmpty(),
                 style = MaterialTheme.typography.titleMedium.let {
                     if (titleFontScale == 1f) it else it.copy(fontSize = it.fontSize * titleFontScale)
                 },
-                fontWeight = if (article.isRead) FontWeight.Normal else FontWeight.Bold,
-                color = if (article.isRead) {
+                fontWeight = if (episode.isRead) FontWeight.Normal else FontWeight.Bold,
+                color = if (episode.isRead) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
             )
             Text(
-                text = ArticleDateFormatter.format(article.publishDate),
+                text = EpisodeDateFormatter.format(episode.publishDate),
                 style = MaterialTheme.typography.bodySmall,
-                color = if (article.isRead) {
+                color = if (episode.isRead) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 } else {
                     MaterialTheme.colorScheme.primary
                 },
             )
         }
-        if (article.imageUrl != null) {
+        if (episode.imageUrl != null) {
             AsyncImage(
-                model = article.imageUrl,
+                model = episode.imageUrl,
                 contentDescription = null,
                 modifier = Modifier.size(64.dp).clip(RoundedCornerShape(8.dp)),
             )
         }
-        if (!selectionMode && article.isPodcastEpisode) {
+        if (!selectionMode && episode.isPodcastEpisode) {
             IconButton(onClick = onAddToQueue) {
                 Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = stringResource(R.string.cd_add_to_queue))
             }

@@ -42,7 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.addfeed.AddFeedUiState
-import com.bugzapperlabs.mycasts.articlelist.ArticleDateFormatter
+import com.bugzapperlabs.mycasts.episodelist.EpisodeDateFormatter
 import com.bugzapperlabs.mycasts.data.feed.ParsedFeedItem
 import org.jsoup.Jsoup
 
@@ -193,7 +193,7 @@ private fun PodcastDetailsContent(
 private fun EpisodeRow(item: ParsedFeedItem) {
     Column {
         Text(item.title, style = MaterialTheme.typography.bodyLarge)
-        val dateText = ArticleDateFormatter.format(item.publishDate?.toEpochMilli())
+        val dateText = EpisodeDateFormatter.format(item.publishDate?.toEpochMilli())
         if (dateText.isNotBlank()) {
             Text(dateText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
