@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.bugzapperlabs.myfeeds"
+    namespace = "com.bugzapperlabs.mycasts"
     compileSdk = 36
 
     // Set from CI via -PreleaseVersionName/-PreleaseVersionCode when a release tag is pushed
@@ -17,7 +17,7 @@ android {
     val releaseVersionCode = (project.findProperty("releaseVersionCode") as String?)?.toIntOrNull() ?: 1
 
     defaultConfig {
-        applicationId = "com.bugzapperlabs.myfeeds"
+        applicationId = "com.bugzapperlabs.mycasts"
         minSdk = 31
         targetSdk = 36
         versionCode = releaseVersionCode
