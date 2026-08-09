@@ -54,8 +54,6 @@
     <string name="feed_list_refresh_error">Aggiornamento non riuscito: controlla la connessione</string>
     <string name="feed_list_podcasts_tab">Podcast</string>
     <string name="feed_list_feeds_tab">Feed</string>
-    <string name="feed_list_read_all">Leggi tutto</string>
-    <string name="feed_river_item_source">%1$s • %2$s</string>
 
     <!-- Article list -->
     <string name="article_list_selected">%1$d selezionati</string>
