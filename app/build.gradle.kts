@@ -54,7 +54,7 @@ android {
             // resolve, forcing an uninstall (and data loss) to switch between them otherwise.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            resValue("string", "app_name", "MyFeeds Debug")
+            resValue("string", "app_name", "MyCasts Debug")
         }
         release {
             isMinifyEnabled = false
