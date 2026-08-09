@@ -1,4 +1,4 @@
-package com.bugzapperlabs.mycasts.articlelist
+package com.bugzapperlabs.mycasts.episodelist
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -48,16 +48,16 @@ import java.io.File
  *
  * Formerly skipped in CI (issues #54/#60/#215): `addSelectedToQueue_queuesOnlyPodcastEpisodesAndClearsSelection`
  * hung whenever run after another test that called `viewModel.refresh()`. Root-caused to a real
- * race in `ArticleListViewModel`'s `init` block -- its asynchronous settings-derived default for
+ * race in `EpisodeListViewModel`'s `init` block -- its asynchronous settings-derived default for
  * `showUnreadOnly` could silently clobber an explicit `setShowUnreadOnly()` call made before that
  * read resolved, if the read required a genuine suspension rather than completing synchronously.
- * Fixed in `ArticleListViewModel` (a `showUnreadOnlyExplicitlySet` guard), not just this test --
+ * Fixed in `EpisodeListViewModel` (a `showUnreadOnlyExplicitlySet` guard), not just this test --
  * see the fix commit for the full diagnosis. Skip removed accordingly.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
-class ArticleListViewModelTest {
+class EpisodeListViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
 
     @get:Rule
@@ -78,8 +78,8 @@ class ArticleListViewModelTest {
     // behind the #54/#60 flakiness this prevents.
     private val viewModelStore = TrackedViewModelStore()
 
-    private fun createViewModel(): ArticleListViewModel =
-        ArticleListViewModel(
+    private fun createViewModel(): EpisodeListViewModel =
+        EpisodeListViewModel(
             savedStateHandle = SavedStateHandle(mapOf("feedId" to feedId)),
             feedRepository = repository,
             feedUpdateEngine = feedUpdateEngine,
@@ -87,7 +87,7 @@ class ArticleListViewModelTest {
             queueRepository = queueRepository,
             settingsDataStore = settingsDataStore,
             context = context,
-        ).also { viewModelStore.put("articleList-${nextViewModelKey++}", it) }
+        ).also { viewModelStore.put("episodeList-${nextViewModelKey++}", it) }
 
     @Before
     fun setUp() {
@@ -140,7 +140,7 @@ class ArticleListViewModelTest {
         val state = viewModel.uiState.first { it.feedTitle == "A Feed" }
 
         assertTrue(state.showUnreadOnly)
-        assertEquals(listOf("unread-1"), state.articles.map { it.id })
+        assertEquals(listOf("unread-1"), state.episodes.map { it.id })
         assertEquals(1, state.unreadCount)
     }
 
@@ -152,18 +152,18 @@ class ArticleListViewModelTest {
         val state = viewModel.uiState.first { it.feedTitle == "A Feed" }
 
         assertFalse(state.showUnreadOnly)
-        assertEquals(2, state.articles.size)
+        assertEquals(2, state.episodes.size)
     }
 
     @Test
-    fun setShowUnreadOnly_switchesArticleList() = runTest(testDispatcher) {
+    fun setShowUnreadOnly_switchesEpisodeList() = runTest(testDispatcher) {
         val viewModel = createViewModel()
         viewModel.uiState.first { it.feedTitle == "A Feed" }
 
         viewModel.setShowUnreadOnly(false)
-        val state = viewModel.uiState.first { !it.showUnreadOnly && it.articles.size == 2 }
+        val state = viewModel.uiState.first { !it.showUnreadOnly && it.episodes.size == 2 }
 
-        assertEquals(2, state.articles.size)
+        assertEquals(2, state.episodes.size)
     }
 
     @Test
@@ -180,7 +180,7 @@ class ArticleListViewModelTest {
     }
 
     @Test
-    fun selectAll_selectsEveryCurrentlyVisibleArticle() = runTest(testDispatcher) {
+    fun selectAll_selectsEveryCurrentlyVisibleEpisode() = runTest(testDispatcher) {
         val viewModel = createViewModel()
         viewModel.uiState.first { it.feedTitle == "A Feed" }
 
@@ -266,38 +266,8 @@ class ArticleListViewModelTest {
     }
 
     @Test
-    fun defaultState_regularFeed_isNotPodcastFeed() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-
-        val state = viewModel.uiState.first { it.feedTitle == "A Feed" }
-
-        assertFalse(state.isPodcastFeed)
-    }
-
-    @Test
-    fun defaultState_podcastFeed_isPodcastFeed() = runTest(testDispatcher) {
-        repository.insertItems(
-            listOf(
-                FeedItem(
-                    id = "episode-1",
-                    feedId = feedId,
-                    title = "Episode",
-                    itemGuid = "g-episode",
-                    enclosureUrl = "https://example.com/episode.mp3",
-                    enclosureType = "audio/mpeg",
-                ),
-            ),
-        )
-        val viewModel = createViewModel()
-
-        val state = viewModel.uiState.first { it.feedTitle == "A Feed" && it.isPodcastFeed }
-
-        assertTrue(state.isPodcastFeed)
-    }
-
-    @Test
     fun addSelectedToQueue_queuesOnlyPodcastEpisodesAndClearsSelection() = runTest(testDispatcher) {
-        // issue #159: selection mode isn't podcast-specific, so a plain article ("read-1", no
+        // issue #159: selection mode isn't podcast-specific, so a plain item ("read-1", no
         // enclosure) mixed into the selection should be silently skipped rather than queued.
         repository.insertItems(
             listOf(
@@ -321,7 +291,7 @@ class ArticleListViewModelTest {
         )
         val viewModel = createViewModel()
         viewModel.setShowUnreadOnly(false)
-        viewModel.uiState.first { !it.showUnreadOnly && it.articles.size == 4 }
+        viewModel.uiState.first { !it.showUnreadOnly && it.episodes.size == 4 }
         viewModel.toggleSelection("episode-1")
         viewModel.toggleSelection("episode-2")
         viewModel.toggleSelection("read-1")
@@ -338,7 +308,7 @@ class ArticleListViewModelTest {
     fun deleteSelected_removesItemsAndClearsSelection() = runTest(testDispatcher) {
         val viewModel = createViewModel()
         viewModel.setShowUnreadOnly(false)
-        viewModel.uiState.first { !it.showUnreadOnly && it.articles.size == 2 }
+        viewModel.uiState.first { !it.showUnreadOnly && it.episodes.size == 2 }
         viewModel.toggleSelection("read-1")
         viewModel.uiState.first { it.isSelectionMode }
 
@@ -404,7 +374,7 @@ class ArticleListViewModelTest {
             }
 
             viewModel.setShowUnreadOnly(false)
-            viewModel.uiState.first { !it.showUnreadOnly && it.articles.size == 30 }
+            viewModel.uiState.first { !it.showUnreadOnly && it.episodes.size == 30 }
             bulkItems.forEach { viewModel.toggleSelection(it.id) }
             viewModel.uiState.first { it.selectedIds.size == 30 }
 

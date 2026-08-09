@@ -55,7 +55,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.bugzapperlabs.mycasts.R
-import com.bugzapperlabs.mycasts.articlelist.ArticleDateFormatter
+import com.bugzapperlabs.mycasts.episodelist.EpisodeDateFormatter
 import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -593,7 +593,7 @@ private fun RowScope.QueueRowContent(
             )
         }
         Text(
-            text = ArticleDateFormatter.format(episode.item.publishDate),
+            text = EpisodeDateFormatter.format(episode.item.publishDate),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,

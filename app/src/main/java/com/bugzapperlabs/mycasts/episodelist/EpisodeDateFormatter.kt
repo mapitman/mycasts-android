@@ -1,10 +1,10 @@
-package com.bugzapperlabs.mycasts.articlelist
+package com.bugzapperlabs.mycasts.episodelist
 
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-object ArticleDateFormatter {
+object EpisodeDateFormatter {
     private val FORMATTER = DateTimeFormatter.ofPattern("M/d/yyyy h:mm a")
 
     fun format(epochMillis: Long?): String {

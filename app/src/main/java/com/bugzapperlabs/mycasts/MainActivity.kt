@@ -68,7 +68,7 @@ import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
 import com.bugzapperlabs.mycasts.addfeed.AddFeedScreen
 import com.bugzapperlabs.mycasts.podcastdetails.PodcastDetailsScreen
-import com.bugzapperlabs.mycasts.articlelist.ArticleListScreen
+import com.bugzapperlabs.mycasts.episodelist.EpisodeListScreen
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.downloads.DownloadsScreen
 import com.bugzapperlabs.mycasts.feedlist.FeedListScreen
@@ -132,13 +132,13 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { UnreadWidget().updateAll(applicationContext) }
 
         // issue #150: sharing a URL from another app (ACTION_SEND) lands here to add it as a feed,
-        // the same way tapping a widget feed lands on that feed's article list.
+        // the same way tapping a widget feed lands on that feed's episode list.
         val sharedUrl = intent.takeIf { it.action == Intent.ACTION_SEND && it.type == "text/plain" }
             ?.getStringExtra(Intent.EXTRA_TEXT)
 
         val startDestination = intent.getLongExtra(WIDGET_FEED_ID_EXTRA, -1L)
             .takeIf { it >= 0 }
-            ?.let { feedId -> "articleList/$feedId" }
+            ?.let { feedId -> "episodeList/$feedId" }
             ?: sharedUrl?.let { "addFeed?sharedUrl=${Uri.encode(it)}" }
             ?: "feedList"
 
@@ -356,7 +356,7 @@ class MainActivity : ComponentActivity() {
                             composable("feedList") {
                                 FeedListScreen(
                                     onAddFeedClick = { navController.navigate("addFeed") },
-                                    onFeedClick = { feedId -> navController.navigate("articleList/$feedId") },
+                                    onFeedClick = { feedId -> navController.navigate("episodeList/$feedId") },
                                     onSettingsClick = { navController.navigate("settings") },
                                     onQueueClick = onQueueClick,
                                     onFeedLongClick = { feedId -> navController.navigate("feedProperties/$feedId") },
@@ -417,13 +417,13 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable(
-                                "articleList/{feedId}",
+                                "episodeList/{feedId}",
                                 arguments = listOf(navArgument("feedId") { type = NavType.LongType }),
                             ) { backStackEntry ->
                                 val feedId = backStackEntry.arguments?.getLong("feedId") ?: 0L
-                                ArticleListScreen(
+                                EpisodeListScreen(
                                     onBack = { navController.popBackStack() },
-                                    onArticleClick = { itemId -> navController.navigate("reader/$feedId/$itemId") },
+                                    onEpisodeClick = { itemId -> navController.navigate("reader/$feedId/$itemId") },
                                     onQueueClick = onQueueClick,
                                     onFeedSettingsClick = { navController.navigate("feedProperties/$feedId") },
                                 )

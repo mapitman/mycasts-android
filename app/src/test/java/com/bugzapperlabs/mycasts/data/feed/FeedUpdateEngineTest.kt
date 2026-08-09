@@ -342,7 +342,7 @@ class FeedUpdateEngineTest {
      * Regression coverage for issue #156 ("app crashes interacting with feed items during a feed
      * refresh", reported case: marking a large number of checked episodes as read while feeds
      * refreshed in the background). No stack trace was ever captured, and this couldn't be
-     * reproduced -- 12 clean stress runs across this test and the [ArticleListViewModel]-level
+     * reproduced -- 12 clean stress runs across this test and the [EpisodeListViewModel]-level
      * equivalent, both before and after the concurrent-refresh hardening already landed for
      * issues #152/#189/#269/#276 -- but the scenario (a bulk item mutation racing a refresh's
      * trim-to-[itemsToKeep] step on the very rows being mutated) is a real, plausible one worth

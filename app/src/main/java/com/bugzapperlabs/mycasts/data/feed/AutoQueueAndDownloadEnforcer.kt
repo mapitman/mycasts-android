@@ -11,7 +11,7 @@ import javax.inject.Inject
  * Applies auto-download (`autoDownloadEnabled`, issue #23) and auto-queue (`autoQueueEnabled`,
  * issue #68) to a batch of [FeedUpdateResult]s. Extracted out of [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorker]
  * (issue #88) so manual pull-to-refresh -- both `FeedListViewModel.refresh()` and
- * `ArticleListViewModel.refresh()` -- can trigger the same behavior the background worker does,
+ * `EpisodeListViewModel.refresh()` -- can trigger the same behavior the background worker does,
  * instead of only seeing new episodes auto-download/auto-queue on the next scheduled run.
  *
  * Looks up each feed fresh from [feedRepository] by id rather than taking a `List<Feed>` from the
