@@ -1,6 +1,5 @@
 package com.bugzapperlabs.mycasts.feedlist
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -31,7 +29,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -63,7 +60,6 @@ fun FeedListScreen(
     onQueueClick: () -> Unit = {},
     onDownloadsClick: () -> Unit = {},
     onFeedLongClick: (Long) -> Unit = {},
-    onReadAllFeedsClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val feedListFontSize by viewModel.feedListFontSize.collectAsState()
@@ -179,7 +175,6 @@ fun FeedListScreen(
                     onRefresh = viewModel::refresh,
                     onFeedClick = onFeedClick,
                     onFeedLongClick = onFeedLongClick,
-                    onReadAllClick = if (section.section == FeedListSection.FEEDS) onReadAllFeedsClick else null,
                 )
             }
         }
@@ -195,33 +190,23 @@ private fun FeedSectionList(
     onRefresh: () -> Unit,
     onFeedClick: (Long) -> Unit,
     onFeedLongClick: (Long) -> Unit,
-    onReadAllClick: (() -> Unit)?,
 ) {
     PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
-                Row(
+                Text(
+                    text = stringResource(
+                        if (section.section == FeedListSection.PODCASTS) {
+                            R.string.feed_list_section_unplayed
+                        } else {
+                            R.string.feed_list_section_unread
+                        },
+                        section.totalUnread,
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = stringResource(
-                            if (section.section == FeedListSection.PODCASTS) {
-                                R.string.feed_list_section_unplayed
-                            } else {
-                                R.string.feed_list_section_unread
-                            },
-                            section.totalUnread,
-                        ),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    if (onReadAllClick != null && section.feeds.isNotEmpty()) {
-                        TextButton(onClick = onReadAllClick) {
-                            Text(stringResource(R.string.feed_list_read_all))
-                        }
-                    }
-                }
+                )
             }
             items(section.feeds, key = { it.feed.id }) { item ->
                 ListItemRow(

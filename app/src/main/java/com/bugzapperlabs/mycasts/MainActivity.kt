@@ -73,7 +73,6 @@ import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.downloads.DownloadsScreen
 import com.bugzapperlabs.mycasts.feedlist.FeedListScreen
 import com.bugzapperlabs.mycasts.feedproperties.FeedPropertiesScreen
-import com.bugzapperlabs.mycasts.feedriver.FeedRiverScreen
 import com.bugzapperlabs.mycasts.playback.MiniPlayerViewModel
 import com.bugzapperlabs.mycasts.playback.NowPlayingMiniStrip
 import com.bugzapperlabs.mycasts.playback.PlayerBottomSheetContent
@@ -361,19 +360,11 @@ class MainActivity : ComponentActivity() {
                                     onSettingsClick = { navController.navigate("settings") },
                                     onQueueClick = onQueueClick,
                                     onFeedLongClick = { feedId -> navController.navigate("feedProperties/$feedId") },
-                                    onReadAllFeedsClick = { navController.navigate("feedRiver") },
                                     onDownloadsClick = { navController.navigate("downloads") },
                                 )
                             }
                             composable("downloads") {
                                 DownloadsScreen(onBack = { navController.popBackStack() })
-                            }
-                            composable("feedRiver") {
-                                FeedRiverScreen(
-                                    onBack = { navController.popBackStack() },
-                                    onArticleClick = { feedId, itemId -> navController.navigate("reader/$feedId/$itemId") },
-                                    onQueueClick = onQueueClick,
-                                )
                             }
                             composable(
                                 "feedProperties/{feedId}",
