@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Centered "m" monogram with RSS signal-wave arcs radiating outward symmetrically (180-degree
-     rotational symmetry) into the top-right and bottom-left quadrants only. Unlike a
-     corner-anchored RSS glyph, this stays entirely within the 108dp viewport's ~66dp
-     adaptive-icon "safe zone" without needing to touch any edge, so it isn't clipped regardless
-     of which mask shape (circle, squircle, rounded square, etc.) a given launcher applies.
-     See Marketing/ApplicationIcon.png in myfeeds-winphone for the original brand mark this
-     reinterprets. -->
+<!-- The same RSS-style signal-wave arcs as before, radiating outward symmetrically
+     (180-degree rotational symmetry) into the top-right and bottom-left quadrants only,
+     stay entirely within the 108dp viewport's ~66dp adaptive-icon "safe zone"; see
+     Marketing/ApplicationIcon.png in myfeeds-winphone for the original brand mark this
+     reinterprets. The "m" monogram is now superimposed on a play triangle (issue #3): the
+     triangle is filled solid and the m's four strokes are punched out of it as negative
+     space (evenOdd fill), so the background orange shows through in the shape of the
+     letter. Both the triangle and the (reduced-scale) m stay under radius ~12.5dp from
+     center, clear of the arcs, which begin at radius 13dp. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -16,9 +18,13 @@
         android:pathData="M73,54 A19,19 0 0,0 54,35 L54,41 A13,13 0 0,1 67,54 Z
                            M83,54 A29,29 0 0,0 54,25 L54,31 A23,23 0 0,1 77,54 Z
                            M35,54 A19,19 0 0,0 54,73 L54,67 A13,13 0 0,1 41,54 Z
-                           M25,54 A29,29 0 0,0 54,83 L54,77 A23,23 0 0,1 31,54 Z
-                           M46,48.5 H48.8 V59.5 H46 Z
-                           M52.6,48.5 H55.4 V59.5 H52.6 Z
-                           M59.2,48.5 H62 V59.5 H59.2 Z
-                           M46,48.5 H62 V50.7 H46 Z" />
+                           M25,54 A29,29 0 0,0 54,83 L54,77 A23,23 0 0,1 31,54 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M47.5,43.6 L66.5,54 L47.5,64.4 Z
+                           M49,50.5 H50.75 V57.5 H49 Z
+                           M53.125,50.5 H54.875 V57.5 H53.125 Z
+                           M57.25,50.5 H59 V57.5 H57.25 Z
+                           M49,50.5 H59 V51.9 H49 Z" />
 </vector>
