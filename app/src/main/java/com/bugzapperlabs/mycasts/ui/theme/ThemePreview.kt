@@ -15,10 +15,10 @@ import com.bugzapperlabs.mycasts.ui.components.ReaderText
 @Preview(name = "Dark", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)
 @Composable
 private fun DesignSystemPreview() {
-    MyFeedsTheme {
+    MyCastsTheme {
         Surface {
             Column(modifier = Modifier.padding(8.dp)) {
-                ListItemRow(title = "MyFeeds for Windows Phone", subtitle = "News and updates", unreadCount = 20)
+                ListItemRow(title = "MyCasts for Windows Phone", subtitle = "News and updates", unreadCount = 20)
                 ListItemRow(title = "Windows Phone Blog", subtitle = "Official Windows Phone Blog", unreadCount = 15)
                 ListItemRow(title = "Already read article", isRead = true, unreadCount = 0)
                 ReaderText(text = "This is sample article body text rendered in the reader typography.", modifier = Modifier.padding(16.dp))

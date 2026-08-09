@@ -81,7 +81,7 @@ import com.bugzapperlabs.mycasts.queue.QueueViewModel
 import com.bugzapperlabs.mycasts.reader.ReaderScreen
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduler
 import com.bugzapperlabs.mycasts.settings.SettingsScreen
-import com.bugzapperlabs.mycasts.ui.theme.MyFeedsTheme
+import com.bugzapperlabs.mycasts.ui.theme.MyCastsTheme
 import com.bugzapperlabs.mycasts.widget.UnreadWidget
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -144,7 +144,7 @@ class MainActivity : ComponentActivity() {
             ?: "feedList"
 
         setContent {
-            MyFeedsTheme {
+            MyCastsTheme {
                 // Backs the mini-player <-> full-player shared-element morph (issue #112): the
                 // artwork image and player container carry matching shared keys across
                 // MiniPlayerBar (used both standalone and as the player sheet's sticky header,

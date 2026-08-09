@@ -11,33 +11,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = MyFeedsGreenDark,
-    onPrimary = OnMyFeedsGreenDark,
-    primaryContainer = MyFeedsGreenContainerDark,
-    onPrimaryContainer = OnMyFeedsGreenContainerDark,
-    tertiary = MyFeedsOrangeDark,
-    onTertiary = OnMyFeedsOrangeDark,
-    tertiaryContainer = MyFeedsOrangeContainerDark,
-    onTertiaryContainer = OnMyFeedsOrangeContainerDark,
+    primary = MyCastsGreenDark,
+    onPrimary = OnMyCastsGreenDark,
+    primaryContainer = MyCastsGreenContainerDark,
+    onPrimaryContainer = OnMyCastsGreenContainerDark,
+    tertiary = MyCastsOrangeDark,
+    onTertiary = OnMyCastsOrangeDark,
+    tertiaryContainer = MyCastsOrangeContainerDark,
+    onTertiaryContainer = OnMyCastsOrangeContainerDark,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = MyFeedsGreenLight,
-    onPrimary = OnMyFeedsGreenLight,
-    primaryContainer = MyFeedsGreenContainerLight,
-    onPrimaryContainer = OnMyFeedsGreenContainerLight,
-    tertiary = MyFeedsOrangeLight,
-    onTertiary = OnMyFeedsOrangeLight,
-    tertiaryContainer = MyFeedsOrangeContainerLight,
-    onTertiaryContainer = OnMyFeedsOrangeContainerLight,
+    primary = MyCastsGreenLight,
+    onPrimary = OnMyCastsGreenLight,
+    primaryContainer = MyCastsGreenContainerLight,
+    onPrimaryContainer = OnMyCastsGreenContainerLight,
+    tertiary = MyCastsOrangeLight,
+    onTertiary = OnMyCastsOrangeLight,
+    tertiaryContainer = MyCastsOrangeContainerLight,
+    onTertiaryContainer = OnMyCastsOrangeContainerLight,
 )
 
 /**
  * @param dynamicColor Opt-in to Android 12+ wallpaper-derived color. Off by default so the
- * ported MyFeeds brand (green accent, orange tertiary) always shows.
+ * ported MyCasts brand (green accent, orange tertiary) always shows.
  */
 @Composable
-fun MyFeedsTheme(
+fun MyCastsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
