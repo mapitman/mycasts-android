@@ -27,17 +27,8 @@ import javax.inject.Inject
 
 data class FeedListItemUiState(val feed: Feed, val unreadCount: Int)
 
-enum class FeedListSection { PODCASTS, FEEDS }
-
-data class FeedListSectionUiState(
-    val section: FeedListSection,
-    val feeds: List<FeedListItemUiState>,
-) {
-    val totalUnread: Int get() = feeds.sumOf { it.unreadCount }
-}
-
 data class FeedListUiState(
-    val sections: List<FeedListSectionUiState> = emptyList(),
+    val feeds: List<FeedListItemUiState> = emptyList(),
     val totalUnread: Int = 0,
     val isRefreshing: Boolean = false,
 )
@@ -89,22 +80,10 @@ class FeedListViewModel @Inject constructor(
 
     val uiState: StateFlow<FeedListUiState> = combine(
         stableSource,
-        feedRepository.observePodcastFeedIds(),
         isRefreshing,
-    ) { source, podcastFeedIds, refreshing ->
-        // Podcast-ness (issue #65) splits the flat feed list into two fixed sections (issue #118):
-        // "Podcasts" (feeds with at least one audio-enclosure item) and "Feeds" (everything else).
-        val podcastFeeds = source.feeds
-            .filter { it.id in podcastFeedIds }
-            .map { feed -> FeedListItemUiState(feed, source.unreadCounts[feed.id] ?: 0) }
-        val otherFeeds = source.feeds
-            .filterNot { it.id in podcastFeedIds }
-            .map { feed -> FeedListItemUiState(feed, source.unreadCounts[feed.id] ?: 0) }
+    ) { source, refreshing ->
         FeedListUiState(
-            sections = listOf(
-                FeedListSectionUiState(FeedListSection.PODCASTS, podcastFeeds),
-                FeedListSectionUiState(FeedListSection.FEEDS, otherFeeds),
-            ),
+            feeds = source.feeds.map { feed -> FeedListItemUiState(feed, source.unreadCounts[feed.id] ?: 0) },
             totalUnread = source.totalUnread,
             isRefreshing = refreshing,
         )
