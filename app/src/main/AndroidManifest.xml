@@ -16,21 +16,21 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
-        android:name=".MyFeedsApp"
+        android:name=".MyCastsApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/Theme.MyFeeds"
+        android:theme="@style/Theme.MyCasts"
         android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.MyFeeds.Splash">
+            android:theme="@style/Theme.MyCasts.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- issue #150: lets MyFeeds appear in the share sheet when sharing a URL from
+            <!-- issue #150: lets MyCasts appear in the share sheet when sharing a URL from
                  another app, to add it as a feed. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -69,8 +69,8 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Disabled: MyFeedsApp implements Configuration.Provider for Hilt-injected workers, so
-             WorkManager initializes on-demand instead (see MyFeedsApp.workManagerConfiguration). -->
+        <!-- Disabled: MyCastsApp implements Configuration.Provider for Hilt-injected workers, so
+             WorkManager initializes on-demand instead (see MyCastsApp.workManagerConfiguration). -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
