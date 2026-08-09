@@ -58,8 +58,6 @@
     <string name="feed_list_refresh_error">Couldn\'t refresh: check your connection</string>
     <string name="feed_list_podcasts_tab">Podcasts</string>
     <string name="feed_list_feeds_tab">Feeds</string>
-    <string name="feed_list_read_all">Read all</string>
-    <string name="feed_river_item_source">%1$s • %2$s</string>
 
     <!-- Article list -->
     <string name="article_list_selected">%1$d selected</string>
