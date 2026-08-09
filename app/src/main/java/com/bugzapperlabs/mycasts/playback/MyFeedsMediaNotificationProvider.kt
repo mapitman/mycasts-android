@@ -10,7 +10,7 @@ import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
-import com.bugzapperlabs.myfeeds.R
+import com.bugzapperlabs.mycasts.R
 import com.google.common.collect.ImmutableList
 
 /**

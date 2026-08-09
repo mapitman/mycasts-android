@@ -53,13 +53,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.articlelist.ArticleDateFormatter
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.local.isPodcastEpisode
-import com.bugzapperlabs.myfeeds.data.settings.scaleFactor
-import com.bugzapperlabs.myfeeds.ui.components.ConfirmDeleteDialog
-import com.bugzapperlabs.myfeeds.ui.components.SwipeToToggleReadBox
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.articlelist.ArticleDateFormatter
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
+import com.bugzapperlabs.mycasts.data.settings.scaleFactor
+import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
+import com.bugzapperlabs.mycasts.ui.components.SwipeToToggleReadBox
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable

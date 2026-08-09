@@ -1,6 +1,6 @@
 package com.bugzapperlabs.mycasts.playback
 
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.FeedItem
 
 /**
  * Ported rule from MyFeeds.AudioPlaybackAgent EnclosureControl.xaml.cs GetAudioTrack: a fully

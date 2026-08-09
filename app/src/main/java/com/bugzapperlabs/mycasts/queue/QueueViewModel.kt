@@ -3,11 +3,11 @@ package com.bugzapperlabs.mycasts.queue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.bugzapperlabs.myfeeds.data.local.QueueEntry
-import com.bugzapperlabs.myfeeds.data.local.QueuedEpisode
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.repository.QueueRepository
-import com.bugzapperlabs.myfeeds.playback.PlaybackController
+import com.bugzapperlabs.mycasts.data.local.QueueEntry
+import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.QueueRepository
+import com.bugzapperlabs.mycasts.playback.PlaybackController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

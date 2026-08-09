@@ -47,9 +47,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.settings.scaleFactor
-import com.bugzapperlabs.myfeeds.ui.components.ListItemRow
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.settings.scaleFactor
+import com.bugzapperlabs.mycasts.ui.components.ListItemRow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)

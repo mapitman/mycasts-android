@@ -1,7 +1,7 @@
 package com.bugzapperlabs.mycasts.data.directory
 
-import com.bugzapperlabs.myfeeds.data.feed.FeedFetcher
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext

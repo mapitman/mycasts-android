@@ -75,13 +75,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.articlelist.ArticleDateFormatter
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.local.isPodcastEpisode
-import com.bugzapperlabs.myfeeds.data.settings.scaleFactor
-import com.bugzapperlabs.myfeeds.playback.PLAYER_ARTWORK_KEY
-import com.bugzapperlabs.myfeeds.playback.PlaybackUiState
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.articlelist.ArticleDateFormatter
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
+import com.bugzapperlabs.mycasts.data.settings.scaleFactor
+import com.bugzapperlabs.mycasts.playback.PLAYER_ARTWORK_KEY
+import com.bugzapperlabs.mycasts.playback.PlaybackUiState
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)

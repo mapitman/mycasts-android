@@ -8,7 +8,7 @@ import javax.inject.Singleton
 
 /**
  * App-wide "a feed refresh is currently running" signal (issue #152), shared between the manual
- * pull-to-refresh path ([com.bugzapperlabs.myfeeds.feedlist.FeedListViewModel]) and the scheduled
+ * pull-to-refresh path ([com.bugzapperlabs.mycasts.feedlist.FeedListViewModel]) and the scheduled
  * background worker ([FeedRefreshWorker]) -- unread counts are displayed frozen while this is
  * true, so a scheduled background refresh needs to participate too, not just a manual one, or
  * counts still visibly flicker whenever the background worker happens to fire.

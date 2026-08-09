@@ -1,12 +1,12 @@
 package com.bugzapperlabs.mycasts.data.repository
 
-import com.bugzapperlabs.myfeeds.data.local.DownloadedEpisode
-import com.bugzapperlabs.myfeeds.data.local.Feed
-import com.bugzapperlabs.myfeeds.data.local.FeedDao
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.local.FeedItemDao
-import com.bugzapperlabs.myfeeds.data.local.QueueDao
-import com.bugzapperlabs.myfeeds.data.settings.UNLIMITED_ITEMS_TO_KEEP
+import com.bugzapperlabs.mycasts.data.local.DownloadedEpisode
+import com.bugzapperlabs.mycasts.data.local.Feed
+import com.bugzapperlabs.mycasts.data.local.FeedDao
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.FeedItemDao
+import com.bugzapperlabs.mycasts.data.local.QueueDao
+import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -76,7 +76,7 @@ class FeedRepository @Inject constructor(
 
     suspend fun removeAllFeeds() = feedDao.deleteAll()
 
-    /** Clears saved podcast resume positions. Does not touch downloaded files/state (see [com.bugzapperlabs.myfeeds.download.DownloadManager]). */
+    /** Clears saved podcast resume positions. Does not touch downloaded files/state (see [com.bugzapperlabs.mycasts.download.DownloadManager]). */
     suspend fun clearAllEnclosurePositions() = feedItemDao.clearAllEnclosurePositions()
 
     suspend fun setDownloadedBytes(itemId: String, bytes: Long?) = feedItemDao.setDownloadedBytes(itemId, bytes)
@@ -102,7 +102,7 @@ class FeedRepository @Inject constructor(
      * up associated enclosure files (issue #12).
      *
      * A feed's `itemsToKeep` of `null` means "use the app-wide default" (see Feed Properties,
-     * which falls back to [com.bugzapperlabs.myfeeds.data.settings.AppSettings.maxArticles] the same way)
+     * which falls back to [com.bugzapperlabs.mycasts.data.settings.AppSettings.maxArticles] the same way)
      * -- it does NOT mean unlimited, so [defaultItemsToKeep] is required rather than skipping the
      * trim (issue #82: feeds that never had a per-feed override set grew unbounded).
      * [UNLIMITED_ITEMS_TO_KEEP], once resolved, means unlimited (issue #302).

@@ -3,7 +3,7 @@ package com.bugzapperlabs.mycasts.data.directory
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.Dispatcher

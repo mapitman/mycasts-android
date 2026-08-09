@@ -6,7 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -20,8 +20,8 @@ import java.io.IOException
  * file via an HTTP Range request when the server supports it (falls back to a full re-download
  * otherwise, mirroring ordinary HTTP semantics rather than the original's OS-managed
  * BackgroundTransferRequest, which has no direct Android equivalent). Progress is persisted to
- * [com.bugzapperlabs.myfeeds.data.local.FeedItem.downloadedBytes] periodically rather than every chunk, to
- * avoid hammering the DB; [com.bugzapperlabs.myfeeds.data.local.FeedItem.downloadedFilePath] is only set
+ * [com.bugzapperlabs.mycasts.data.local.FeedItem.downloadedBytes] periodically rather than every chunk, to
+ * avoid hammering the DB; [com.bugzapperlabs.mycasts.data.local.FeedItem.downloadedFilePath] is only set
  * once the file is fully written, so a killed-mid-download item is never mistaken for complete.
  */
 @HiltWorker

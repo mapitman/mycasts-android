@@ -2,9 +2,9 @@ package com.bugzapperlabs.mycasts.data.repository
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.myfeeds.data.local.AppDatabase
-import com.bugzapperlabs.myfeeds.data.local.Feed
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.AppDatabase
+import com.bugzapperlabs.mycasts.data.local.Feed
+import com.bugzapperlabs.mycasts.data.local.FeedItem
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After

@@ -5,11 +5,11 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.myfeeds.data.feed.FeedFetcher
-import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
-import com.bugzapperlabs.myfeeds.data.local.AppDatabase
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
+import com.bugzapperlabs.mycasts.data.local.AppDatabase
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient

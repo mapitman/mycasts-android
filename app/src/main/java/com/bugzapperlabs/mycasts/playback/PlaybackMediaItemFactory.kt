@@ -4,9 +4,9 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.flow.first
 import java.io.File
 
@@ -22,19 +22,19 @@ data class ResolvedPlaybackMedia(
  *  reads this back off the player's current item rather than tracking its own feedId field, since
  *  [PlaybackService] can also change the current item directly (backgrounded auto-advance) without
  *  going through [PlaybackController.loadMedia]. */
-const val FEED_ID_EXTRA_KEY = "com.bugzapperlabs.myfeeds.feedId"
+const val FEED_ID_EXTRA_KEY = "com.bugzapperlabs.mycasts.feedId"
 
 /** Key into [MediaMetadata.extras] carrying the feed's volume boost, in
  *  [android.media.audiofx.LoudnessEnhancer] target-gain millibels (issue #199). Carried on the
  *  media item rather than looked up separately so [PlaybackService] can apply it synchronously
  *  from its player listener, the same way [FEED_ID_EXTRA_KEY] is read back. */
-const val VOLUME_BOOST_EXTRA_KEY = "com.bugzapperlabs.myfeeds.volumeBoostMillibels"
+const val VOLUME_BOOST_EXTRA_KEY = "com.bugzapperlabs.mycasts.volumeBoostMillibels"
 
 /** Custom [androidx.media3.session.SessionCommand] letting [PlaybackController] change the
  *  volume boost of whatever's currently playing (issue #202) without a full media item reload --
  *  ordinary [androidx.media3.common.Player] commands have no notion of the
  *  [android.media.audiofx.LoudnessEnhancer] gain [PlaybackService] applies. */
-const val CUSTOM_COMMAND_SET_VOLUME_BOOST = "com.bugzapperlabs.myfeeds.SET_VOLUME_BOOST"
+const val CUSTOM_COMMAND_SET_VOLUME_BOOST = "com.bugzapperlabs.mycasts.SET_VOLUME_BOOST"
 
 /** Bundle key for the millibel value sent with [CUSTOM_COMMAND_SET_VOLUME_BOOST]. */
 const val EXTRA_VOLUME_BOOST_MILLIBELS = "millibels"
@@ -45,9 +45,9 @@ const val EXTRA_VOLUME_BOOST_MILLIBELS = "millibels"
  *  ExoPlayer's own timeline (issue #179), so [PlaybackService] can't rely on Media3's default
  *  notification actions for them and instead handles these directly in its session callback,
  *  the same way [CUSTOM_COMMAND_SET_VOLUME_BOOST] is handled. */
-const val CUSTOM_COMMAND_SKIP_FORWARD = "com.bugzapperlabs.myfeeds.SKIP_FORWARD"
-const val CUSTOM_COMMAND_SKIP_BACKWARD = "com.bugzapperlabs.myfeeds.SKIP_BACKWARD"
-const val CUSTOM_COMMAND_CYCLE_SPEED = "com.bugzapperlabs.myfeeds.CYCLE_SPEED"
+const val CUSTOM_COMMAND_SKIP_FORWARD = "com.bugzapperlabs.mycasts.SKIP_FORWARD"
+const val CUSTOM_COMMAND_SKIP_BACKWARD = "com.bugzapperlabs.mycasts.SKIP_BACKWARD"
+const val CUSTOM_COMMAND_CYCLE_SPEED = "com.bugzapperlabs.mycasts.CYCLE_SPEED"
 
 /** Speeds cycled by the notification's speed button (issue #293), matching [PLAYBACK_SPEEDS] in
  *  MiniPlayerBar/ReaderScreen so the notification offers the same presets as the in-app player. */

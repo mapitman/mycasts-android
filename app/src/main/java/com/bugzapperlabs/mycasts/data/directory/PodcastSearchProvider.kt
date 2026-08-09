@@ -14,7 +14,7 @@ data class PodcastSearchResult(
 /**
  * Strategy interface for podcast/feed discovery search (issue #93), so the active search
  * implementation can be swapped without changing callers -- see [PodcastSearchService] (picks
- * between implementations at runtime), [com.bugzapperlabs.myfeeds.data.directory.FeedDirectory]
+ * between implementations at runtime), [com.bugzapperlabs.mycasts.data.directory.FeedDirectory]
  * (offline snapshot search) and [PodcastIndexSearchProvider] (live podcastindex.org search).
  */
 interface PodcastSearchProvider {

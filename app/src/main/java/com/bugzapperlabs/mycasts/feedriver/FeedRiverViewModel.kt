@@ -5,15 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
-import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateResult
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.local.isPodcastEpisode
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.repository.QueueRepository
-import com.bugzapperlabs.myfeeds.data.settings.FontSize
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
+import com.bugzapperlabs.mycasts.data.feed.FeedUpdateResult
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.QueueRepository
+import com.bugzapperlabs.mycasts.data.settings.FontSize
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,7 +38,7 @@ data class FeedRiverUiState(
     val isSelectionMode: Boolean get() = selectedIds.isNotEmpty()
 
     /** Whether the bulk "add to queue" toolbar action should be enabled (issue #286) -- only when
-     *  every selected article is a podcast episode. Unlike [com.bugzapperlabs.myfeeds.articlelist.ArticleListViewModel]'s
+     *  every selected article is a podcast episode. Unlike [com.bugzapperlabs.mycasts.articlelist.ArticleListViewModel]'s
      *  equivalent, which silently filters the selection down to just the episodes instead, a River
      *  selection spans every non-podcast feed at once and so is much more likely to mix plain
      *  articles and audio episodes -- disabling instead of filtering keeps the button's effect
@@ -168,7 +168,7 @@ class FeedRiverViewModel @Inject constructor(
 
     /** Only ever invoked with an all-podcast-episode selection (issue #286) -- the toolbar button
      *  that triggers this is disabled otherwise (see [FeedRiverUiState.canAddSelectedToQueue]), so
-     *  unlike [com.bugzapperlabs.myfeeds.articlelist.ArticleListViewModel.addSelectedToQueue] this
+     *  unlike [com.bugzapperlabs.mycasts.articlelist.ArticleListViewModel.addSelectedToQueue] this
      *  doesn't need to filter the selection itself. */
     fun addSelectedToQueue() {
         val ids = selectedIds.value

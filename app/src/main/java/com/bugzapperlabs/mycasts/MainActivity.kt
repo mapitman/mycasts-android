@@ -66,29 +66,29 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dagger.hilt.android.AndroidEntryPoint
-import com.bugzapperlabs.myfeeds.addfeed.AddFeedScreen
-import com.bugzapperlabs.myfeeds.podcastdetails.PodcastDetailsScreen
-import com.bugzapperlabs.myfeeds.articlelist.ArticleListScreen
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
-import com.bugzapperlabs.myfeeds.downloads.DownloadsScreen
-import com.bugzapperlabs.myfeeds.feedlist.FeedListScreen
-import com.bugzapperlabs.myfeeds.feedproperties.FeedPropertiesScreen
-import com.bugzapperlabs.myfeeds.feedriver.FeedRiverScreen
-import com.bugzapperlabs.myfeeds.playback.MiniPlayerViewModel
-import com.bugzapperlabs.myfeeds.playback.NowPlayingMiniStrip
-import com.bugzapperlabs.myfeeds.playback.PlayerBottomSheetContent
-import com.bugzapperlabs.myfeeds.queue.QueueViewModel
-import com.bugzapperlabs.myfeeds.reader.ReaderScreen
-import com.bugzapperlabs.myfeeds.refresh.FeedRefreshScheduler
-import com.bugzapperlabs.myfeeds.settings.SettingsScreen
-import com.bugzapperlabs.myfeeds.ui.theme.MyFeedsTheme
-import com.bugzapperlabs.myfeeds.widget.UnreadWidget
+import com.bugzapperlabs.mycasts.addfeed.AddFeedScreen
+import com.bugzapperlabs.mycasts.podcastdetails.PodcastDetailsScreen
+import com.bugzapperlabs.mycasts.articlelist.ArticleListScreen
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.downloads.DownloadsScreen
+import com.bugzapperlabs.mycasts.feedlist.FeedListScreen
+import com.bugzapperlabs.mycasts.feedproperties.FeedPropertiesScreen
+import com.bugzapperlabs.mycasts.feedriver.FeedRiverScreen
+import com.bugzapperlabs.mycasts.playback.MiniPlayerViewModel
+import com.bugzapperlabs.mycasts.playback.NowPlayingMiniStrip
+import com.bugzapperlabs.mycasts.playback.PlayerBottomSheetContent
+import com.bugzapperlabs.mycasts.queue.QueueViewModel
+import com.bugzapperlabs.mycasts.reader.ReaderScreen
+import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduler
+import com.bugzapperlabs.mycasts.settings.SettingsScreen
+import com.bugzapperlabs.mycasts.ui.theme.MyFeedsTheme
+import com.bugzapperlabs.mycasts.widget.UnreadWidget
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** Height of the player bottom sheet's collapsed/peek state (issue #195) -- tall enough for
- *  [com.bugzapperlabs.myfeeds.playback.MiniPlayerBar]'s full two-row control layout. */
+ *  [com.bugzapperlabs.mycasts.playback.MiniPlayerBar]'s full two-row control layout. */
 private val PLAYER_SHEET_PEEK_HEIGHT = 312.dp
 
 /** [androidx.compose.material3.BottomSheetDefaults.DragHandle] hardcodes 22dp of vertical padding
@@ -522,7 +522,7 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        /** Matches [com.bugzapperlabs.myfeeds.widget.FeedIdParam]'s key name -- Glance's actionStartActivity
+        /** Matches [com.bugzapperlabs.mycasts.widget.FeedIdParam]'s key name -- Glance's actionStartActivity
          * puts ActionParameters into the launch Intent's extras keyed by parameter name. */
         const val WIDGET_FEED_ID_EXTRA = "feedId"
     }

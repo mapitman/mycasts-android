@@ -49,8 +49,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.directory.PodcastSearchResult
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.directory.PodcastSearchResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -6,16 +6,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.local.isPodcastEpisode
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.repository.QueueRepository
-import com.bugzapperlabs.myfeeds.data.settings.FontSize
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
-import com.bugzapperlabs.myfeeds.download.EnclosureDownloadRepository
-import com.bugzapperlabs.myfeeds.playback.PlaybackController
-import com.bugzapperlabs.myfeeds.playback.PlaybackUiState
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.QueueRepository
+import com.bugzapperlabs.mycasts.data.settings.FontSize
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
+import com.bugzapperlabs.mycasts.playback.PlaybackController
+import com.bugzapperlabs.mycasts.playback.PlaybackUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -75,7 +75,7 @@ class ReaderViewModel @Inject constructor(
 
     /**
      * Articles are marked read as soon as they're viewed. Podcast episodes are only marked
-     * read/played when playback finishes (see [com.bugzapperlabs.myfeeds.playback.PlaybackService]).
+     * read/played when playback finishes (see [com.bugzapperlabs.mycasts.playback.PlaybackService]).
      */
     fun markRead(item: FeedItem) {
         if (item.isPodcastEpisode) return

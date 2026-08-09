@@ -54,9 +54,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.articlelist.ArticleDateFormatter
-import com.bugzapperlabs.myfeeds.data.local.QueuedEpisode
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.articlelist.ArticleDateFormatter
+import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch

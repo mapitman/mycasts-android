@@ -1,11 +1,11 @@
 package com.bugzapperlabs.mycasts.data.opml
 
-import com.bugzapperlabs.myfeeds.data.feed.FeedFetchResult
-import com.bugzapperlabs.myfeeds.data.feed.FeedFetcher
-import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
-import com.bugzapperlabs.myfeeds.data.local.Feed
-import com.bugzapperlabs.myfeeds.data.local.FeedDao
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.data.feed.FeedFetchResult
+import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
+import com.bugzapperlabs.mycasts.data.local.Feed
+import com.bugzapperlabs.mycasts.data.local.FeedDao
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll

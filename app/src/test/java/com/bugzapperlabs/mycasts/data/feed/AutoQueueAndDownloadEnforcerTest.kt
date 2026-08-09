@@ -5,15 +5,15 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.myfeeds.data.local.AppDatabase
-import com.bugzapperlabs.myfeeds.data.local.AutoQueuePosition
-import com.bugzapperlabs.myfeeds.data.local.Feed
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.repository.QueueRepository
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
-import com.bugzapperlabs.myfeeds.download.DownloadScheduling
-import com.bugzapperlabs.myfeeds.download.EnclosureDownloadRepository
+import com.bugzapperlabs.mycasts.data.local.AppDatabase
+import com.bugzapperlabs.mycasts.data.local.AutoQueuePosition
+import com.bugzapperlabs.mycasts.data.local.Feed
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.QueueRepository
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadScheduling
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -32,7 +32,7 @@ import java.io.File
  *
  * Covers the auto-queue side of [AutoQueueAndDownloadEnforcer] specifically -- in particular
  * issue #166's per-feed choice of adding newly-fetched episodes to the top vs. the bottom of the
- * Next Up queue. [com.bugzapperlabs.myfeeds.refresh.FeedRefreshWorkerTest] already covers the
+ * Next Up queue. [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorkerTest] already covers the
  * bottom-of-queue (default) path end-to-end via a real HTTP fetch; these tests construct
  * [FeedUpdateResult.Success] directly instead, since the position-choice logic lives entirely in
  * this class and doesn't need a real feed fetch/parse round trip to exercise.

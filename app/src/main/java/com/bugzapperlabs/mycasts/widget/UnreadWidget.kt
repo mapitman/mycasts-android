@@ -26,8 +26,8 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import com.bugzapperlabs.myfeeds.MainActivity
-import com.bugzapperlabs.myfeeds.R
+import com.bugzapperlabs.mycasts.MainActivity
+import com.bugzapperlabs.mycasts.R
 import kotlinx.coroutines.flow.first
 
 data class UnreadFeed(val feedId: Long, val title: String, val unreadCount: Int)

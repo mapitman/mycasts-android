@@ -2,7 +2,7 @@ package com.bugzapperlabs.mycasts.data.directory
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import com.bugzapperlabs.myfeeds.data.opml.OpmlParser
+import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
 /**
  * The "Next Up" playback queue (issue #67): an ordered, cross-feed list of episodes independent
  * of any single feed's article list. `itemId` is the primary key -- an episode can only be queued
- * once, re-queuing is a no-op (see [com.bugzapperlabs.myfeeds.data.repository.QueueRepository]).
+ * once, re-queuing is a no-op (see [com.bugzapperlabs.mycasts.data.repository.QueueRepository]).
  */
 @Entity(
     tableName = "queue_entries",

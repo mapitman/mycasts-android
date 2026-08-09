@@ -8,8 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.bugzapperlabs.myfeeds.ui.components.ListItemRow
-import com.bugzapperlabs.myfeeds.ui.components.ReaderText
+import com.bugzapperlabs.mycasts.ui.components.ListItemRow
+import com.bugzapperlabs.mycasts.ui.components.ReaderText
 
 @Preview(name = "Light", showBackground = true)
 @Preview(name = "Dark", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true)

@@ -19,7 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.bugzapperlabs.myfeeds.R
+import com.bugzapperlabs.mycasts.R
 
 /**
  * Wraps a list row with swipe-left/right to toggle read state (issue #120), as a faster

@@ -4,8 +4,8 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import com.bugzapperlabs.myfeeds.data.local.FeedDao
-import com.bugzapperlabs.myfeeds.data.local.FeedItemDao
+import com.bugzapperlabs.mycasts.data.local.FeedDao
+import com.bugzapperlabs.mycasts.data.local.FeedItemDao
 
 /**
  * [androidx.glance.appwidget.GlanceAppWidget] isn't an Android component Hilt can inject directly

@@ -13,15 +13,15 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import com.bugzapperlabs.myfeeds.MainActivity
-import com.bugzapperlabs.myfeeds.MyFeedsApp
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.feed.AutoQueueAndDownloadEnforcer
-import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateEngine
-import com.bugzapperlabs.myfeeds.data.feed.FeedUpdateResult
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
-import com.bugzapperlabs.myfeeds.widget.UnreadWidget
+import com.bugzapperlabs.mycasts.MainActivity
+import com.bugzapperlabs.mycasts.MyFeedsApp
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
+import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
+import com.bugzapperlabs.mycasts.data.feed.FeedUpdateResult
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.widget.UnreadWidget
 import kotlinx.coroutines.flow.first
 
 /**
@@ -37,7 +37,7 @@ import kotlinx.coroutines.flow.first
  *
  * Also refreshes the home-screen widget's unread counts (issue #24) once the run completes, and
  * optionally posts a notification summarizing new items (issue #25) when the user has opted in
- * via [com.bugzapperlabs.myfeeds.data.settings.AppSettings.notifyOnNewItems].
+ * via [com.bugzapperlabs.mycasts.data.settings.AppSettings.notifyOnNewItems].
  */
 @HiltWorker
 class FeedRefreshWorker @AssistedInject constructor(

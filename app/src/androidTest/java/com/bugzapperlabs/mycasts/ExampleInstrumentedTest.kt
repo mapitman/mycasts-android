@@ -11,6 +11,6 @@ class ExampleInstrumentedTest {
     @Test
     fun useAppContext() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.bugzapperlabs.myfeeds", appContext.packageName)
+        assertEquals("com.bugzapperlabs.mycasts", appContext.packageName)
     }
 }

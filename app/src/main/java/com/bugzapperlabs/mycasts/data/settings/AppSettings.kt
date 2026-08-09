@@ -1,6 +1,6 @@
 package com.bugzapperlabs.mycasts.data.settings
 
-/** Sentinel for [AppSettings.maxArticles] / [com.bugzapperlabs.myfeeds.data.local.Feed.itemsToKeep]
+/** Sentinel for [AppSettings.maxArticles] / [com.bugzapperlabs.mycasts.data.local.Feed.itemsToKeep]
  *  meaning "keep every item, never trim" (issue #302) -- outside the sliders' normal 5..100 range,
  *  so it can't collide with a real user-chosen count. */
 const val UNLIMITED_ITEMS_TO_KEEP = 0
@@ -49,7 +49,7 @@ data class AppSettings(
     /** Free API credentials for live podcast search via podcastindex.org (issue #93), registered
      *  by the user themselves -- there's no ToS-compliant way to bundle a single shared key in an
      *  open-source app. Search silently falls back to the offline directory when either is unset,
-     *  see [com.bugzapperlabs.myfeeds.data.directory.PodcastSearchService]. */
+     *  see [com.bugzapperlabs.mycasts.data.directory.PodcastSearchService]. */
     val podcastIndexApiKey: String? = null,
     val podcastIndexApiSecret: String? = null,
 )

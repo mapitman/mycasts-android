@@ -60,14 +60,14 @@ import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.bugzapperlabs.myfeeds.BuildConfig
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.settings.AppSettings
-import com.bugzapperlabs.myfeeds.data.settings.FontSize
-import com.bugzapperlabs.myfeeds.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
-import com.bugzapperlabs.myfeeds.data.settings.UNLIMITED_ITEMS_TO_KEEP
-import com.bugzapperlabs.myfeeds.data.settings.itemsToKeepFromSliderPosition
-import com.bugzapperlabs.myfeeds.ui.components.excludeFromSystemGestures
+import com.bugzapperlabs.mycasts.BuildConfig
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.settings.AppSettings
+import com.bugzapperlabs.mycasts.data.settings.FontSize
+import com.bugzapperlabs.mycasts.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
+import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
+import com.bugzapperlabs.mycasts.data.settings.itemsToKeepFromSliderPosition
+import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -340,7 +340,7 @@ private fun BatteryOptimizationSetting() {
 
 /** Free API credentials for live podcast search via podcastindex.org (issue #93) -- search
  *  silently falls back to the offline directory when either field is blank, see
- *  [com.bugzapperlabs.myfeeds.data.directory.PodcastSearchService]. Local text-field state tracks
+ *  [com.bugzapperlabs.mycasts.data.directory.PodcastSearchService]. Local text-field state tracks
  *  whether the user has actually edited it: until they do, it keeps re-syncing from [settings]
  *  (a [SharingStarted.WhileSubscribed] StateFlow can briefly show the empty default here on
  *  re-navigation, before the real persisted value finishes loading from DataStore -- syncing only

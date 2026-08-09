@@ -12,7 +12,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Callers (e.g. [com.bugzapperlabs.myfeeds.settings.SettingsViewModel]) depend on this instead of
+ * Callers (e.g. [com.bugzapperlabs.mycasts.settings.SettingsViewModel]) depend on this instead of
  * [FeedRefreshScheduler] directly so unit tests can substitute a no-op fake -- touching real
  * WorkManager from Robolectric-hosted ViewModel tests deadlocked in CI (see the scheduled-refresh
  * PR description for the reproduction).
@@ -22,7 +22,7 @@ interface FeedRefreshScheduling {
 }
 
 /**
- * Enqueues [FeedRefreshWorker] on the interval from [com.bugzapperlabs.myfeeds.data.settings.AppSettings]
+ * Enqueues [FeedRefreshWorker] on the interval from [com.bugzapperlabs.mycasts.data.settings.AppSettings]
  * (issue #22). [ExistingPeriodicWorkPolicy.UPDATE] lets rescheduling with a new interval take
  * effect without losing the original enqueue time, per WorkManager's guidance for user-driven
  * interval changes.

@@ -1,6 +1,6 @@
 package com.bugzapperlabs.mycasts.playback
 
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.FeedItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -1,6 +1,6 @@
 package com.bugzapperlabs.mycasts.playback
 
-import com.bugzapperlabs.myfeeds.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 /**
  * Fetches and parses a Podcasting 2.0 external chapters JSON file (issue #95), pointed to by
- * [com.bugzapperlabs.myfeeds.data.local.FeedItem.chaptersUrl]. Never throws -- a failed fetch or malformed
+ * [com.bugzapperlabs.mycasts.data.local.FeedItem.chaptersUrl]. Never throws -- a failed fetch or malformed
  * response just means no chapters for this episode, not a playback error.
  */
 class ChaptersFetcher @Inject constructor(private val httpClient: OkHttpClient) {

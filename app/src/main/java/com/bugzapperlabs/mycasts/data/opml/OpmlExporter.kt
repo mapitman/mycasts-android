@@ -1,8 +1,8 @@
 package com.bugzapperlabs.mycasts.data.opml
 
-import com.bugzapperlabs.myfeeds.data.local.Feed
-import com.bugzapperlabs.myfeeds.data.local.FeedDao
-import com.bugzapperlabs.myfeeds.data.local.FeedItemDao
+import com.bugzapperlabs.mycasts.data.local.Feed
+import com.bugzapperlabs.mycasts.data.local.FeedDao
+import com.bugzapperlabs.mycasts.data.local.FeedItemDao
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 

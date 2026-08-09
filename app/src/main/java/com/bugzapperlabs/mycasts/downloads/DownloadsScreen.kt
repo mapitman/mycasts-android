@@ -33,9 +33,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.ui.components.ConfirmDeleteDialog
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
 import java.util.Locale
 import kotlin.math.log10
 import kotlin.math.pow

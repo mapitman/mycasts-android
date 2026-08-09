@@ -6,7 +6,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import com.bugzapperlabs.myfeeds.R
+import com.bugzapperlabs.mycasts.R
 
 /**
  * Confirmation gate for an otherwise-instant, unrecoverable delete (issue #288), matching the

@@ -43,12 +43,12 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.local.AutoQueuePosition
-import com.bugzapperlabs.myfeeds.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
-import com.bugzapperlabs.myfeeds.data.settings.UNLIMITED_ITEMS_TO_KEEP
-import com.bugzapperlabs.myfeeds.data.settings.itemsToKeepFromSliderPosition
-import com.bugzapperlabs.myfeeds.ui.components.excludeFromSystemGestures
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.local.AutoQueuePosition
+import com.bugzapperlabs.mycasts.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
+import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
+import com.bugzapperlabs.mycasts.data.settings.itemsToKeepFromSliderPosition
+import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)

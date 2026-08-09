@@ -1,9 +1,9 @@
 package com.bugzapperlabs.mycasts.data.feed
 
-import com.bugzapperlabs.myfeeds.data.local.Feed
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.data.local.Feed
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -46,14 +46,14 @@ class FeedUpdateEngine @Inject constructor(
 
     /**
      * Applies an already-fetched [parsed] feed to [feed], skipping a redundant re-fetch. Used by
-     * [com.bugzapperlabs.myfeeds.data.opml.OpmlImporter], which must fetch each candidate feed once already
+     * [com.bugzapperlabs.mycasts.data.opml.OpmlImporter], which must fetch each candidate feed once already
      * to validate it before subscribing (issue #231).
      */
     suspend fun persistFetchedFeed(feed: Feed, parsed: ParsedFeed): FeedUpdateResult = persistSafely(feed, parsed)
 
     /**
      * [persist] runs concurrently across many feeds -- both here via [updateFeeds] and in
-     * [com.bugzapperlabs.myfeeds.data.opml.OpmlImporter] -- inside a bare `coroutineScope`, where
+     * [com.bugzapperlabs.mycasts.data.opml.OpmlImporter] -- inside a bare `coroutineScope`, where
      * an uncaught exception from any one feed cancels every other concurrently in-flight sibling
      * immediately (structured concurrency), interrupting them mid-`persist` (issue #269): a sibling
      * could end up with items inserted but the trim-to-`itemsToKeep` step -- or even `Feed.lastGet`

@@ -40,15 +40,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.addfeed.AddFeedUiState
-import com.bugzapperlabs.myfeeds.articlelist.ArticleDateFormatter
-import com.bugzapperlabs.myfeeds.data.feed.ParsedFeedItem
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.addfeed.AddFeedUiState
+import com.bugzapperlabs.mycasts.articlelist.ArticleDateFormatter
+import com.bugzapperlabs.mycasts.data.feed.ParsedFeedItem
 import org.jsoup.Jsoup
 
 /** Episode/podcast descriptions may be HTML (e.g. `content:encoded`) -- these rows use plain
  *  [Text], not a WebView, so tags are stripped to text rather than sanitized-and-kept as in
- *  [com.bugzapperlabs.myfeeds.reader.HtmlSanitizer]. */
+ *  [com.bugzapperlabs.mycasts.reader.HtmlSanitizer]. */
 private fun plainText(html: String): String = if (html.isBlank()) "" else Jsoup.parse(html).text()
 
 private const val MAX_EPISODES_SHOWN = 20

@@ -1,7 +1,7 @@
 package com.bugzapperlabs.mycasts.data.opml
 
 import android.content.Context
-import com.bugzapperlabs.myfeeds.R
+import com.bugzapperlabs.mycasts.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +14,7 @@ import javax.inject.Singleton
 
 /**
  * Runs [OpmlImporter.import] on its own app-lifetime scope (issue #271) rather than the Add Feed
- * screen's [com.bugzapperlabs.myfeeds.addfeed.AddFeedViewModel] scope. A multi-feed OPML import
+ * screen's [com.bugzapperlabs.mycasts.addfeed.AddFeedViewModel] scope. A multi-feed OPML import
  * validates every candidate feed by fetching it (issue #231), which can take long enough that
  * blocking back navigation until it finishes -- the first fix attempted here -- was an
  * unacceptable wait; running it on a scope that outlives the screen means backing out no longer

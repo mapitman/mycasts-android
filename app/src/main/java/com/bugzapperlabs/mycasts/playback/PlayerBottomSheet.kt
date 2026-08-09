@@ -23,9 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.bugzapperlabs.myfeeds.R
-import com.bugzapperlabs.myfeeds.data.local.QueuedEpisode
-import com.bugzapperlabs.myfeeds.queue.ReorderableQueueList
+import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
+import com.bugzapperlabs.mycasts.queue.ReorderableQueueList
 
 /**
  * Content of the persistent player bottom sheet (issue #195): [MiniPlayerBar] as a sticky header

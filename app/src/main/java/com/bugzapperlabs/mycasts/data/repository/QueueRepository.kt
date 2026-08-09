@@ -1,8 +1,8 @@
 package com.bugzapperlabs.mycasts.data.repository
 
-import com.bugzapperlabs.myfeeds.data.local.QueueDao
-import com.bugzapperlabs.myfeeds.data.local.QueueEntry
-import com.bugzapperlabs.myfeeds.data.local.QueuedEpisode
+import com.bugzapperlabs.mycasts.data.local.QueueDao
+import com.bugzapperlabs.mycasts.data.local.QueueEntry
+import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 

@@ -55,7 +55,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.bugzapperlabs.myfeeds.R
+import com.bugzapperlabs.mycasts.R
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 

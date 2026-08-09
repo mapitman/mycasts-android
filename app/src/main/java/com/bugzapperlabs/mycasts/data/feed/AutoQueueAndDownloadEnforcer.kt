@@ -1,15 +1,15 @@
 package com.bugzapperlabs.mycasts.data.feed
 
-import com.bugzapperlabs.myfeeds.data.local.AutoQueuePosition
-import com.bugzapperlabs.myfeeds.data.local.isPodcastEpisode
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.repository.QueueRepository
-import com.bugzapperlabs.myfeeds.download.EnclosureDownloadRepository
+import com.bugzapperlabs.mycasts.data.local.AutoQueuePosition
+import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.QueueRepository
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import javax.inject.Inject
 
 /**
  * Applies auto-download (`autoDownloadEnabled`, issue #23) and auto-queue (`autoQueueEnabled`,
- * issue #68) to a batch of [FeedUpdateResult]s. Extracted out of [com.bugzapperlabs.myfeeds.refresh.FeedRefreshWorker]
+ * issue #68) to a batch of [FeedUpdateResult]s. Extracted out of [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorker]
  * (issue #88) so manual pull-to-refresh -- both `FeedListViewModel.refresh()` and
  * `ArticleListViewModel.refresh()` -- can trigger the same behavior the background worker does,
  * instead of only seeing new episodes auto-download/auto-queue on the next scheduled run.

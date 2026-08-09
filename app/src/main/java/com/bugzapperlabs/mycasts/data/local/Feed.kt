@@ -44,7 +44,7 @@ data class Feed(
     /** Only enforced against auto-downloaded episodes ([FeedItem.autoDownloaded]) of this feed
      *  (issue #250); null means unlimited. Manually-downloaded episodes are never auto-deleted by
      *  this cap, and a queued or currently-playing episode is exempt from eviction even if it's
-     *  the oldest auto-download, mirroring [com.bugzapperlabs.myfeeds.data.repository.FeedRepository.trimToItemsToKeep]'s
+     *  the oldest auto-download, mirroring [com.bugzapperlabs.mycasts.data.repository.FeedRepository.trimToItemsToKeep]'s
      *  queue exemption. */
     val maxDownloadsToKeep: Int? = null,
 )

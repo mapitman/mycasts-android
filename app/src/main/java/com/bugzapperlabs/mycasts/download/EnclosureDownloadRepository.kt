@@ -1,9 +1,9 @@
 package com.bugzapperlabs.mycasts.download
 
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
-import com.bugzapperlabs.myfeeds.data.local.isPodcastEpisode
-import com.bugzapperlabs.myfeeds.data.repository.FeedRepository
-import com.bugzapperlabs.myfeeds.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
+import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.flow.first
 import java.io.File
 import javax.inject.Inject
@@ -33,9 +33,9 @@ class EnclosureDownloadRepository @Inject constructor(
 
     /**
      * Deletes the oldest auto-downloaded episodes of [feedId] beyond [maxCount] (issue #250),
-     * mirroring [com.bugzapperlabs.myfeeds.data.repository.QueueRepository.enforceFeedCap]'s per-feed cap
+     * mirroring [com.bugzapperlabs.mycasts.data.repository.QueueRepository.enforceFeedCap]'s per-feed cap
      * pattern. A queued or currently-playing episode is exempt even if it's the oldest, the same
-     * way [com.bugzapperlabs.myfeeds.data.repository.FeedRepository.trimToItemsToKeep] protects queued
+     * way [com.bugzapperlabs.mycasts.data.repository.FeedRepository.trimToItemsToKeep] protects queued
      * items from its trim -- deleting the file underneath a queued/playing episode would silently
      * pull the rug out from under it.
      */

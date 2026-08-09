@@ -4,12 +4,12 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import com.bugzapperlabs.myfeeds.data.directory.FeedDirectory
-import com.bugzapperlabs.myfeeds.data.directory.OfflinePodcastSearch
-import com.bugzapperlabs.myfeeds.data.directory.OnlinePodcastSearch
-import com.bugzapperlabs.myfeeds.data.directory.PodcastIndexSearchProvider
-import com.bugzapperlabs.myfeeds.data.directory.PodcastSearchProvider
-import com.bugzapperlabs.myfeeds.data.directory.PodcastSearchService
+import com.bugzapperlabs.mycasts.data.directory.FeedDirectory
+import com.bugzapperlabs.mycasts.data.directory.OfflinePodcastSearch
+import com.bugzapperlabs.mycasts.data.directory.OnlinePodcastSearch
+import com.bugzapperlabs.mycasts.data.directory.PodcastIndexSearchProvider
+import com.bugzapperlabs.mycasts.data.directory.PodcastSearchProvider
+import com.bugzapperlabs.mycasts.data.directory.PodcastSearchService
 
 @Module
 @InstallIn(SingletonComponent::class)

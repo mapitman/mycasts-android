@@ -1,9 +1,9 @@
 package com.bugzapperlabs.mycasts.podcastdetails
 
-import com.bugzapperlabs.myfeeds.data.feed.ParsedFeed
+import com.bugzapperlabs.mycasts.data.feed.ParsedFeed
 
 /** Preview of a podcast fetched on tap from a search result (issue #300) -- distinct from
- *  [com.bugzapperlabs.myfeeds.addfeed.AddFeedUiState], which tracks the subscribe action itself. */
+ *  [com.bugzapperlabs.mycasts.addfeed.AddFeedUiState], which tracks the subscribe action itself. */
 sealed interface PodcastPreviewState {
     data object Loading : PodcastPreviewState
     data class Loaded(val feed: ParsedFeed, val resolvedUrl: String) : PodcastPreviewState

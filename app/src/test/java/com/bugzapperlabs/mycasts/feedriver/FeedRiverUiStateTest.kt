@@ -1,6 +1,6 @@
 package com.bugzapperlabs.mycasts.feedriver
 
-import com.bugzapperlabs.myfeeds.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.FeedItem
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
