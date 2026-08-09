@@ -14,7 +14,7 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import com.bugzapperlabs.mycasts.MainActivity
-import com.bugzapperlabs.mycasts.MyFeedsApp
+import com.bugzapperlabs.mycasts.MyCastsApp
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
@@ -84,7 +84,7 @@ class FeedRefreshWorker @AssistedInject constructor(
             android.content.Intent(applicationContext, MainActivity::class.java),
             android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = NotificationCompat.Builder(applicationContext, MyFeedsApp.NEW_ITEMS_CHANNEL_ID)
+        val notification = NotificationCompat.Builder(applicationContext, MyCastsApp.NEW_ITEMS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(applicationContext.getString(R.string.notification_new_items_title))
             .setContentText(
