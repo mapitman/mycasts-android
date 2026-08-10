@@ -72,6 +72,10 @@
     <string name="queue_feedback_added_multiple">%1$d Episoden zu \"Als Nächstes\" hinzugefügt</string>
     <string name="queue_feedback_already_queued">Bereits in \"Als Nächstes\"</string>
     <string name="queue_feedback_removed">„%1$s“ entfernt</string>
+    <string name="download_feedback_started">Download gestartet</string>
+    <string name="download_feedback_started_multiple">%1$d Downloads gestartet</string>
+    <string name="download_feedback_already_downloaded">Bereits heruntergeladen</string>
+    <string name="cd_download_selected">Ausgewählte Episoden herunterladen</string>
     <string name="action_undo">Rückgängig</string>
 
     <!-- Downloads -->

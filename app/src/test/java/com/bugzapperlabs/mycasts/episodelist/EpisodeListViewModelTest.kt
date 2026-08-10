@@ -69,9 +69,11 @@ class EpisodeListViewModelTest {
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var feedUpdateEngine: FeedUpdateEngine
     private lateinit var autoQueueAndDownloadEnforcer: AutoQueueAndDownloadEnforcer
+    private lateinit var downloadRepository: EnclosureDownloadRepository
     private lateinit var context: android.content.Context
     private var feedId: Long = 0
     private var nextViewModelKey = 0
+    private val enqueuedDownloadItemIds = mutableListOf<String>()
 
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
     // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
@@ -85,6 +87,7 @@ class EpisodeListViewModelTest {
             feedUpdateEngine = feedUpdateEngine,
             autoQueueAndDownloadEnforcer = autoQueueAndDownloadEnforcer,
             queueRepository = queueRepository,
+            downloadRepository = downloadRepository,
             settingsDataStore = settingsDataStore,
             context = context,
         ).also { viewModelStore.put("episodeList-${nextViewModelKey++}", it) }
@@ -105,10 +108,12 @@ class EpisodeListViewModelTest {
         )
         settingsDataStore = SettingsDataStore(dataStore)
         feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
-        val downloadRepository = EnclosureDownloadRepository(
+        downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
             downloadScheduling = object : DownloadScheduling {
-                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
+                    enqueuedDownloadItemIds += itemId
+                }
                 override fun cancelDownload(itemId: String) {}
             },
             settingsDataStore = settingsDataStore,
@@ -302,6 +307,45 @@ class EpisodeListViewModelTest {
 
         val queue = queueRepository.observeQueue().first { it.size == 2 }
         assertEquals(setOf("episode-1", "episode-2"), queue.map { it.item.id }.toSet())
+    }
+
+    @Test
+    fun downloadSelected_startsDownloadsOnlyForEligiblePodcastEpisodesAndClearsSelection() = runTest(testDispatcher) {
+        // issue #42: selection mode isn't podcast-specific, and an episode already downloaded (or
+        // already downloading) shouldn't be re-enqueued -- only "episode-new" should start.
+        repository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "episode-new",
+                    feedId = feedId,
+                    title = "New Episode",
+                    itemGuid = "g-episode-new",
+                    enclosureUrl = "https://example.com/new.mp3",
+                    enclosureType = "audio/mpeg",
+                ),
+                FeedItem(
+                    id = "episode-downloaded",
+                    feedId = feedId,
+                    title = "Already Downloaded",
+                    itemGuid = "g-episode-downloaded",
+                    enclosureUrl = "https://example.com/downloaded.mp3",
+                    enclosureType = "audio/mpeg",
+                    downloadedFilePath = "/tmp/downloaded.mp3",
+                ),
+            ),
+        )
+        val viewModel = createViewModel()
+        viewModel.setShowUnreadOnly(false)
+        viewModel.uiState.first { !it.showUnreadOnly && it.episodes.size == 4 }
+        viewModel.toggleSelection("episode-new")
+        viewModel.toggleSelection("episode-downloaded")
+        viewModel.toggleSelection("read-1")
+        viewModel.uiState.first { it.selectedIds.size == 3 }
+
+        viewModel.downloadSelected()
+        viewModel.uiState.first { !it.isSelectionMode }
+
+        assertEquals(listOf("episode-new"), enqueuedDownloadItemIds)
     }
 
     @Test

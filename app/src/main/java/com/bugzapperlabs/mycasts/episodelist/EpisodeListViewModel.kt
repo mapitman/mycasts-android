@@ -16,6 +16,7 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -47,6 +48,7 @@ class EpisodeListViewModel @Inject constructor(
     private val feedUpdateEngine: FeedUpdateEngine,
     private val autoQueueAndDownloadEnforcer: AutoQueueAndDownloadEnforcer,
     private val queueRepository: QueueRepository,
+    private val downloadRepository: EnclosureDownloadRepository,
     settingsDataStore: SettingsDataStore,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -58,12 +60,16 @@ class EpisodeListViewModel @Inject constructor(
     private val isRefreshing = MutableStateFlow(false)
     private val _refreshError = MutableStateFlow<String?>(null)
     private val _queueFeedback = MutableStateFlow<String?>(null)
+    private val _downloadFeedback = MutableStateFlow<String?>(null)
 
     /** One-shot refresh-failure message for a Snackbar; cleared via [consumeRefreshError]. */
     val refreshError: StateFlow<String?> = _refreshError
 
     /** One-shot add-to-queue confirmation for a Snackbar (issue #126); cleared via [consumeQueueFeedback]. */
     val queueFeedback: StateFlow<String?> = _queueFeedback
+
+    /** One-shot bulk-download confirmation for a Snackbar (issue #42); cleared via [consumeDownloadFeedback]. */
+    val downloadFeedback: StateFlow<String?> = _downloadFeedback
 
     val uiState: StateFlow<EpisodeListUiState> = combine(
         feedTitle,
@@ -194,5 +200,30 @@ class EpisodeListViewModel @Inject constructor(
 
     fun consumeQueueFeedback() {
         _queueFeedback.value = null
+    }
+
+    /**
+     * Starts downloading every selected podcast episode that isn't already downloaded or
+     * downloading (issue #42). Selection mode isn't podcast-specific, so non-episode items in the
+     * selection are silently skipped, mirroring [addSelectedToQueue].
+     */
+    fun downloadSelected() {
+        val ids = selectedIds.value
+        viewModelScope.launch {
+            val eligible = uiState.value.episodes.filter {
+                it.id in ids && it.isPodcastEpisode && it.downloadedFilePath == null && it.downloadedBytes == null
+            }
+            eligible.forEach { downloadRepository.startDownload(it) }
+            _downloadFeedback.value = when (eligible.size) {
+                0 -> context.getString(R.string.download_feedback_already_downloaded)
+                1 -> context.getString(R.string.download_feedback_started)
+                else -> context.getString(R.string.download_feedback_started_multiple, eligible.size)
+            }
+            clearSelection()
+        }
+    }
+
+    fun consumeDownloadFeedback() {
+        _downloadFeedback.value = null
     }
 }

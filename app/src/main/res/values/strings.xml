@@ -76,6 +76,10 @@
     <string name="queue_feedback_added_multiple">Added %1$d episodes to Next Up</string>
     <string name="queue_feedback_already_queued">Already in Next Up</string>
     <string name="queue_feedback_removed">Removed \"%1$s\"</string>
+    <string name="download_feedback_started">Download started</string>
+    <string name="download_feedback_started_multiple">%1$d downloads started</string>
+    <string name="download_feedback_already_downloaded">Already downloaded</string>
+    <string name="cd_download_selected">Download selected episodes</string>
     <string name="action_undo">Undo</string>
 
     <!-- Downloads -->

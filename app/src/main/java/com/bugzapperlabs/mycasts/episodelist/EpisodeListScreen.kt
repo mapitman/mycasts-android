@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
@@ -76,6 +77,7 @@ fun EpisodeListScreen(
     val episodeListFontSize by viewModel.episodeListFontSize.collectAsState()
     val refreshError by viewModel.refreshError.collectAsState()
     val queueFeedback by viewModel.queueFeedback.collectAsState()
+    val downloadFeedback by viewModel.downloadFeedback.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
@@ -90,6 +92,13 @@ fun EpisodeListScreen(
         queueFeedback?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.consumeQueueFeedback()
+        }
+    }
+
+    LaunchedEffect(downloadFeedback) {
+        downloadFeedback?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeDownloadFeedback()
         }
     }
 
@@ -117,6 +126,9 @@ fun EpisodeListScreen(
                         }
                         IconButton(onClick = viewModel::addSelectedToQueue) {
                             Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = stringResource(R.string.cd_add_to_queue))
+                        }
+                        IconButton(onClick = viewModel::downloadSelected) {
+                            Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_download_selected))
                         }
                         IconButton(onClick = { showDeleteConfirm = true }) {
                             Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete))
