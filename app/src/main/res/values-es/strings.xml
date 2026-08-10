@@ -216,6 +216,11 @@
         <item quantity="one">%1$d elemento nuevo</item>
         <item quantity="other">%1$d elementos nuevos</item>
     </plurals>
+    <string name="notification_downloads_channel_name">Descargas de episodios</string>
+    <string name="notification_downloads_channel_description">Muestra el progreso mientras se descargan episodios</string>
+    <string name="notification_download_title_fallback">Descargando episodio</string>
+    <string name="notification_download_progress_with_total">%1$.1f MB de %2$.1f MB</string>
+    <string name="notification_download_progress_no_total">%1$.1f MB descargados</string>
 
     <!-- Widget -->
     <string name="widget_all_caught_up">Todo al día</string>

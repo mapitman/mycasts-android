@@ -19,15 +19,27 @@ class MyCastsApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        val channel = NotificationChannel(
+        val notificationManager = getSystemService(NotificationManager::class.java)
+
+        val newItemsChannel = NotificationChannel(
             NEW_ITEMS_CHANNEL_ID,
             getString(R.string.notification_new_items_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply { description = getString(R.string.notification_new_items_channel_description) }
-        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        notificationManager.createNotificationChannel(newItemsChannel)
+
+        // IMPORTANCE_LOW (issue #15): a silent, no-heads-up progress notification while an
+        // episode downloads -- expected/ongoing activity, not something worth alerting over.
+        val downloadsChannel = NotificationChannel(
+            DOWNLOADS_CHANNEL_ID,
+            getString(R.string.notification_downloads_channel_name),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply { description = getString(R.string.notification_downloads_channel_description) }
+        notificationManager.createNotificationChannel(downloadsChannel)
     }
 
     companion object {
         const val NEW_ITEMS_CHANNEL_ID = "new_items"
+        const val DOWNLOADS_CHANNEL_ID = "downloads"
     }
 }
