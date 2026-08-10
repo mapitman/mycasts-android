@@ -20,7 +20,7 @@
     <string name="cd_mark_read">Marcar como leído</string>
     <string name="cd_mark_unread">Marcar como no leído</string>
     <string name="played_label">Reproducido</string>
-    <string name="cd_delete">Eliminar</string>
+    <string name="cd_delete_downloads">Eliminar descargas</string>
     <string name="cd_open_in_browser">Abrir en el navegador</string>
     <string name="cd_share">Compartir</string>
     <string name="cd_rewind">Retroceder 15 segundos</string>
@@ -78,6 +78,9 @@
     <string name="download_feedback_started">Descarga iniciada</string>
     <string name="download_feedback_started_multiple">%1$d descargas iniciadas</string>
     <string name="download_feedback_already_downloaded">Ya descargado</string>
+    <string name="download_feedback_deleted">Descarga eliminada</string>
+    <string name="download_feedback_deleted_multiple">%1$d descargas eliminadas</string>
+    <string name="download_feedback_nothing_to_delete">No hay descargas que eliminar</string>
     <string name="cd_download_selected">Descargar episodios seleccionados</string>
     <string name="action_undo">Deshacer</string>
 

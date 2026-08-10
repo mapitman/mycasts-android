@@ -362,7 +362,40 @@ class EpisodeListViewModelTest {
     }
 
     @Test
-    fun deleteSelected_removesItemsAndClearsSelection() = runTest(testDispatcher) {
+    fun deleteSelected_deletesOnlyTheDownloadNotTheEpisode() = runTest(testDispatcher) {
+        // issue #54: the episode list's delete button should remove a selected episode's
+        // download, not the episode itself.
+        repository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "episode-downloaded",
+                    feedId = feedId,
+                    title = "Downloaded Episode",
+                    itemGuid = "g-episode-downloaded",
+                    enclosureUrl = "https://example.com/downloaded.mp3",
+                    enclosureType = "audio/mpeg",
+                    downloadedFilePath = "/tmp/downloaded.mp3",
+                ),
+            ),
+        )
+        val viewModel = createViewModel()
+        viewModel.setShowUnreadOnly(false)
+        viewModel.uiState.first { !it.showUnreadOnly && it.episodes.size == 3 }
+        viewModel.toggleSelection("episode-downloaded")
+        viewModel.toggleSelection("read-1")
+        viewModel.uiState.first { it.selectedIds.size == 2 }
+
+        viewModel.deleteSelected()
+        viewModel.uiState.first { !it.isSelectionMode }
+
+        // Both episodes remain -- only the downloaded one's download is cleared.
+        val items = repository.observeItems(feedId).first { it.size == 3 }
+        assertEquals(setOf("unread-1", "read-1", "episode-downloaded"), items.map { it.id }.toSet())
+        assertEquals(null, items.single { it.id == "episode-downloaded" }.downloadedFilePath)
+    }
+
+    @Test
+    fun deleteSelected_noDownloadsSelected_leavesEpisodesUntouched() = runTest(testDispatcher) {
         val viewModel = createViewModel()
         viewModel.setShowUnreadOnly(false)
         viewModel.uiState.first { !it.showUnreadOnly && it.episodes.size == 2 }
@@ -372,8 +405,8 @@ class EpisodeListViewModelTest {
         viewModel.deleteSelected()
         viewModel.uiState.first { !it.isSelectionMode }
 
-        val items = repository.observeItems(feedId).first { it.size == 1 }
-        assertEquals(listOf("unread-1"), items.map { it.id })
+        val items = repository.observeItems(feedId).first()
+        assertEquals(setOf("unread-1", "read-1"), items.map { it.id }.toSet())
     }
 
     /**

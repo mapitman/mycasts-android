@@ -20,7 +20,7 @@
     <string name="cd_mark_read">Als gelesen markieren</string>
     <string name="cd_mark_unread">Als ungelesen markieren</string>
     <string name="played_label">Gespielt</string>
-    <string name="cd_delete">Löschen</string>
+    <string name="cd_delete_downloads">Downloads löschen</string>
     <string name="cd_open_in_browser">Im Browser öffnen</string>
     <string name="cd_share">Teilen</string>
     <string name="cd_rewind">15 Sekunden zurückspulen</string>
@@ -78,6 +78,9 @@
     <string name="download_feedback_started">Download gestartet</string>
     <string name="download_feedback_started_multiple">%1$d Downloads gestartet</string>
     <string name="download_feedback_already_downloaded">Bereits heruntergeladen</string>
+    <string name="download_feedback_deleted">Download gelöscht</string>
+    <string name="download_feedback_deleted_multiple">%1$d Downloads gelöscht</string>
+    <string name="download_feedback_nothing_to_delete">Keine Downloads zum Löschen</string>
     <string name="cd_download_selected">Ausgewählte Episoden herunterladen</string>
     <string name="action_undo">Rückgängig</string>
 
