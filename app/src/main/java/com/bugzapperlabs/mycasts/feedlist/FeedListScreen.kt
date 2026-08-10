@@ -82,15 +82,7 @@ fun FeedListScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text(stringResource(R.string.app_name))
-                        Text(
-                            text = stringResource(R.string.feed_list_total_unread, uiState.totalUnread),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                },
+                title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconButton(onClick = onQueueClick) {
                         Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = stringResource(R.string.cd_open_queue))
