@@ -1,6 +1,6 @@
 package com.bugzapperlabs.mycasts.data.settings
 
-/** Sentinel for [AppSettings.maxArticles] / [com.bugzapperlabs.mycasts.data.local.Feed.itemsToKeep]
+/** Sentinel for [AppSettings.maxItemsPerFeed] / [com.bugzapperlabs.mycasts.data.local.Feed.itemsToKeep]
  *  meaning "keep every item, never trim" (issue #302) -- outside the sliders' normal 5..100 range,
  *  so it can't collide with a real user-chosen count. */
 const val UNLIMITED_ITEMS_TO_KEEP = 0
@@ -22,15 +22,15 @@ fun itemsToKeepFromSliderPosition(position: Float): Int =
  */
 data class AppSettings(
     val updateIntervalMinutes: Long = 30,
-    val listFontSize: FontSize = FontSize.NORMAL,
+    val episodeListFontSize: FontSize = FontSize.NORMAL,
     val feedListFontSize: FontSize = FontSize.LARGE,
-    val articleFontSize: FontSize = FontSize.NORMAL,
+    val episodeDetailsFontSize: FontSize = FontSize.NORMAL,
     val enableImageDisplay: Boolean = true,
-    val maxArticles: Int = 20,
+    val maxItemsPerFeed: Int = 20,
     /** How many feeds FeedUpdateEngine refreshes at once (issue #177), trading refresh speed
      *  against network/server load. Mirrors FeedUpdateEngine's prior fixed cap as the default. */
     val feedRefreshConcurrency: Int = 2,
-    val defaultToAllArticleView: Boolean = false,
+    val defaultToAllItemsView: Boolean = false,
     val allowPodcastDownloadOnBattery: Boolean = false,
     val allowPodcastDownloadOnCellular: Boolean = false,
     val allowPodcastStreaming: Boolean = true,

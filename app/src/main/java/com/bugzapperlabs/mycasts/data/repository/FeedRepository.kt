@@ -102,7 +102,7 @@ class FeedRepository @Inject constructor(
      * up associated enclosure files (issue #12).
      *
      * A feed's `itemsToKeep` of `null` means "use the app-wide default" (see Feed Properties,
-     * which falls back to [com.bugzapperlabs.mycasts.data.settings.AppSettings.maxArticles] the same way)
+     * which falls back to [com.bugzapperlabs.mycasts.data.settings.AppSettings.maxItemsPerFeed] the same way)
      * -- it does NOT mean unlimited, so [defaultItemsToKeep] is required rather than skipping the
      * trim (issue #82: feeds that never had a per-feed override set grew unbounded).
      * [UNLIMITED_ITEMS_TO_KEEP], once resolved, means unlimited (issue #302).

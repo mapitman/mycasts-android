@@ -97,7 +97,7 @@ fun EpisodeDetailsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val playbackState by viewModel.playbackState.collectAsState()
-    val articleFontSize by viewModel.articleFontSize.collectAsState()
+    val episodeDetailsFontSize by viewModel.episodeDetailsFontSize.collectAsState()
     val queueFeedback by viewModel.queueFeedback.collectAsState()
     val queuedItemIds by viewModel.queuedItemIds.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -194,7 +194,7 @@ fun EpisodeDetailsScreen(
             EpisodePage(
                 item = uiState.items[page],
                 onImageClick = { zoomedImageUrl = it },
-                fontScale = articleFontSize.scaleFactor,
+                fontScale = episodeDetailsFontSize.scaleFactor,
                 playbackState = playbackState,
                 feedImageUrl = uiState.feedImageUrl,
                 onTogglePlayPause = { viewModel.togglePlayPause(uiState.items[page]) },

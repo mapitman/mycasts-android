@@ -94,7 +94,7 @@ class FeedPropertiesViewModelTest {
         val state = viewModel.uiState.first { it.displayTitle == "A Feed" }
 
         assertNull(state.itemsToKeep)
-        assertEquals(20, state.globalMaxArticles)
+        assertEquals(20, state.globalMaxItems)
         assertEquals("https://example.com/feed.xml", state.feedUrl)
     }
 

@@ -54,24 +54,24 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setEnableImageDisplay(enabled) }
     }
 
-    fun setDefaultToAllArticleView(value: Boolean) {
-        viewModelScope.launch { settingsDataStore.setDefaultToAllArticleView(value) }
+    fun setDefaultToAllItemsView(value: Boolean) {
+        viewModelScope.launch { settingsDataStore.setDefaultToAllItemsView(value) }
     }
 
-    fun setMaxArticles(count: Int) {
-        viewModelScope.launch { settingsDataStore.setMaxArticles(count) }
+    fun setMaxItemsPerFeed(count: Int) {
+        viewModelScope.launch { settingsDataStore.setMaxItemsPerFeed(count) }
     }
 
     fun setFeedRefreshConcurrency(count: Int) {
         viewModelScope.launch { settingsDataStore.setFeedRefreshConcurrency(count) }
     }
 
-    fun setArticleFontSize(size: FontSize) {
-        viewModelScope.launch { settingsDataStore.setArticleFontSize(size) }
+    fun setEpisodeDetailsFontSize(size: FontSize) {
+        viewModelScope.launch { settingsDataStore.setEpisodeDetailsFontSize(size) }
     }
 
-    fun setListFontSize(size: FontSize) {
-        viewModelScope.launch { settingsDataStore.setListFontSize(size) }
+    fun setEpisodeListFontSize(size: FontSize) {
+        viewModelScope.launch { settingsDataStore.setEpisodeListFontSize(size) }
     }
 
     fun setFeedListFontSize(size: FontSize) {

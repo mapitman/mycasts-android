@@ -15,16 +15,17 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
     val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             updateIntervalMinutes = prefs[Keys.UPDATE_INTERVAL_MINUTES] ?: AppSettings().updateIntervalMinutes,
-            listFontSize = prefs[Keys.LIST_FONT_SIZE]?.let { FontSize.entries[it] } ?: AppSettings().listFontSize,
+            episodeListFontSize = prefs[Keys.LIST_FONT_SIZE]?.let { FontSize.entries[it] }
+                ?: AppSettings().episodeListFontSize,
             feedListFontSize = prefs[Keys.FEED_LIST_FONT_SIZE]?.let { FontSize.entries[it] }
                 ?: AppSettings().feedListFontSize,
-            articleFontSize = prefs[Keys.ARTICLE_FONT_SIZE]?.let { FontSize.entries[it] }
-                ?: AppSettings().articleFontSize,
+            episodeDetailsFontSize = prefs[Keys.ARTICLE_FONT_SIZE]?.let { FontSize.entries[it] }
+                ?: AppSettings().episodeDetailsFontSize,
             enableImageDisplay = prefs[Keys.ENABLE_IMAGE_DISPLAY] ?: AppSettings().enableImageDisplay,
-            maxArticles = prefs[Keys.MAX_ARTICLES] ?: AppSettings().maxArticles,
+            maxItemsPerFeed = prefs[Keys.MAX_ARTICLES] ?: AppSettings().maxItemsPerFeed,
             feedRefreshConcurrency = prefs[Keys.FEED_REFRESH_CONCURRENCY] ?: AppSettings().feedRefreshConcurrency,
-            defaultToAllArticleView = prefs[Keys.DEFAULT_TO_ALL_ARTICLE_VIEW]
-                ?: AppSettings().defaultToAllArticleView,
+            defaultToAllItemsView = prefs[Keys.DEFAULT_TO_ALL_ARTICLE_VIEW]
+                ?: AppSettings().defaultToAllItemsView,
             allowPodcastDownloadOnBattery = prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_BATTERY]
                 ?: AppSettings().allowPodcastDownloadOnBattery,
             allowPodcastDownloadOnCellular = prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR]
@@ -48,7 +49,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.UPDATE_INTERVAL_MINUTES] = minutes }
     }
 
-    suspend fun setListFontSize(size: FontSize) {
+    suspend fun setEpisodeListFontSize(size: FontSize) {
         dataStore.edit { it[Keys.LIST_FONT_SIZE] = size.ordinal }
     }
 
@@ -56,7 +57,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.FEED_LIST_FONT_SIZE] = size.ordinal }
     }
 
-    suspend fun setArticleFontSize(size: FontSize) {
+    suspend fun setEpisodeDetailsFontSize(size: FontSize) {
         dataStore.edit { it[Keys.ARTICLE_FONT_SIZE] = size.ordinal }
     }
 
@@ -64,7 +65,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.ENABLE_IMAGE_DISPLAY] = enabled }
     }
 
-    suspend fun setMaxArticles(count: Int) {
+    suspend fun setMaxItemsPerFeed(count: Int) {
         dataStore.edit { it[Keys.MAX_ARTICLES] = count }
     }
 
@@ -72,7 +73,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.FEED_REFRESH_CONCURRENCY] = count }
     }
 
-    suspend fun setDefaultToAllArticleView(value: Boolean) {
+    suspend fun setDefaultToAllItemsView(value: Boolean) {
         dataStore.edit { it[Keys.DEFAULT_TO_ALL_ARTICLE_VIEW] = value }
     }
 
@@ -140,6 +141,11 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         }
     }
 
+    // The string literals below are the on-disk DataStore key names, not the Kotlin API (issue
+    // #11 renamed AppSettings/SettingsDataStore's article-flavored fields/functions to
+    // episode/item wording) -- changing a literal here would silently reset that existing user's
+    // saved value to default on upgrade, since DataStore looks up by the literal, not the
+    // Kotlin identifier pointing at it.
     private object Keys {
         val UPDATE_INTERVAL_MINUTES = longPreferencesKey("update_interval_minutes")
         val LIST_FONT_SIZE = intPreferencesKey("list_font_size")

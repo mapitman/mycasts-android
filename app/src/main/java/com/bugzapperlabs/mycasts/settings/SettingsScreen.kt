@@ -116,9 +116,9 @@ fun SettingsScreen(
             UpdateIntervalSetting(settings, viewModel)
             SwitchRow(stringResource(R.string.settings_show_images), settings.enableImageDisplay, viewModel::setEnableImageDisplay)
             SwitchRow(
-                stringResource(R.string.settings_default_to_all_articles),
-                settings.defaultToAllArticleView,
-                viewModel::setDefaultToAllArticleView,
+                stringResource(R.string.settings_default_to_all_items),
+                settings.defaultToAllItemsView,
+                viewModel::setDefaultToAllItemsView,
             )
             SwitchRow(
                 stringResource(R.string.settings_notify_on_new_items),
@@ -134,13 +134,21 @@ fun SettingsScreen(
                     }
                 },
             )
-            MaxArticlesSetting(settings, viewModel)
+            MaxItemsPerFeedSetting(settings, viewModel)
             FeedRefreshConcurrencySetting(settings, viewModel)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_fonts))
-            FontSizeRow(stringResource(R.string.settings_article_font_size), settings.articleFontSize, viewModel::setArticleFontSize)
-            FontSizeRow(stringResource(R.string.settings_article_list_font_size), settings.listFontSize, viewModel::setListFontSize)
+            FontSizeRow(
+                stringResource(R.string.settings_episode_details_font_size),
+                settings.episodeDetailsFontSize,
+                viewModel::setEpisodeDetailsFontSize,
+            )
+            FontSizeRow(
+                stringResource(R.string.settings_episode_list_font_size),
+                settings.episodeListFontSize,
+                viewModel::setEpisodeListFontSize,
+            )
             FontSizeRow(stringResource(R.string.settings_feed_list_font_size), settings.feedListFontSize, viewModel::setFeedListFontSize)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
@@ -240,19 +248,23 @@ private fun UpdateIntervalSetting(settings: AppSettings, viewModel: SettingsView
 }
 
 @Composable
-private fun MaxArticlesSetting(settings: AppSettings, viewModel: SettingsViewModel) {
+private fun MaxItemsPerFeedSetting(settings: AppSettings, viewModel: SettingsViewModel) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text(
-            if (settings.maxArticles == UNLIMITED_ITEMS_TO_KEEP) {
-                stringResource(R.string.settings_max_articles_per_feed_unlimited)
+            if (settings.maxItemsPerFeed == UNLIMITED_ITEMS_TO_KEEP) {
+                stringResource(R.string.settings_max_items_per_feed_unlimited)
             } else {
-                stringResource(R.string.settings_max_articles_per_feed, settings.maxArticles)
+                stringResource(R.string.settings_max_items_per_feed, settings.maxItemsPerFeed)
             },
             style = MaterialTheme.typography.bodyLarge,
         )
         Slider(
-            value = if (settings.maxArticles == UNLIMITED_ITEMS_TO_KEEP) MAX_ARTICLES_SLIDER_UNLIMITED_POSITION else settings.maxArticles.toFloat(),
-            onValueChange = { viewModel.setMaxArticles(itemsToKeepFromSliderPosition(it)) },
+            value = if (settings.maxItemsPerFeed == UNLIMITED_ITEMS_TO_KEEP) {
+                MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
+            } else {
+                settings.maxItemsPerFeed.toFloat()
+            },
+            onValueChange = { viewModel.setMaxItemsPerFeed(itemsToKeepFromSliderPosition(it)) },
             valueRange = 5f..MAX_ARTICLES_SLIDER_UNLIMITED_POSITION,
             steps = 19,
             // Reserves the slider's own bounds from the system back-gesture swipe (issue #302) --

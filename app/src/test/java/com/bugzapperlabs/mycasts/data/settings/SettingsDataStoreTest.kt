@@ -35,12 +35,12 @@ class SettingsDataStoreTest {
 
         assertEquals(AppSettings(), settings)
         assertEquals(30L, settings.updateIntervalMinutes)
-        assertEquals(FontSize.NORMAL, settings.listFontSize)
+        assertEquals(FontSize.NORMAL, settings.episodeListFontSize)
         assertEquals(FontSize.LARGE, settings.feedListFontSize)
-        assertEquals(FontSize.NORMAL, settings.articleFontSize)
+        assertEquals(FontSize.NORMAL, settings.episodeDetailsFontSize)
         assertTrue(settings.enableImageDisplay)
-        assertEquals(20, settings.maxArticles)
-        assertFalse(settings.defaultToAllArticleView)
+        assertEquals(20, settings.maxItemsPerFeed)
+        assertFalse(settings.defaultToAllItemsView)
         assertFalse(settings.allowPodcastDownloadOnBattery)
         assertFalse(settings.allowPodcastDownloadOnCellular)
         assertTrue(settings.allowPodcastStreaming)
@@ -51,12 +51,12 @@ class SettingsDataStoreTest {
     @Test
     fun writingEachSetting_roundTripsThroughSettingsFlow() = runTest {
         settingsDataStore.setUpdateIntervalMinutes(60)
-        settingsDataStore.setListFontSize(FontSize.SMALL)
+        settingsDataStore.setEpisodeListFontSize(FontSize.SMALL)
         settingsDataStore.setFeedListFontSize(FontSize.SMALL)
-        settingsDataStore.setArticleFontSize(FontSize.LARGE)
+        settingsDataStore.setEpisodeDetailsFontSize(FontSize.LARGE)
         settingsDataStore.setEnableImageDisplay(false)
-        settingsDataStore.setMaxArticles(50)
-        settingsDataStore.setDefaultToAllArticleView(true)
+        settingsDataStore.setMaxItemsPerFeed(50)
+        settingsDataStore.setDefaultToAllItemsView(true)
         settingsDataStore.setAllowPodcastDownloadOnBattery(true)
         settingsDataStore.setAllowPodcastDownloadOnCellular(true)
         settingsDataStore.setAllowPodcastStreaming(false)
@@ -67,12 +67,12 @@ class SettingsDataStoreTest {
         val settings = settingsDataStore.settings.first()
 
         assertEquals(60L, settings.updateIntervalMinutes)
-        assertEquals(FontSize.SMALL, settings.listFontSize)
+        assertEquals(FontSize.SMALL, settings.episodeListFontSize)
         assertEquals(FontSize.SMALL, settings.feedListFontSize)
-        assertEquals(FontSize.LARGE, settings.articleFontSize)
+        assertEquals(FontSize.LARGE, settings.episodeDetailsFontSize)
         assertFalse(settings.enableImageDisplay)
-        assertEquals(50, settings.maxArticles)
-        assertTrue(settings.defaultToAllArticleView)
+        assertEquals(50, settings.maxItemsPerFeed)
+        assertTrue(settings.defaultToAllItemsView)
         assertTrue(settings.allowPodcastDownloadOnBattery)
         assertTrue(settings.allowPodcastDownloadOnCellular)
         assertFalse(settings.allowPodcastStreaming)
@@ -92,7 +92,7 @@ class SettingsDataStoreTest {
 
     @Test
     fun reset_clearsBackToDefaults() = runTest {
-        settingsDataStore.setMaxArticles(999)
+        settingsDataStore.setMaxItemsPerFeed(999)
         settingsDataStore.setAllowPodcastStreaming(false)
 
         settingsDataStore.reset()

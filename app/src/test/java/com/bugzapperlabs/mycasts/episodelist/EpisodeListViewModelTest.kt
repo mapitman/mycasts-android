@@ -146,7 +146,7 @@ class EpisodeListViewModelTest {
 
     @Test
     fun defaultToAllArticleViewSetting_showsAllByDefault() = runTest(testDispatcher) {
-        settingsDataStore.setDefaultToAllArticleView(true)
+        settingsDataStore.setDefaultToAllItemsView(true)
         val viewModel = createViewModel()
 
         val state = viewModel.uiState.first { it.feedTitle == "A Feed" }
@@ -330,7 +330,7 @@ class EpisodeListViewModelTest {
      */
     @Test
     fun bulkMarkReadWhileRefreshTrimsSameFeed() = runTest(testDispatcher) {
-        settingsDataStore.setMaxArticles(5)
+        settingsDataStore.setMaxItemsPerFeed(5)
         val server = MockWebServer()
         server.start()
         try {
