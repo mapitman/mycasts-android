@@ -314,6 +314,29 @@ class FeedUpdateEngineTest {
         assertEquals(1, repository.observeItems(feedB.id).first().size)
     }
 
+    /** issue #16: onFeedComplete backs the feed-refresh progress notification, so it must fire
+     *  exactly once per feed with a running count that reaches the total. */
+    @Test
+    fun updateFeeds_invokesOnFeedCompleteOncePerFeedWithRunningCount() = runTest {
+        val feedA = subscribeFeed()
+        val feedB = subscribeFeed()
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("a-1" to "A1")))
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("b-1" to "B1")))
+        val callCount = AtomicInteger(0)
+        val observedTotals = mutableListOf<Int>()
+        val observedCounts = mutableListOf<Int>()
+
+        engine.updateFeeds(listOf(feedA, feedB)) { completedCount, totalCount ->
+            callCount.incrementAndGet()
+            observedCounts += completedCount
+            observedTotals += totalCount
+        }
+
+        assertEquals(2, callCount.get())
+        assertEquals(listOf(2, 2), observedTotals)
+        assertEquals(setOf(1, 2), observedCounts.toSet())
+    }
+
     /** issue #177: verifies the configured concurrency actually bounds in-flight fetches, not
      *  just that multiple feeds can update in the same [FeedUpdateEngine.updateFeeds] call. */
     @Test
