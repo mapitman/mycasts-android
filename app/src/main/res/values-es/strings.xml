@@ -221,12 +221,12 @@
     <string name="feed_properties_confirm_unsubscribe_message">Esto elimina permanentemente la fuente y sus episodios.</string>
 
     <!-- Notifications -->
-    <string name="notification_new_items_channel_name">Elementos nuevos</string>
-    <string name="notification_new_items_channel_description">Notifica cuando una actualización de fuentes encuentra elementos nuevos</string>
-    <string name="notification_new_items_title">Elementos nuevos</string>
-    <plurals name="notification_new_items_body">
-        <item quantity="one">%1$d elemento nuevo</item>
-        <item quantity="other">%1$d elementos nuevos</item>
+    <string name="notification_new_episodes_channel_name">Episodios nuevos</string>
+    <string name="notification_new_episodes_channel_description">Notifica cuando una actualización de fuentes encuentra episodios nuevos</string>
+    <string name="notification_new_episodes_title">Episodios nuevos</string>
+    <plurals name="notification_new_episodes_body">
+        <item quantity="one">%1$d episodio nuevo</item>
+        <item quantity="other">%1$d episodios nuevos</item>
     </plurals>
     <string name="notification_downloads_channel_name">Descargas de episodios</string>
     <string name="notification_downloads_channel_description">Muestra el progreso mientras se descargan episodios</string>

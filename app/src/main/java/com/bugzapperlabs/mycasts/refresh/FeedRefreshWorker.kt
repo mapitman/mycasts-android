@@ -108,10 +108,10 @@ class FeedRefreshWorker @AssistedInject constructor(
         )
         val notification = NotificationCompat.Builder(applicationContext, MyCastsApp.NEW_ITEMS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(applicationContext.getString(R.string.notification_new_items_title))
+            .setContentTitle(applicationContext.getString(R.string.notification_new_episodes_title))
             .setContentText(
                 applicationContext.resources.getQuantityString(
-                    R.plurals.notification_new_items_body,
+                    R.plurals.notification_new_episodes_body,
                     newItemCount,
                     newItemCount,
                 ),

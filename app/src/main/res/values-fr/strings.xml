@@ -221,12 +221,12 @@
     <string name="feed_properties_confirm_unsubscribe_message">Cela supprime définitivement le flux et ses épisodes.</string>
 
     <!-- Notifications -->
-    <string name="notification_new_items_channel_name">Nouveaux éléments</string>
-    <string name="notification_new_items_channel_description">Notifie lorsqu\'une mise à jour de flux trouve de nouveaux éléments</string>
-    <string name="notification_new_items_title">Nouveaux éléments</string>
-    <plurals name="notification_new_items_body">
-        <item quantity="one">%1$d nouvel élément</item>
-        <item quantity="other">%1$d nouveaux éléments</item>
+    <string name="notification_new_episodes_channel_name">Nouveaux épisodes</string>
+    <string name="notification_new_episodes_channel_description">Notifie lorsqu\'une mise à jour de flux trouve de nouveaux épisodes</string>
+    <string name="notification_new_episodes_title">Nouveaux épisodes</string>
+    <plurals name="notification_new_episodes_body">
+        <item quantity="one">%1$d nouvel épisode</item>
+        <item quantity="other">%1$d nouveaux épisodes</item>
     </plurals>
     <string name="notification_downloads_channel_name">Téléchargements d\'épisodes</string>
     <string name="notification_downloads_channel_description">Affiche la progression pendant le téléchargement des épisodes</string>

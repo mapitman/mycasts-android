@@ -23,9 +23,9 @@ class MyCastsApp : Application(), Configuration.Provider {
 
         val newItemsChannel = NotificationChannel(
             NEW_ITEMS_CHANNEL_ID,
-            getString(R.string.notification_new_items_channel_name),
+            getString(R.string.notification_new_episodes_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply { description = getString(R.string.notification_new_items_channel_description) }
+        ).apply { description = getString(R.string.notification_new_episodes_channel_description) }
         notificationManager.createNotificationChannel(newItemsChannel)
 
         // IMPORTANCE_LOW (issue #15): a silent, no-heads-up progress notification while an

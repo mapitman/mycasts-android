@@ -221,12 +221,12 @@
     <string name="feed_properties_confirm_unsubscribe_message">Dadurch werden der Feed und seine Episoden dauerhaft gelöscht.</string>
 
     <!-- Notifications -->
-    <string name="notification_new_items_channel_name">Neue Elemente</string>
-    <string name="notification_new_items_channel_description">Benachrichtigt, wenn eine Feed-Aktualisierung neue Elemente findet</string>
-    <string name="notification_new_items_title">Neue Elemente</string>
-    <plurals name="notification_new_items_body">
-        <item quantity="one">%1$d neues Element</item>
-        <item quantity="other">%1$d neue Elemente</item>
+    <string name="notification_new_episodes_channel_name">Neue Episoden</string>
+    <string name="notification_new_episodes_channel_description">Benachrichtigt, wenn eine Feed-Aktualisierung neue Episoden findet</string>
+    <string name="notification_new_episodes_title">Neue Episoden</string>
+    <plurals name="notification_new_episodes_body">
+        <item quantity="one">%1$d neue Episode</item>
+        <item quantity="other">%1$d neue Episoden</item>
     </plurals>
     <string name="notification_downloads_channel_name">Episoden-Downloads</string>
     <string name="notification_downloads_channel_description">Zeigt den Fortschritt beim Herunterladen von Episoden</string>
