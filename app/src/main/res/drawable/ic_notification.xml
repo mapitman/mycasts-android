@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Monochrome notification/lock-screen icon, flattened the same way the old ic_notification.png
      was (plain white shape, transparent background, no adaptive-icon background layer) but reusing
-     the current app icon's silhouette (ic_launcher_foreground.xml's "m" monogram with symmetric
-     RSS arcs, issue #28) instead of the older RSS-wave glyph it predates. Unlike
+     the current app icon's silhouette (ic_launcher_foreground.xml's "m" punched out of a play
+     triangle, issue #3/#40) instead of the older plain-m glyph it predates. Unlike
      ic_launcher_foreground.xml's 108dp viewport (sized for the adaptive-icon safe zone, with the
      glyph filling only its center ~54%), this viewport is cropped tight to the glyph's own bounding
-     box so it isn't rendered too small at the tiny sizes notification/status-bar badges use. -->
+     box so it isn't rendered too small at the tiny sizes notification/status-bar badges use.
+     Every coordinate here is ic_launcher_foreground.xml's, translated by -21 in both x and y to
+     recenter on this viewport's (33,33) instead of that one's (54,54), so the two stay in sync by
+     construction if the launcher icon's glyph geometry ever changes again. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -16,9 +19,13 @@
         android:pathData="M52,33 A19,19 0 0,0 33,14 L33,20 A13,13 0 0,1 46,33 Z
                            M62,33 A29,29 0 0,0 33,4 L33,10 A23,23 0 0,1 56,33 Z
                            M14,33 A19,19 0 0,0 33,52 L33,46 A13,13 0 0,1 20,33 Z
-                           M4,33 A29,29 0 0,0 33,62 L33,56 A23,23 0 0,1 10,33 Z
-                           M25,27.5 H27.8 V38.5 H25 Z
-                           M31.6,27.5 H34.4 V38.5 H31.6 Z
-                           M38.2,27.5 H41 V38.5 H38.2 Z
-                           M25,27.5 H41 V29.7 H25 Z" />
+                           M4,33 A29,29 0 0,0 33,62 L33,56 A23,23 0 0,1 10,33 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M26.5,22.6 L45.5,33 L26.5,43.4 Z
+                           M28,29.5 H29.75 V36.5 H28 Z
+                           M32.125,29.5 H33.875 V36.5 H32.125 Z
+                           M36.25,29.5 H38 V36.5 H36.25 Z
+                           M28,29.5 H38 V30.9 H28 Z" />
 </vector>
