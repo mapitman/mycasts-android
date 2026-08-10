@@ -148,17 +148,7 @@ fun EpisodeListScreen(
                 )
             } else {
                 TopAppBar(
-                    title = {
-                        Column {
-                            // issue #238: an unconstrained title could wrap to two lines and push
-                            // the unread/unplayed count below out of the TopAppBar's fixed height.
-                            Text(uiState.feedTitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            Text(
-                                text = stringResource(R.string.article_list_unplayed_count, uiState.unreadCount),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    },
+                    title = { Text(uiState.feedTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
@@ -182,7 +172,7 @@ fun EpisodeListScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { viewModel.setShowUnreadOnly(true) },
-                    text = { Text(stringResource(R.string.article_list_tab_unplayed)) },
+                    text = { Text(stringResource(R.string.article_list_tab_unplayed_count, uiState.unreadCount)) },
                 )
                 Tab(
                     selected = selectedTab == 1,
