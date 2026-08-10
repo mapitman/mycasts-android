@@ -135,6 +135,62 @@ class FeedRepositoryTest {
     }
 
     @Test
+    fun deduplicateItems_keepsMostRecentCopyWhenNoneQueued() = runTest {
+        // issue #70 follow-up: the since-fixed concurrent-refresh race could insert multiple rows
+        // sharing the same itemGuid, each with its own id.
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "dup-old", feedId = feedId, itemGuid = "g1", publishDate = 1L),
+                FeedItem(id = "dup-new", feedId = feedId, itemGuid = "g1", publishDate = 2L),
+                FeedItem(id = "unique", feedId = feedId, itemGuid = "g2", publishDate = 3L),
+            ),
+        )
+
+        repository.deduplicateItems(feedId)
+
+        val remaining = repository.observeItems(feedId).first().map { it.id }
+        assertEquals(setOf("dup-new", "unique"), remaining.toSet())
+    }
+
+    @Test
+    fun deduplicateItems_keepsTheQueuedCopyRegardlessOfPublishDate() = runTest {
+        // A duplicate that got auto-queued during the race is otherwise permanently exempt from
+        // trimToItemsToKeep's eviction -- consolidating onto a *different* surviving copy would
+        // silently drop it from Next Up, so the queued copy must be the one kept.
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "dup-queued", feedId = feedId, itemGuid = "g1", publishDate = 1L),
+                FeedItem(id = "dup-newer", feedId = feedId, itemGuid = "g1", publishDate = 2L),
+            ),
+        )
+        db.queueDao().insert(QueueEntry(itemId = "dup-queued", position = 0, addedAt = 0L))
+
+        repository.deduplicateItems(feedId)
+
+        val remaining = repository.observeItems(feedId).first().map { it.id }
+        assertEquals(listOf("dup-queued"), remaining)
+        assertEquals("dup-queued", db.queueDao().firstItemId())
+    }
+
+    @Test
+    fun deduplicateItems_noOpWhenNoDuplicates() = runTest {
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "item-1", feedId = feedId, itemGuid = "g1", publishDate = 1L),
+                FeedItem(id = "item-2", feedId = feedId, itemGuid = "g2", publishDate = 2L),
+            ),
+        )
+
+        repository.deduplicateItems(feedId)
+
+        val remaining = repository.observeItems(feedId).first().map { it.id }
+        assertEquals(setOf("item-1", "item-2"), remaining.toSet())
+    }
+
+    @Test
     fun setEnclosurePosition_persistsAndClears() = runTest {
         val feedId = repository.subscribe(Feed(title = "A Feed"))
         repository.insertItems(listOf(FeedItem(id = "item-1", feedId = feedId, itemGuid = "g1")))
