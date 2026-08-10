@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -202,6 +203,7 @@ fun EpisodeListScreen(
                                     episode = episode,
                                     selected = episode.id in uiState.selectedIds,
                                     selectionMode = true,
+                                    isQueued = episode.id in uiState.queuedIds,
                                     titleFontScale = episodeListFontSize.scaleFactor,
                                     onClick = { viewModel.toggleSelection(episode.id) },
                                     onLongClick = { viewModel.toggleSelection(episode.id) },
@@ -216,6 +218,7 @@ fun EpisodeListScreen(
                                         episode = episode,
                                         selected = false,
                                         selectionMode = false,
+                                        isQueued = episode.id in uiState.queuedIds,
                                         titleFontScale = episodeListFontSize.scaleFactor,
                                         onClick = { onEpisodeClick(episode.id) },
                                         onLongClick = { viewModel.toggleSelection(episode.id) },
@@ -248,6 +251,7 @@ private fun EpisodeRow(
     episode: FeedItem,
     selected: Boolean,
     selectionMode: Boolean,
+    isQueued: Boolean,
     titleFontScale: Float,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -297,7 +301,14 @@ private fun EpisodeRow(
         }
         if (!selectionMode && episode.isPodcastEpisode) {
             IconButton(onClick = onAddToQueue) {
-                Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = stringResource(R.string.cd_add_to_queue))
+                if (isQueued) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.PlaylistAddCheck,
+                        contentDescription = stringResource(R.string.cd_already_in_queue),
+                    )
+                } else {
+                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = stringResource(R.string.cd_add_to_queue))
+                }
             }
         }
     }
