@@ -24,6 +24,8 @@ import kotlinx.coroutines.test.setMain
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -149,6 +151,36 @@ class QueueViewModelTest {
 
         val state = viewModel.queue.first { it.size == 2 }
         assertEquals(listOf("ep-1", "ep-2"), state.map { it.item.id })
+    }
+
+    @Test
+    fun sortByPublishDate_togglesBetweenOldestFirstAndNewestFirst() = runTest(testDispatcher) {
+        // ep-1/ep-2 (from setUp) have no publish date -- exercises null handling too: nulls sort
+        // first ascending, last descending, per Kotlin's default null-ordering semantics.
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(id = "ep-newest", feedId = feedId, title = "Newest", itemGuid = "g-newest", publishDate = 300L),
+                FeedItem(id = "ep-oldest", feedId = feedId, title = "Oldest", itemGuid = "g-oldest", publishDate = 100L),
+                FeedItem(id = "ep-middle", feedId = feedId, title = "Middle", itemGuid = "g-middle", publishDate = 200L),
+            ),
+        )
+        queueRepository.addToEnd("ep-newest")
+        queueRepository.addToEnd("ep-oldest")
+        queueRepository.addToEnd("ep-middle")
+        viewModel.queue.first { it.size == 5 }
+        assertTrue(viewModel.sortAscending.first())
+
+        viewModel.sortByPublishDate()
+
+        val ascending = viewModel.queue.first { it.map { e -> e.item.id } == listOf("ep-1", "ep-2", "ep-oldest", "ep-middle", "ep-newest") }
+        assertEquals(listOf("ep-1", "ep-2", "ep-oldest", "ep-middle", "ep-newest"), ascending.map { it.item.id })
+        assertFalse(viewModel.sortAscending.first())
+
+        viewModel.sortByPublishDate()
+
+        val descending = viewModel.queue.first { it.map { e -> e.item.id } == listOf("ep-newest", "ep-middle", "ep-oldest", "ep-1", "ep-2") }
+        assertEquals(listOf("ep-newest", "ep-middle", "ep-oldest", "ep-1", "ep-2"), descending.map { it.item.id })
+        assertTrue(viewModel.sortAscending.first())
     }
 
     @Test

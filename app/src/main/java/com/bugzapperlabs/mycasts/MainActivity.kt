@@ -192,6 +192,7 @@ class MainActivity : ComponentActivity() {
                     val queueViewModel: QueueViewModel = hiltViewModel()
                     val playbackState by miniPlayerViewModel.playbackState.collectAsState()
                     val queue by queueViewModel.queue.collectAsState()
+                    val queueSortAscending by queueViewModel.sortAscending.collectAsState()
                     LaunchedEffect(Unit) { miniPlayerViewModel.restoreLastPlayingItem() }
                     // Undo snackbar for swipe-left removal from Next Up (issue #284). Hosted
                     // inside PlayerBottomSheetContent itself (see its doc) rather than
@@ -358,6 +359,8 @@ class MainActivity : ComponentActivity() {
                                     onPlayQueueEpisode = queueViewModel::playNow,
                                     onReorder = { ids, onComplete -> queueViewModel.reorder(ids, onComplete) },
                                     onRemoveFromQueue = queueViewModel::remove,
+                                    sortAscending = queueSortAscending,
+                                    onSortByPublishDate = queueViewModel::sortByPublishDate,
                                     queueSnackbarHostState = queueSnackbarHostState,
                                     onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
                                     onSkipBackward = miniPlayerViewModel::skipBackward,

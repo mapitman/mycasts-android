@@ -66,6 +66,8 @@
     <!-- Next Up queue -->
     <string name="queue_title">Reproducir a continuación</string>
     <string name="queue_empty">Nada en cola</string>
+    <string name="cd_sort_queue_oldest_first">Ordenar por fecha de publicación, más antiguos primero</string>
+    <string name="cd_sort_queue_newest_first">Ordenar por fecha de publicación, más recientes primero</string>
     <string name="queue_feedback_added">Añadido a Reproducir a continuación</string>
     <string name="queue_feedback_added_multiple">%1$d episodios añadidos a Reproducir a continuación</string>
     <string name="queue_feedback_already_queued">Ya está en Reproducir a continuación</string>

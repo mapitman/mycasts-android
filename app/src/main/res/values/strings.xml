@@ -70,6 +70,8 @@
     <!-- Next Up queue -->
     <string name="queue_title">Next Up</string>
     <string name="queue_empty">Nothing queued</string>
+    <string name="cd_sort_queue_oldest_first">Sort by publish date, oldest first</string>
+    <string name="cd_sort_queue_newest_first">Sort by publish date, newest first</string>
     <string name="queue_feedback_added">Added to Next Up</string>
     <string name="queue_feedback_added_multiple">Added %1$d episodes to Next Up</string>
     <string name="queue_feedback_already_queued">Already in Next Up</string>
