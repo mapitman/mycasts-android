@@ -1,4 +1,4 @@
-package com.bugzapperlabs.mycasts.reader
+package com.bugzapperlabs.mycasts.episodedetails
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -48,7 +48,7 @@ import java.io.File
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
-class ReaderViewModelTest {
+class EpisodeDetailsViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private val viewModelStore = TrackedViewModelStore()
     private var nextViewModelKey = 0
@@ -118,7 +118,7 @@ class ReaderViewModelTest {
     }
 
     private fun createViewModel(itemId: String) =
-        ReaderViewModel(
+        EpisodeDetailsViewModel(
             savedStateHandle = SavedStateHandle(mapOf("feedId" to feedId, "itemId" to itemId)),
             feedRepository = repository,
             playbackController = playbackController,
@@ -126,7 +126,7 @@ class ReaderViewModelTest {
             queueRepository = queueRepository,
             settingsDataStore = settingsDataStore,
             context = appContext,
-        ).also { viewModelStore.put("reader-${nextViewModelKey++}", it) }
+        ).also { viewModelStore.put("episodeDetails-${nextViewModelKey++}", it) }
 
     @Test
     fun uiState_loadsAllItemsOrderedByPublishDateDescending() = runTest(testDispatcher) {
@@ -153,42 +153,6 @@ class ReaderViewModelTest {
         val state = viewModel.uiState.first { it.items.isNotEmpty() }
 
         assertEquals("A Feed", state.feedTitle)
-    }
-
-    @Test
-    fun markRead_marksItemReadInRepository() = runTest(testDispatcher) {
-        val viewModel = createViewModel("item-1")
-        val state = viewModel.uiState.first { it.items.isNotEmpty() }
-
-        viewModel.markRead(state.items.first { it.id == "item-1" })
-
-        val item = repository.observeItems(feedId).first { items -> items.first { it.id == "item-1" }.isRead }
-            .first { it.id == "item-1" }
-        assertTrue(item.isRead)
-    }
-
-    @Test
-    fun markRead_podcastEpisode_doesNotMarkRead() = runTest(testDispatcher) {
-        repository.insertItems(
-            listOf(
-                FeedItem(
-                    id = "episode-1",
-                    feedId = feedId,
-                    title = "Episode",
-                    itemGuid = "g-episode",
-                    publishDate = 4L,
-                    enclosureUrl = "https://example.com/episode.mp3",
-                    enclosureType = "audio/mpeg",
-                ),
-            ),
-        )
-        val viewModel = createViewModel("episode-1")
-        val state = viewModel.uiState.first { it.items.isNotEmpty() }
-
-        viewModel.markRead(state.items.first { it.id == "episode-1" })
-
-        val item = repository.observeItems(feedId).first().first { it.id == "episode-1" }
-        assertTrue(!item.isRead)
     }
 
     @Test

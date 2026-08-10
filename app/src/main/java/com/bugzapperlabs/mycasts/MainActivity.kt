@@ -77,7 +77,7 @@ import com.bugzapperlabs.mycasts.playback.MiniPlayerViewModel
 import com.bugzapperlabs.mycasts.playback.NowPlayingMiniStrip
 import com.bugzapperlabs.mycasts.playback.PlayerBottomSheetContent
 import com.bugzapperlabs.mycasts.queue.QueueViewModel
-import com.bugzapperlabs.mycasts.reader.ReaderScreen
+import com.bugzapperlabs.mycasts.episodedetails.EpisodeDetailsScreen
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduler
 import com.bugzapperlabs.mycasts.settings.SettingsScreen
 import com.bugzapperlabs.mycasts.ui.theme.MyCastsTheme
@@ -147,7 +147,7 @@ class MainActivity : ComponentActivity() {
                 // Backs the mini-player <-> full-player shared-element morph (issue #112): the
                 // artwork image and player container carry matching shared keys across
                 // MiniPlayerBar (used both standalone and as the player sheet's sticky header,
-                // issue #195) and the reader's hero image, so Compose animates bounds/position/
+                // issue #195) and the episode details page's hero image, so Compose animates bounds/position/
                 // size between whichever pair is transitioning in/out at once instead of an
                 // instant cut.
                 SharedTransitionLayout {
@@ -181,7 +181,7 @@ class MainActivity : ComponentActivity() {
                         queueViewModel.consumeRemovedEpisode()
                     }
                     val currentBackStackEntry by navController.currentBackStackEntryAsState()
-                    var currentReaderItemId by remember { mutableStateOf<String?>(null) }
+                    var currentEpisodeDetailsItemId by remember { mutableStateOf<String?>(null) }
                     // skipHiddenState=false (issue #197) adds a third, further-than-peek anchor:
                     // swiping the collapsed player down past its own resting position hides it
                     // down to just NowPlayingMiniStrip instead of only ever resting at the full
@@ -209,30 +209,30 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    // The reader screen has its own full player for the episode it's showing (issue #97),
+                    // The episode details screen has its own full player for the episode it's showing (issue #97),
                     // so the player sheet would be redundant there -- hide it only in that exact case, not
-                    // just "some reader screen is open" (could be a different, non-playing episode). The
-                    // nav route's itemId argument only reflects the episode the reader was *opened* on --
+                    // just "some episode details screen is open" (could be a different, non-playing episode). The
+                    // nav route's itemId argument only reflects the episode the episode details screen was *opened* on --
                     // HorizontalPager swipes don't renavigate -- so the on-screen item is tracked
-                    // separately via ReaderScreen's onCurrentItemChange callback instead.
-                    val isOnPlayingEpisodeReader = currentBackStackEntry?.destination?.route == "reader/{feedId}/{itemId}" &&
+                    // separately via EpisodeDetailsScreen's onCurrentItemChange callback instead.
+                    val isOnPlayingEpisodeDetails = currentBackStackEntry?.destination?.route == "episodeDetails/{feedId}/{itemId}" &&
                         currentBackStackEntry?.arguments?.getLong("feedId") == playbackState.feedId &&
-                        currentReaderItemId == playbackState.currentItemId
+                        currentEpisodeDetailsItemId == playbackState.currentItemId
 
                     // Collapses the sheet back down (and out of the way, since it's then hidden below)
-                    // if it happened to be left expanded when landing on that exact reader page.
-                    LaunchedEffect(isOnPlayingEpisodeReader) {
-                        if (isOnPlayingEpisodeReader) scaffoldState.bottomSheetState.partialExpand()
+                    // if it happened to be left expanded when landing on that exact episode details page.
+                    LaunchedEffect(isOnPlayingEpisodeDetails) {
+                        if (isOnPlayingEpisodeDetails) scaffoldState.bottomSheetState.partialExpand()
                     }
 
                     val onOpenCurrentEpisode: () -> Unit = {
                         val feedId = playbackState.feedId
                         val itemId = playbackState.currentItemId
-                        if (feedId != null && itemId != null) navController.navigate("reader/$feedId/$itemId")
+                        if (feedId != null && itemId != null) navController.navigate("episodeDetails/$feedId/$itemId")
                     }
                     // Next Up (issue #106, #195): rather than a separate destination, it's the
                     // expanded state of the persistent player bottom sheet -- opened by expanding it.
-                    // On the currently-playing episode's own reader page, though, the sheet's content
+                    // On the currently-playing episode's own episode details page, though, the sheet's content
                     // is force-hidden below (issue #97) since that page already has its own full
                     // player -- expanding it alone left a stuck, empty peek with nothing shown (issue
                     // #248), so pop back off that page first to reveal the sheet before expanding it.
@@ -242,7 +242,7 @@ class MainActivity : ComponentActivity() {
                     // NaN. Just no-op instead.
                     val onQueueClick: () -> Unit = {
                         if (playbackState.currentItemId != null || queue.isNotEmpty()) {
-                            if (isOnPlayingEpisodeReader) navController.popBackStack()
+                            if (isOnPlayingEpisodeDetails) navController.popBackStack()
                             coroutineScope.launch { scaffoldState.bottomSheetState.expand() }
                         }
                     }
@@ -255,7 +255,7 @@ class MainActivity : ComponentActivity() {
                     // height instead once it's this state.
                     val bottomSheetHidden = scaffoldState.bottomSheetState.currentValue == SheetValue.Hidden &&
                         playbackState.currentItemId != null &&
-                        !isOnPlayingEpisodeReader
+                        !isOnPlayingEpisodeDetails
                     // issue #279: currentValue only flips once the drag has fully settled -- by
                     // then the medium bar has already finished sliding off-screen as part of the
                     // drag itself, so triggering the MiniPlayerBar<->NowPlayingMiniStrip crossfade
@@ -264,7 +264,7 @@ class MainActivity : ComponentActivity() {
                     // it instead starts the handoff while the drag is still finishing, not after.
                     val bottomSheetCollapsing = scaffoldState.bottomSheetState.targetValue == SheetValue.Hidden &&
                         playbackState.currentItemId != null &&
-                        !isOnPlayingEpisodeReader
+                        !isOnPlayingEpisodeDetails
                     var miniStripHeight by remember { mutableStateOf(0.dp) }
                     val density = LocalDensity.current
                     val layoutDirection = LocalLayoutDirection.current
@@ -276,7 +276,7 @@ class MainActivity : ComponentActivity() {
                         // gradient (issue #195) blends into the sheet's background seamlessly,
                         // rather than meeting BottomSheetScaffold's default (a different tone).
                         sheetContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        sheetPeekHeight = if (playbackState.currentItemId != null && !isOnPlayingEpisodeReader) {
+                        sheetPeekHeight = if (playbackState.currentItemId != null && !isOnPlayingEpisodeDetails) {
                             PLAYER_SHEET_PEEK_HEIGHT
                         } else {
                             0.dp
@@ -292,10 +292,10 @@ class MainActivity : ComponentActivity() {
                                 // lockstep with NowPlayingMiniStrip's own AnimatedVisibility
                                 // entering -- sharedBounds/sharedElement need exactly one holder of
                                 // PLAYER_CONTAINER_KEY/PLAYER_ARTWORK_KEY visible at a time to
-                                // animate the handoff between them (same as the reader<->mini-bar
+                                // animate the handoff between them (same as the episode details<->mini-bar
                                 // transition, issue #112); otherwise both sides read as "visible"
                                 // simultaneously and the transition doesn't render correctly.
-                                visible = !bottomSheetCollapsing && !isOnPlayingEpisodeReader &&
+                                visible = !bottomSheetCollapsing && !isOnPlayingEpisodeDetails &&
                                     (playbackState.currentItemId != null || queue.isNotEmpty()),
                                 // issue #279: plain fade, not the default expand/shrink -- the
                                 // shared-bounds transition already animates this container's size
@@ -309,15 +309,15 @@ class MainActivity : ComponentActivity() {
                                     queue = queue,
                                     onOpenCurrentEpisode = onOpenCurrentEpisode,
                                     onOpenQueueEpisode = { episode ->
-                                        navController.navigate("reader/${episode.item.feedId}/${episode.item.id}")
+                                        navController.navigate("episodeDetails/${episode.item.feedId}/${episode.item.id}")
                                         // The auto-collapse LaunchedEffect above only fires once
-                                        // the reader lands on the *actively playing* episode (issue
+                                        // the episode details screen lands on the *actively playing* episode (issue
                                         // #97) -- opening a Next Up item without playing it
                                         // (issue #283) never satisfies that, so the sheet would
-                                        // otherwise stay expanded and hide the reader underneath it.
+                                        // otherwise stay expanded and hide the episode details screen underneath it.
                                         // hide() (not partialExpand()) so it collapses all the way
                                         // to the mini player (NowPlayingMiniStrip), out of the way
-                                        // of the reader it just opened.
+                                        // of the episode details screen it just opened.
                                         coroutineScope.launch { scaffoldState.bottomSheetState.hide() }
                                     },
                                     onPlayQueueEpisode = queueViewModel::playNow,
@@ -423,28 +423,28 @@ class MainActivity : ComponentActivity() {
                                 val feedId = backStackEntry.arguments?.getLong("feedId") ?: 0L
                                 EpisodeListScreen(
                                     onBack = { navController.popBackStack() },
-                                    onEpisodeClick = { itemId -> navController.navigate("reader/$feedId/$itemId") },
+                                    onEpisodeClick = { itemId -> navController.navigate("episodeDetails/$feedId/$itemId") },
                                     onQueueClick = onQueueClick,
                                     onFeedSettingsClick = { navController.navigate("feedProperties/$feedId") },
                                 )
                             }
                             composable(
-                                "reader/{feedId}/{itemId}",
+                                "episodeDetails/{feedId}/{itemId}",
                                 arguments = listOf(
                                     navArgument("feedId") { type = NavType.LongType },
                                     navArgument("itemId") { type = NavType.StringType },
                                 ),
                                 // The mini/expanded player already handles its own exit (issue #112),
-                                // so the reader page itself grows up from the bottom and fades in to
+                                // so the episode details page itself grows up from the bottom and fades in to
                                 // meet it, then shrinks back down on the way out.
                                 enterTransition = { expandVertically(tween(300), expandFrom = Alignment.Bottom) + fadeIn(tween(300)) },
                                 exitTransition = { fadeOut(tween(150)) },
                                 popEnterTransition = { fadeIn(tween(150)) },
                                 popExitTransition = { shrinkVertically(tween(300), shrinkTowards = Alignment.Bottom) + fadeOut(tween(300)) },
                             ) {
-                                ReaderScreen(
+                                EpisodeDetailsScreen(
                                     onBack = { navController.popBackStack() },
-                                    onCurrentItemChange = { currentReaderItemId = it },
+                                    onCurrentItemChange = { currentEpisodeDetailsItemId = it },
                                     onQueueClick = onQueueClick,
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = this,
@@ -453,7 +453,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     // issue #279: shares PLAYER_CONTAINER_KEY/PLAYER_ARTWORK_KEY with MiniPlayerBar
-                    // (the same mechanism issue #112 uses for the mini-bar<->reader transition), so
+                    // (the same mechanism issue #112 uses for the mini-bar<->episode details transition), so
                     // Compose animates the container's bounds and artwork continuously between the
                     // two instead of an instant swap or a plain cross-fade -- a genuine resize morph.
                     AnimatedVisibility(

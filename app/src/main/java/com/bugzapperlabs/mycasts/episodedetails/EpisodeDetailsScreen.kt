@@ -1,9 +1,7 @@
-package com.bugzapperlabs.mycasts.reader
+package com.bugzapperlabs.mycasts.episodedetails
 
 import android.content.Intent
 import android.net.Uri
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -58,20 +56,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -82,15 +77,16 @@ import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.settings.scaleFactor
 import com.bugzapperlabs.mycasts.playback.PLAYER_ARTWORK_KEY
 import com.bugzapperlabs.mycasts.playback.PlaybackUiState
-import kotlinx.coroutines.flow.distinctUntilChanged
+import com.bugzapperlabs.mycasts.ui.components.ReaderText
+import com.bugzapperlabs.mycasts.ui.components.htmlToPlainText
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
-fun ReaderScreen(
+fun EpisodeDetailsScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier,
-    viewModel: ReaderViewModel = hiltViewModel(),
+    viewModel: EpisodeDetailsViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
     onCurrentItemChange: (String?) -> Unit = {},
     onQueueClick: () -> Unit = {},
@@ -121,14 +117,6 @@ fun ReaderScreen(
 
     val pagerState = rememberPagerState(initialPage = uiState.initialIndex) { uiState.items.size }
     var zoomedImageUrl by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(pagerState, uiState.items) {
-        snapshotFlow { pagerState.settledPage }
-            .distinctUntilChanged()
-            .collect { page ->
-                uiState.items.getOrNull(page)?.let { viewModel.markRead(it) }
-            }
-    }
 
     val currentItem = uiState.items.getOrNull(pagerState.currentPage)
 
@@ -199,7 +187,7 @@ fun ReaderScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { innerPadding ->
         HorizontalPager(state = pagerState, modifier = Modifier.padding(innerPadding).fillMaxSize()) { page ->
-            ArticlePage(
+            EpisodePage(
                 item = uiState.items[page],
                 onImageClick = { zoomedImageUrl = it },
                 fontScale = articleFontSize.scaleFactor,
@@ -228,7 +216,7 @@ fun ReaderScreen(
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ArticlePage(
+private fun EpisodePage(
     item: FeedItem,
     onImageClick: (String) -> Unit,
     fontScale: Float,
@@ -325,7 +313,7 @@ private fun ArticlePage(
             }
             val imageUrl = item.imageUrl
             // The page background above already shows this as cover art -- skip the generic
-            // article-image block for episodes so it isn't rendered twice on the page.
+            // image block for episodes so it isn't rendered twice on the page.
             if (imageUrl != null && !item.isPodcastEpisode) {
                 AsyncImage(
                     model = imageUrl,
@@ -336,11 +324,10 @@ private fun ArticlePage(
                         .clickable { onImageClick(imageUrl) },
                 )
             }
-            ArticleBody(
-                html = item.description.orEmpty(),
-                baseUrl = item.url,
+            ReaderText(
+                text = htmlToPlainText(item.description.orEmpty()),
                 fontScale = fontScale,
-                translucentBackground = coverImageUrl != null,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
             )
         }
     }
@@ -392,7 +379,7 @@ private fun PodcastPlayerControls(
     val hasChapters = isCurrentItem && playbackState.chapters.isNotEmpty()
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        // The article list already shows played episodes greyed out (issue #89) -- this is the
+        // The episode list already shows played episodes greyed out (issue #89) -- this is the
         // explicit "you've listened to this" signal, shown where it's actually being read (#107).
         if (isPlayed) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
@@ -567,53 +554,6 @@ private fun formatDuration(millis: Long): String {
     } else {
         "%d:%02d".format(minutes, seconds)
     }
-}
-
-@Composable
-private fun ArticleBody(html: String, baseUrl: String?, fontScale: Float, translucentBackground: Boolean = false) {
-    val context = LocalContext.current
-    val sanitized = remember(html) { HtmlSanitizer.sanitize(html) }
-    val textColor = MaterialTheme.colorScheme.onSurface
-    val backgroundColor = MaterialTheme.colorScheme.surface
-    val bodyFontSizePx = (16 * fontScale).toInt()
-
-    AndroidView(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        factory = { ctx ->
-            WebView(ctx).apply {
-                setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                settings.javaScriptEnabled = false
-                webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                        if (url == null) return false
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                        return true
-                    }
-                }
-            }
-        },
-        update = { webView ->
-            val textColorHex = String.format("#%06X", 0xFFFFFF and textColor.toArgb())
-            // Podcast pages have a cover-art backdrop behind the whole page (issue #97) -- let it
-            // bleed through the article body's background too instead of the WebView masking it
-            // with a fully opaque surface color once the page scrolls into the text.
-            val bgColor = backgroundColor.toArgb()
-            val backgroundCss = if (translucentBackground) {
-                "rgba(${(bgColor shr 16) and 0xFF}, ${(bgColor shr 8) and 0xFF}, ${bgColor and 0xFF}, 0.75)"
-            } else {
-                String.format("#%06X", 0xFFFFFF and bgColor)
-            }
-            val styledHtml = """
-                <html><head><meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                  body { color: $textColorHex; background-color: $backgroundCss; font-family: sans-serif; font-size: ${bodyFontSizePx}px; }
-                  img { max-width: 100%; height: auto; }
-                  a { color: $textColorHex; }
-                </style></head><body>$sanitized</body></html>
-            """.trimIndent()
-            webView.loadDataWithBaseURL(baseUrl, styledHtml, "text/html", "UTF-8", null)
-        },
-    )
 }
 
 @Composable

@@ -10,10 +10,13 @@ import androidx.compose.ui.Modifier
  * the old ArticleFontSize setting (see Type.kt).
  */
 @Composable
-fun ReaderText(text: String, modifier: Modifier = Modifier) {
+fun ReaderText(text: String, fontScale: Float = 1f, modifier: Modifier = Modifier) {
+    val style = MaterialTheme.typography.bodyLarge.let {
+        if (fontScale == 1f) it else it.copy(fontSize = it.fontSize * fontScale)
+    }
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge,
+        style = style,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = modifier,
     )

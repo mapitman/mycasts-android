@@ -1,4 +1,4 @@
-package com.bugzapperlabs.mycasts.reader
+package com.bugzapperlabs.mycasts.episodedetails
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
@@ -8,7 +8,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.FeedItem
-import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.FontSize
@@ -25,7 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class ReaderUiState(
+data class EpisodeDetailsUiState(
     val items: List<FeedItem> = emptyList(),
     val initialIndex: Int = 0,
     val feedTitle: String? = null,
@@ -33,7 +32,7 @@ data class ReaderUiState(
 )
 
 @HiltViewModel
-class ReaderViewModel @Inject constructor(
+class EpisodeDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val feedRepository: FeedRepository,
     private val playbackController: PlaybackController,
@@ -50,18 +49,18 @@ class ReaderViewModel @Inject constructor(
     /** One-shot add-to-queue confirmation for a Snackbar (issue #144); cleared via [consumeQueueFeedback]. */
     val queueFeedback: StateFlow<String?> = _queueFeedback
 
-    val uiState: StateFlow<ReaderUiState> = combine(
+    val uiState: StateFlow<EpisodeDetailsUiState> = combine(
         feedRepository.observeItems(feedId),
         feedRepository.observeFeed(feedId),
     ) { items, feed ->
         val index = items.indexOfFirst { it.id == initialItemId }.coerceAtLeast(0)
-        ReaderUiState(items = items, initialIndex = index, feedTitle = feed?.userTitle ?: feed?.title, feedImageUrl = feed?.imageUrl)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReaderUiState())
+        EpisodeDetailsUiState(items = items, initialIndex = index, feedTitle = feed?.userTitle ?: feed?.title, feedImageUrl = feed?.imageUrl)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EpisodeDetailsUiState())
 
     val playbackState: StateFlow<PlaybackUiState> = playbackController.uiState
 
     /**
-     * Item IDs currently in the "Next Up" queue, kept live so the reader's per-page toggle
+     * Item IDs currently in the "Next Up" queue, kept live so the episode details screen's per-page toggle
      * (issue #160) reflects queue changes made anywhere (this screen, the queue screen, etc.)
      * without needing to key a lookup on the pager's current item.
      */
@@ -72,15 +71,6 @@ class ReaderViewModel @Inject constructor(
     val articleFontSize: StateFlow<FontSize> = settingsDataStore.settings
         .map { it.articleFontSize }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
-
-    /**
-     * Articles are marked read as soon as they're viewed. Podcast episodes are only marked
-     * read/played when playback finishes (see [com.bugzapperlabs.mycasts.playback.PlaybackService]).
-     */
-    fun markRead(item: FeedItem) {
-        if (item.isPodcastEpisode) return
-        viewModelScope.launch { feedRepository.markRead(item.id, true) }
-    }
 
     fun togglePlayPause(item: FeedItem) {
         val playback = playbackState.value
