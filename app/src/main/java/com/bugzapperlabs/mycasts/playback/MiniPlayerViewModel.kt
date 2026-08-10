@@ -9,8 +9,8 @@ import javax.inject.Inject
 
 /**
  * Activity-scoped wrapper around [PlaybackController.uiState] for the persistent mini-player
- * (issue #66) -- separate from [com.bugzapperlabs.mycasts.reader.ReaderViewModel] since the mini-player
- * lives outside the reader's SavedStateHandle-scoped feedId/itemId and only needs play/pause/skip/stop.
+ * (issue #66) -- separate from [com.bugzapperlabs.mycasts.episodedetails.EpisodeDetailsViewModel] since the mini-player
+ * lives outside the episode details screen's SavedStateHandle-scoped feedId/itemId and only needs play/pause/skip/stop.
  */
 @HiltViewModel
 class MiniPlayerViewModel @Inject constructor(

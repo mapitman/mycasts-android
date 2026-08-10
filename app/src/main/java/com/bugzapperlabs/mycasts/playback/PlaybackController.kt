@@ -89,7 +89,7 @@ class PlaybackController @Inject constructor(
 
     // Media3's MediaItem/MediaMetadata have no first-class "feedId" field, so it's tracked
     // alongside the controller and folded into PlaybackUiState -- the mini-player (issue #66)
-    // needs it to navigate to the reader route ("reader/{feedId}/{itemId}") on tap.
+    // needs it to navigate to the episode details route ("episodeDetails/{feedId}/{itemId}") on tap.
     private var currentFeedId: Long? = null
 
     // Tracked separately from uiState.currentItemId (which only updates once the player listener
@@ -336,7 +336,7 @@ class PlaybackController @Inject constructor(
         }
     }
 
-    // Shared by the reader's inline controls and the mini-player (issue #66) so both skip by the
+    // Shared by the episode details screen's inline controls and the mini-player (issue #66) so both skip by the
     // same amount rather than each view re-implementing the offset/clamping logic.
     fun skipForward() {
         val playback = uiState.value

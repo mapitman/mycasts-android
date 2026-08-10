@@ -50,7 +50,7 @@ const val CUSTOM_COMMAND_SKIP_BACKWARD = "com.bugzapperlabs.mycasts.SKIP_BACKWAR
 const val CUSTOM_COMMAND_CYCLE_SPEED = "com.bugzapperlabs.mycasts.CYCLE_SPEED"
 
 /** Speeds cycled by the notification's speed button (issue #293), matching [PLAYBACK_SPEEDS] in
- *  MiniPlayerBar/ReaderScreen so the notification offers the same presets as the in-app player. */
+ *  MiniPlayerBar/EpisodeDetailsScreen so the notification offers the same presets as the in-app player. */
 val NOTIFICATION_PLAYBACK_SPEEDS = listOf(1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
 
 /**

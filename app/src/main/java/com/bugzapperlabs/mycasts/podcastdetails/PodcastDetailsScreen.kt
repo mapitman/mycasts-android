@@ -44,12 +44,7 @@ import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.addfeed.AddFeedUiState
 import com.bugzapperlabs.mycasts.episodelist.EpisodeDateFormatter
 import com.bugzapperlabs.mycasts.data.feed.ParsedFeedItem
-import org.jsoup.Jsoup
-
-/** Episode/podcast descriptions may be HTML (e.g. `content:encoded`) -- these rows use plain
- *  [Text], not a WebView, so tags are stripped to text rather than sanitized-and-kept as in
- *  [com.bugzapperlabs.mycasts.reader.HtmlSanitizer]. */
-private fun plainText(html: String): String = if (html.isBlank()) "" else Jsoup.parse(html).text()
+import com.bugzapperlabs.mycasts.ui.components.htmlToPlainText
 
 private const val MAX_EPISODES_SHOWN = 20
 
@@ -147,7 +142,7 @@ private fun PodcastDetailsContent(
         }
         if (feed.description.isNotBlank()) {
             Text(
-                text = plainText(feed.description),
+                text = htmlToPlainText(feed.description),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = 12.dp),
             )
@@ -199,7 +194,7 @@ private fun EpisodeRow(item: ParsedFeedItem) {
         }
         if (item.description.isNotBlank()) {
             Text(
-                text = plainText(item.description),
+                text = htmlToPlainText(item.description),
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
