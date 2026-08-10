@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.TrackedViewModelStore
 import com.bugzapperlabs.mycasts.addfeed.AddFeedUiState
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
@@ -96,7 +97,7 @@ class PodcastDetailsViewModelTest {
         val settingsDataStore = SettingsDataStore(dataStore)
         val httpClient = OkHttpClient()
         feedFetcher = FeedFetcher(httpClient)
-        feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore)
+        feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
     }
 
     @After

@@ -84,7 +84,7 @@ class FeedUpdateEngineTest {
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
-        engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+        engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
     }
 
     @After
@@ -288,6 +288,37 @@ class FeedUpdateEngineTest {
         assertTrue(result is FeedUpdateResult.Success)
         assertEquals(1, (result as FeedUpdateResult.Success).evictedItemIds.size)
         assertEquals(1, repository.observeItems(feed.id).first().size)
+    }
+
+    @Test
+    fun updateFeed_concurrentRefreshesOfSameFeed_doNotDuplicateItemsOrExceedLimit() = runTest {
+        // issue #70: two overlapping refreshes of the same feed (e.g. a manual pull-to-refresh
+        // landing while the scheduled FeedRefreshWorker is also refreshing) used to race --
+        // each's findByItemGuid check ran before the other's insert committed, so both inserted
+        // their own fresh-UUID copy of the same episode, and itemsToKeep was badly overshot.
+        val feed = subscribeFeed(itemsToKeep = 2)
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                // Slow enough that both concurrent fetches are in flight before either starts
+                // persisting, exercising the race window this test guards against.
+                Thread.sleep(50)
+                return MockResponse().setResponseCode(200).setBody(
+                    rssWithItems("guid-1" to "First", "guid-2" to "Second", "guid-3" to "Third"),
+                )
+            }
+        }
+
+        val (resultA, resultB) = coroutineScope {
+            val a = async { engine.updateFeed(feed) }
+            val b = async { engine.updateFeed(feed) }
+            a.await() to b.await()
+        }
+
+        assertTrue(resultA is FeedUpdateResult.Success)
+        assertTrue(resultB is FeedUpdateResult.Success)
+        val items = repository.observeItems(feed.id).first()
+        assertEquals(2, items.size)
+        assertEquals(items.size, items.map { it.itemGuid }.distinct().size)
     }
 
     @Test

@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.TrackedViewModelStore
 import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
@@ -77,7 +78,7 @@ class FeedListViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        val feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+        val feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
         return FeedListViewModel(
             feedRepository = repository,
             feedUpdateEngine = feedUpdateEngine,
