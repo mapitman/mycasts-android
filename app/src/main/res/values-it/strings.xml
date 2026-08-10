@@ -35,6 +35,7 @@
     <string name="cd_download_episode">Scarica episodio</string>
     <string name="cd_stop_playback">Interrompi la riproduzione</string>
     <string name="cd_add_to_queue">Aggiungi a In arrivo</string>
+    <string name="cd_already_in_queue">Già in In arrivo</string>
     <string name="cd_remove_from_next_up">Rimuovi da In arrivo</string>
     <string name="cd_open_queue">In arrivo</string>
     <string name="cd_remove_from_queue">Rimuovi dalla coda</string>

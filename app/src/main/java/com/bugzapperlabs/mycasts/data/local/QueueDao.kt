@@ -78,4 +78,9 @@ interface QueueDao {
         """,
     )
     fun observeQueue(): Flow<List<QueuedEpisode>>
+
+    /** Just the queued item IDs (issue #52), cheaper than [observeQueue] for screens that only
+     *  need to know whether a given episode is queued, not the full queue itself. */
+    @Query("SELECT itemId FROM queue_entries")
+    fun observeQueuedItemIds(): Flow<List<String>>
 }

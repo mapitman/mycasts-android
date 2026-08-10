@@ -36,6 +36,9 @@ data class EpisodeListUiState(
     val unreadCount: Int = 0,
     val selectedIds: Set<String> = emptySet(),
     val isRefreshing: Boolean = false,
+    /** Item IDs currently in the Next Up queue (issue #52), so the add-to-queue button can show a
+     *  different icon for episodes already queued. */
+    val queuedIds: Set<String> = emptySet(),
 ) {
     val isSelectionMode: Boolean get() = selectedIds.isNotEmpty()
 }
@@ -83,6 +86,8 @@ class EpisodeListViewModel @Inject constructor(
         EpisodeListUiState(title, unreadOnly, episodes, unreadCount, selected)
     }.combine(isRefreshing) { state, refreshing ->
         state.copy(isRefreshing = refreshing)
+    }.combine(queueRepository.observeQueuedItemIds()) { state, queuedIds ->
+        state.copy(queuedIds = queuedIds)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EpisodeListUiState())
 
     // Guards the init block below from clobbering an explicit setShowUnreadOnly() call that

@@ -349,6 +349,19 @@ class EpisodeListViewModelTest {
     }
 
     @Test
+    fun uiState_reflectsQueuedEpisodes() = runTest(testDispatcher) {
+        // issue #52: the add-to-queue button needs to know which episodes are already queued so
+        // it can show a different icon for them.
+        val viewModel = createViewModel()
+        viewModel.uiState.first { it.feedTitle == "A Feed" }
+
+        viewModel.addToQueue("unread-1")
+
+        val state = viewModel.uiState.first { it.queuedIds.isNotEmpty() }
+        assertEquals(setOf("unread-1"), state.queuedIds)
+    }
+
+    @Test
     fun deleteSelected_removesItemsAndClearsSelection() = runTest(testDispatcher) {
         val viewModel = createViewModel()
         viewModel.setShowUnreadOnly(false)

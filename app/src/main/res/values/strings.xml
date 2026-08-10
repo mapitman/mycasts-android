@@ -39,6 +39,7 @@
     <string name="cd_download_episode">Download episode</string>
     <string name="cd_stop_playback">Stop playback</string>
     <string name="cd_add_to_queue">Add to Next Up</string>
+    <string name="cd_already_in_queue">Already in Next Up</string>
     <string name="cd_remove_from_next_up">Remove from Next Up</string>
     <string name="cd_open_queue">Next Up</string>
     <string name="cd_remove_from_queue">Remove from queue</string>

@@ -35,6 +35,7 @@
     <string name="cd_download_episode">Episode herunterladen</string>
     <string name="cd_stop_playback">Wiedergabe stoppen</string>
     <string name="cd_add_to_queue">Zu \"Als Nächstes\" hinzufügen</string>
+    <string name="cd_already_in_queue">Bereits in \"Als Nächstes\"</string>
     <string name="cd_remove_from_next_up">Aus \"Als Nächstes\" entfernen</string>
     <string name="cd_open_queue">Als Nächstes</string>
     <string name="cd_remove_from_queue">Aus der Warteschlange entfernen</string>

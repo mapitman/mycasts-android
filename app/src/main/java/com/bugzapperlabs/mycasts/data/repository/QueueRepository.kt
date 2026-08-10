@@ -4,6 +4,7 @@ import com.bugzapperlabs.mycasts.data.local.QueueDao
 import com.bugzapperlabs.mycasts.data.local.QueueEntry
 import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /** The "Next Up" playback queue (issue #67), over [QueueDao]. */
@@ -11,6 +12,10 @@ class QueueRepository @Inject constructor(
     private val queueDao: QueueDao,
 ) {
     fun observeQueue(): Flow<List<QueuedEpisode>> = queueDao.observeQueue()
+
+    /** Queued item IDs only (issue #52), for screens that just need to know membership, e.g. to
+     *  show a "this episode is already queued" indicator without observing the full queue. */
+    fun observeQueuedItemIds(): Flow<Set<String>> = queueDao.observeQueuedItemIds().map { it.toSet() }
 
     suspend fun isQueued(itemId: String): Boolean = queueDao.findItemId(itemId) != null
 
