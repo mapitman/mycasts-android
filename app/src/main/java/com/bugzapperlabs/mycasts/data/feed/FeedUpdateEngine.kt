@@ -163,6 +163,10 @@ class FeedUpdateEngine @Inject constructor(
             updatedFeed = updatedFeed.copy(autoQueueEnabled = true, autoQueueMaxCount = NEW_PODCAST_AUTO_QUEUE_CAP)
         }
         feedRepository.updateFeed(updatedFeed)
+        // Self-heals any lingering duplicate episodes from the since-fixed concurrent-refresh race
+        // (issue #70 follow-up) before trimming, so a feed already contaminated by it recovers on
+        // its own next refresh.
+        feedRepository.deduplicateItems(feed.id)
         val defaultItemsToKeep = settingsDataStore.settings.first().maxItemsPerFeed
         val evicted = feedRepository.trimToItemsToKeep(feed.id, defaultItemsToKeep)
 

@@ -95,6 +95,32 @@ class FeedRepository @Inject constructor(
     suspend fun queuedItemIdsForFeed(feedId: Long): Set<String> = queueDao.orderedItemIdsForFeed(feedId).toSet()
 
     /**
+     * Consolidates duplicate rows sharing the same `itemGuid` within a feed down to one canonical
+     * row per episode (issue #70 follow-up): a since-fixed race between concurrent refreshes of
+     * the same feed could insert multiple copies of the same episode, each with its own id -- if
+     * any copy got auto-queued, it (and so its whole duplicate group) became permanently exempt
+     * from [trimToItemsToKeep]'s eviction, since a queued [FeedItem] is never evicted regardless
+     * of count. Called at the start of every persist so a feed already contaminated by that race
+     * self-heals on its very next refresh, with no one-off migration or manual cleanup needed.
+     *
+     * The queued copy (if any) is kept as canonical, so the episode's Next Up membership survives
+     * the cleanup; otherwise the most recently published copy is kept (items are already ordered
+     * newest-first). The rest are deleted outright.
+     */
+    suspend fun deduplicateItems(feedId: Long) {
+        val items = feedItemDao.observeByFeed(feedId).first()
+        val queuedItemIds = queueDao.orderedItemIdsForFeed(feedId).toSet()
+        items.filterNot { it.itemGuid.isNullOrBlank() }
+            .groupBy { it.itemGuid }
+            .values
+            .filter { it.size > 1 }
+            .forEach { duplicates ->
+                val canonical = duplicates.firstOrNull { it.id in queuedItemIds } ?: duplicates.first()
+                feedItemDao.deleteAll(duplicates.filterNot { it.id == canonical.id })
+            }
+    }
+
+    /**
      * Deletes the oldest items beyond the feed's `itemsToKeep`, mirroring the original
      * FeedUpdater's trim-by-publish-date behavior. Returns the evicted items so callers can clean
      * up associated enclosure files (issue #12).
