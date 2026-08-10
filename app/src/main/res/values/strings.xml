@@ -24,7 +24,7 @@
     <string name="cd_mark_read">Mark read</string>
     <string name="cd_mark_unread">Mark unread</string>
     <string name="played_label">Played</string>
-    <string name="cd_delete">Delete</string>
+    <string name="cd_delete_downloads">Delete downloads</string>
     <string name="cd_open_in_browser">Open in browser</string>
     <string name="cd_share">Share</string>
     <string name="cd_rewind">Rewind 15 seconds</string>
@@ -82,6 +82,9 @@
     <string name="download_feedback_started">Download started</string>
     <string name="download_feedback_started_multiple">%1$d downloads started</string>
     <string name="download_feedback_already_downloaded">Already downloaded</string>
+    <string name="download_feedback_deleted">Download deleted</string>
+    <string name="download_feedback_deleted_multiple">%1$d downloads deleted</string>
+    <string name="download_feedback_nothing_to_delete">No downloads to delete</string>
     <string name="cd_download_selected">Download selected episodes</string>
     <string name="action_undo">Undo</string>
 

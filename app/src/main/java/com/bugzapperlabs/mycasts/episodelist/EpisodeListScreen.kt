@@ -83,6 +83,12 @@ fun EpisodeListScreen(
     val downloadFeedback by viewModel.downloadFeedback.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    // Only episodes with a download among the current selection are actually affected by delete
+    // (issue #54), so the confirm dialog's count -- and whether it's shown at all -- reflects that
+    // rather than the full selection size.
+    val downloadedSelectedCount = uiState.episodes.count {
+        it.id in uiState.selectedIds && (it.downloadedFilePath != null || it.downloadedBytes != null)
+    }
 
     LaunchedEffect(refreshError) {
         refreshError?.let {
@@ -133,8 +139,10 @@ fun EpisodeListScreen(
                         IconButton(onClick = viewModel::downloadSelected) {
                             Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_download_selected))
                         }
-                        IconButton(onClick = { showDeleteConfirm = true }) {
-                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete))
+                        IconButton(onClick = {
+                            if (downloadedSelectedCount > 0) showDeleteConfirm = true else viewModel.deleteSelected()
+                        }) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete_downloads))
                         }
                     },
                 )
@@ -237,7 +245,7 @@ fun EpisodeListScreen(
 
     if (showDeleteConfirm) {
         ConfirmDeleteDialog(
-            itemCount = uiState.selectedIds.size,
+            itemCount = downloadedSelectedCount,
             onConfirm = {
                 showDeleteConfirm = false
                 viewModel.deleteSelected()

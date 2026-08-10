@@ -167,11 +167,23 @@ class EpisodeListViewModel @Inject constructor(
         viewModelScope.launch { feedRepository.markRead(item.id, !item.isRead) }
     }
 
+    /**
+     * Deletes each selected episode's *download*, not the episode itself (issue #54) -- episodes
+     * with no download among the selection are silently skipped, mirroring how
+     * [downloadSelected] skips episodes already downloaded, in reverse.
+     */
     fun deleteSelected() {
         val ids = selectedIds.value
         viewModelScope.launch {
-            val items = uiState.value.episodes.filter { it.id in ids }
-            feedRepository.deleteItems(items)
+            val eligible = uiState.value.episodes.filter {
+                it.id in ids && (it.downloadedFilePath != null || it.downloadedBytes != null)
+            }
+            eligible.forEach { downloadRepository.deleteDownload(it) }
+            _downloadFeedback.value = when (eligible.size) {
+                0 -> context.getString(R.string.download_feedback_nothing_to_delete)
+                1 -> context.getString(R.string.download_feedback_deleted)
+                else -> context.getString(R.string.download_feedback_deleted_multiple, eligible.size)
+            }
             clearSelection()
         }
     }
