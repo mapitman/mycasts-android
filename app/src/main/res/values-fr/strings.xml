@@ -57,14 +57,10 @@
 
     <!-- Article list -->
     <string name="article_list_selected">%1$d sélectionné(s)</string>
-    <string name="article_list_unread_count">%1$d non lus</string>
     <string name="article_list_unplayed_count">%1$d non écoutés</string>
-    <string name="article_list_tab_unread">Non lus</string>
     <string name="article_list_tab_unplayed">Non écoutés</string>
     <string name="article_list_tab_all">Tous</string>
-    <string name="article_list_no_articles">Aucun article</string>
     <string name="article_list_no_episodes">Aucun épisode</string>
-    <string name="article_list_no_unread_articles">Aucun article non lu</string>
     <string name="article_list_no_unplayed_episodes">Aucun épisode non écouté</string>
 
     <!-- Next Up queue -->
