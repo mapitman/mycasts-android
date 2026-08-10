@@ -20,7 +20,7 @@ class OpmlExporter @Inject constructor(
             append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
             append("<opml version=\"1.0\">\n")
             append("  <head>\n")
-            append("    <title>MyFeeds Exported Feeds</title>\n")
+            append("    <title>MyCasts Exported Feeds</title>\n")
             append("  </head>\n")
             append("  <body>\n")
             appendFolder("Podcasts", feeds)

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MyFeeds"
+rootProject.name = "MyCasts"
 include(":app")

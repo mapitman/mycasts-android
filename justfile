@@ -10,7 +10,7 @@ build:
 test:
     ./gradlew testDebugUnitTest
 
-# Run a single test class, e.g. `just test-one io.pitman.myfeeds.playback.PlaybackControllerTest`
+# Run a single test class, e.g. `just test-one com.bugzapperlabs.mycasts.playback.PlaybackControllerTest`
 test-one class:
     ./gradlew testDebugUnitTest --tests "{{class}}"
 
@@ -24,7 +24,7 @@ install:
 
 # Launch the app on a connected device/emulator (installs first).
 run: install
-    adb shell am start -n io.pitman.myfeeds/.MainActivity
+    adb shell am start -n com.bugzapperlabs.mycasts.debug/com.bugzapperlabs.mycasts.MainActivity
 
 # Everything CI runs: build, test, lint.
 ci: build test lint

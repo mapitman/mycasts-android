@@ -124,16 +124,16 @@ class PlaybackService : MediaSessionService() {
         // system can suspend the CPU before the next episode's connection ever opens. This lock
         // covers exactly that transition window instead.
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        advanceWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "myfeeds:playback-advance")
+        advanceWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mycasts:playback-advance")
 
         // Without an explicit small icon, DefaultMediaNotificationProvider falls back to the
         // app's adaptive launcher icon (android.R.attr.icon), which the system can't flatten
         // into the monochrome silhouette a notification/lock-screen icon needs, so it renders
-        // blank. (issue #116) MyFeedsMediaNotificationProvider also swaps in skip-forward/
+        // blank. (issue #116) MyCastsMediaNotificationProvider also swaps in skip-forward/
         // skip-backward/cycle-speed buttons in place of the default (non-functional here)
         // seek-to-next/seek-to-previous actions (issue #293).
         setMediaNotificationProvider(
-            MyFeedsMediaNotificationProvider(this).apply {
+            MyCastsMediaNotificationProvider(this).apply {
                 setSmallIcon(R.drawable.ic_notification)
             },
         )
@@ -155,7 +155,7 @@ class PlaybackService : MediaSessionService() {
      *  provider (issue #293) -- see [buildSkipAndSpeedMediaButtonPreferences]'s doc for why both
      *  are needed. Called again whenever the speed changes so the system media card's speed
      *  button label stays in sync, mirroring how the notification's own label refreshes on every
-     *  rebuild via [MyFeedsMediaNotificationProvider.getMediaButtons]. */
+     *  rebuild via [MyCastsMediaNotificationProvider.getMediaButtons]. */
     @OptIn(markerClass = [UnstableApi::class])
     private fun updateMediaButtonPreferences() {
         mediaSession?.setMediaButtonPreferences(
@@ -192,7 +192,7 @@ class PlaybackService : MediaSessionService() {
                 .build()
             // COMMAND_SEEK_TO_PREVIOUS is Media3's generic "restart the current item" command --
             // distinct from COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM (real playlist navigation, already
-            // unavailable per the class-level comment on MyFeedsMediaNotificationProvider) -- and
+            // unavailable per the class-level comment on MyCastsMediaNotificationProvider) -- and
             // it's *always* available since it doesn't need an actual previous item. Left granted,
             // the system's media notification/lock-screen UI renders it as its own restart-from-0
             // button alongside our skip-backward-15/skip-forward-30 buttons (issue #293), which is
@@ -250,7 +250,7 @@ class PlaybackService : MediaSessionService() {
                 // same fixed seek amounts as onMediaButtonEvent above and PlaybackController's
                 // skipForward()/skipBackward(), since the standard seek-to-next/previous player
                 // commands don't apply here (see the class-level comment on
-                // MyFeedsMediaNotificationProvider).
+                // MyCastsMediaNotificationProvider).
                 CUSTOM_COMMAND_SKIP_FORWARD -> {
                     player.seekTo((player.currentPosition + SKIP_FORWARD_MS).coerceAtMost(player.duration.coerceAtLeast(0)))
                     return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))

@@ -11,7 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "myfeeds_settings")
+private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "mycasts_settings")
 
 @Module
 @InstallIn(SingletonComponent::class)

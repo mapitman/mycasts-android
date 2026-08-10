@@ -58,6 +58,6 @@ class FeedFetcher @Inject constructor(private val httpClient: OkHttpClient) {
 
     companion object {
         private const val MAX_DISCOVERY_DEPTH = 1
-        const val USER_AGENT = "MyFeeds-Android/1.0 (+https://github.com/mapitman/myfeeds-android)"
+        const val USER_AGENT = "MyCasts-Android/1.0 (+https://github.com/mapitman/mycasts-android)"
     }
 }
