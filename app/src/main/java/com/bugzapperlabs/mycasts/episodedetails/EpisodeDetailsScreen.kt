@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
@@ -71,6 +72,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -134,13 +136,7 @@ fun EpisodeDetailsScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        uiState.feedTitle?.let { Text(it) }
-                        Text(
-                            text = stringResource(R.string.reader_page_position, pagerState.currentPage + 1, uiState.items.size),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
+                    uiState.feedTitle?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -190,25 +186,42 @@ fun EpisodeDetailsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { innerPadding ->
-        HorizontalPager(state = pagerState, modifier = Modifier.padding(innerPadding).fillMaxSize()) { page ->
-            EpisodePage(
-                item = uiState.items[page],
-                onImageClick = { zoomedImageUrl = it },
-                fontScale = episodeDetailsFontSize.scaleFactor,
-                playbackState = playbackState,
-                feedImageUrl = uiState.feedImageUrl,
-                onTogglePlayPause = { viewModel.togglePlayPause(uiState.items[page]) },
-                onSeek = viewModel::seekTo,
-                onDownload = { viewModel.downloadEnclosure(uiState.items[page]) },
-                onDelete = { viewModel.deleteDownload(uiState.items[page]) },
-                onSpeedChange = viewModel::setPlaybackSpeed,
-                onVolumeBoostChange = viewModel::setVolumeBoost,
-                onSkipBackward = viewModel::skipBackward,
-                onSkipForward = viewModel::skipForward,
-                onNextChapter = viewModel::nextChapter,
-                onPreviousChapter = viewModel::previousChapter,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
+        Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {
+            HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
+                EpisodePage(
+                    item = uiState.items[page],
+                    onImageClick = { zoomedImageUrl = it },
+                    fontScale = episodeDetailsFontSize.scaleFactor,
+                    playbackState = playbackState,
+                    feedImageUrl = uiState.feedImageUrl,
+                    onTogglePlayPause = { viewModel.togglePlayPause(uiState.items[page]) },
+                    onSeek = viewModel::seekTo,
+                    onDownload = { viewModel.downloadEnclosure(uiState.items[page]) },
+                    onDelete = { viewModel.deleteDownload(uiState.items[page]) },
+                    onSpeedChange = viewModel::setPlaybackSpeed,
+                    onVolumeBoostChange = viewModel::setVolumeBoost,
+                    onSkipBackward = viewModel::skipBackward,
+                    onSkipForward = viewModel::skipForward,
+                    onNextChapter = viewModel::nextChapter,
+                    onPreviousChapter = viewModel::previousChapter,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                )
+            }
+            // Moved off the top bar (issue #68): with a long feed title and up to four action
+            // icons, "X of N" had no room left and was routinely clipped. A small pill floating
+            // over the pager, gallery-style, doesn't compete with either for space.
+            Text(
+                text = stringResource(R.string.reader_page_position, pagerState.currentPage + 1, uiState.items.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
     }
