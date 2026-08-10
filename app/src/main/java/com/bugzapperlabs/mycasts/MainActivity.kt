@@ -296,10 +296,25 @@ class MainActivity : ComponentActivity() {
                         if (isOnPlayingEpisodeDetails) scaffoldState.bottomSheetState.partialExpand()
                     }
 
+                    // Opening episode details always collapses the back stack down to
+                    // feedList -> episodeList/{feedId} -> episodeDetails/{feedId}/{itemId} first
+                    // (issue #55), regardless of how many episodes were viewed previously or which
+                    // screen this was opened from (episode list, Next Up queue, or the mini-player
+                    // below) -- otherwise each new episode opened while already deep in a
+                    // details/queue/mini-player loop stacks another entry on top forever, so
+                    // pressing back cycles through every previously-viewed episode instead of
+                    // landing on this one's episode list after a single press.
+                    val openEpisodeDetails: (Long, String) -> Unit = { feedId, itemId ->
+                        navController.navigate("episodeList/$feedId") {
+                            popUpTo("feedList") { inclusive = false }
+                            launchSingleTop = true
+                        }
+                        navController.navigate("episodeDetails/$feedId/$itemId")
+                    }
                     val onOpenCurrentEpisode: () -> Unit = {
                         val feedId = playbackState.feedId
                         val itemId = playbackState.currentItemId
-                        if (feedId != null && itemId != null) navController.navigate("episodeDetails/$feedId/$itemId")
+                        if (feedId != null && itemId != null) openEpisodeDetails(feedId, itemId)
                     }
                     // Next Up (issue #106, #195): rather than a separate destination, it's the
                     // expanded state of the persistent player bottom sheet -- opened by expanding it.
@@ -380,7 +395,7 @@ class MainActivity : ComponentActivity() {
                                     queue = queue,
                                     onOpenCurrentEpisode = onOpenCurrentEpisode,
                                     onOpenQueueEpisode = { episode ->
-                                        navController.navigate("episodeDetails/${episode.item.feedId}/${episode.item.id}")
+                                        openEpisodeDetails(episode.item.feedId, episode.item.id)
                                         // The auto-collapse LaunchedEffect above only fires once
                                         // the episode details screen lands on the *actively playing* episode (issue
                                         // #97) -- opening a Next Up item without playing it
@@ -496,7 +511,7 @@ class MainActivity : ComponentActivity() {
                                 val feedId = backStackEntry.arguments?.getLong("feedId") ?: 0L
                                 EpisodeListScreen(
                                     onBack = { navController.popBackStack() },
-                                    onEpisodeClick = { itemId -> navController.navigate("episodeDetails/$feedId/$itemId") },
+                                    onEpisodeClick = { itemId -> openEpisodeDetails(feedId, itemId) },
                                     onQueueClick = onQueueClick,
                                     onFeedSettingsClick = { navController.navigate("feedProperties/$feedId") },
                                 )
@@ -516,6 +531,11 @@ class MainActivity : ComponentActivity() {
                                 popExitTransition = { shrinkVertically(tween(300), shrinkTowards = Alignment.Bottom) + fadeOut(tween(300)) },
                             ) {
                                 EpisodeDetailsScreen(
+                                    // A plain pop is enough (issue #55): openEpisodeDetails above
+                                    // guarantees the stack is always exactly
+                                    // feedList -> episodeList/{feedId} -> episodeDetails/{feedId}/{itemId}
+                                    // by the time this screen is reached, regardless of entry point,
+                                    // so popping always lands on this episode's own episode list.
                                     onBack = { navController.popBackStack() },
                                     onCurrentItemChange = { currentEpisodeDetailsItemId = it },
                                     onQueueClick = onQueueClick,
