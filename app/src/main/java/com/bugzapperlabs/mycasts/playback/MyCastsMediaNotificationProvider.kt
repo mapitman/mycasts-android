@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableList
  * a [DefaultMediaNotificationProvider] shows.
  */
 @UnstableApi
-class MyFeedsMediaNotificationProvider(private val context: Context) : DefaultMediaNotificationProvider(context) {
+class MyCastsMediaNotificationProvider(private val context: Context) : DefaultMediaNotificationProvider(context) {
 
     @OptIn(markerClass = [UnstableApi::class])
     override fun getMediaButtons(
@@ -65,7 +65,7 @@ class MyFeedsMediaNotificationProvider(private val context: Context) : DefaultMe
 
 /**
  * Builds the same skip-backward/skip-forward/cycle-speed [CommandButton]s as
- * [MyFeedsMediaNotificationProvider.getMediaButtons] (minus notification-only compact-view
+ * [MyCastsMediaNotificationProvider.getMediaButtons] (minus notification-only compact-view
  * placement extras, which don't mean anything here), for [PlaybackService] to push through
  * [MediaSession.setMediaButtonPreferences] -- issue #293: without that, Media3's legacy platform
  * bridge never learns about these custom actions, since it builds the legacy

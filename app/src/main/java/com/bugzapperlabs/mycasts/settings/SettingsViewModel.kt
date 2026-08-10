@@ -142,7 +142,7 @@ class SettingsViewModel @Inject constructor(
     /** Writes the OPML export to a cache file for the caller to share via [android.content.Intent.ACTION_SEND]. */
     suspend fun exportOpmlToFile(): File {
         val opml = opmlExporter.export()
-        val file = File(context.cacheDir, "myfeeds-export.opml")
+        val file = File(context.cacheDir, "mycasts-export.opml")
         file.writeText(opml)
         return file
     }

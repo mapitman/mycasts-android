@@ -461,7 +461,7 @@ private fun ActionsSection(viewModel: SettingsViewModel) {
             Text(stringResource(R.string.settings_export_opml))
         }
         OutlinedButton(
-            onClick = { saveOpmlLauncher.launch("myfeeds-export.opml") },
+            onClick = { saveOpmlLauncher.launch("mycasts-export.opml") },
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         ) {
             Text(stringResource(R.string.settings_save_opml_to_file))
