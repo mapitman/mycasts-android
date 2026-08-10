@@ -26,7 +26,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -143,10 +145,21 @@ fun FeedListScreen(
             return@Scaffold
         }
 
-        PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+        // A taller-than-default pull threshold (issue #45): overshooting while flicking the list
+        // to the top was accidentally triggering a refresh-all-feeds. The gesture itself stays --
+        // just requires a more deliberate pull to actually fire.
+        val pullToRefreshThreshold = PullToRefreshDefaults.PositionalThreshold * 2
+        val pullToRefreshState = rememberPullToRefreshState()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .pullToRefresh(
+                    state = pullToRefreshState,
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = viewModel::refresh,
+                    threshold = pullToRefreshThreshold,
+                ),
         ) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 item {
@@ -169,6 +182,12 @@ fun FeedListScreen(
                     )
                 }
             }
+            PullToRefreshDefaults.Indicator(
+                modifier = Modifier.align(Alignment.TopCenter),
+                isRefreshing = uiState.isRefreshing,
+                state = pullToRefreshState,
+                threshold = pullToRefreshThreshold,
+            )
         }
     }
 }
