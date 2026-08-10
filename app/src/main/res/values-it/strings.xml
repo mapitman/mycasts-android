@@ -72,6 +72,10 @@
     <string name="queue_feedback_added_multiple">%1$d episodi aggiunti a In arrivo</string>
     <string name="queue_feedback_already_queued">Già in In arrivo</string>
     <string name="queue_feedback_removed">\"%1$s\" rimosso</string>
+    <string name="download_feedback_started">Download avviato</string>
+    <string name="download_feedback_started_multiple">%1$d download avviati</string>
+    <string name="download_feedback_already_downloaded">Già scaricato</string>
+    <string name="cd_download_selected">Scarica episodi selezionati</string>
     <string name="action_undo">Annulla</string>
 
     <!-- Downloads -->

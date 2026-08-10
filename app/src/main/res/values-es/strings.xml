@@ -72,6 +72,10 @@
     <string name="queue_feedback_added_multiple">%1$d episodios añadidos a Reproducir a continuación</string>
     <string name="queue_feedback_already_queued">Ya está en Reproducir a continuación</string>
     <string name="queue_feedback_removed">Se eliminó \"%1$s\"</string>
+    <string name="download_feedback_started">Descarga iniciada</string>
+    <string name="download_feedback_started_multiple">%1$d descargas iniciadas</string>
+    <string name="download_feedback_already_downloaded">Ya descargado</string>
+    <string name="cd_download_selected">Descargar episodios seleccionados</string>
     <string name="action_undo">Deshacer</string>
 
     <!-- Downloads -->
