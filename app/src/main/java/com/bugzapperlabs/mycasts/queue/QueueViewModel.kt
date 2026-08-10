@@ -48,6 +48,31 @@ class QueueViewModel @Inject constructor(
         }
     }
 
+    /** Whether the next call to [sortByPublishDate] (issue #17) sorts oldest-first or
+     *  newest-first -- flips after each sort, defaulting to ascending (oldest first) so the
+     *  first tap matches the issue's requested default. */
+    private val _sortAscending = MutableStateFlow(true)
+    val sortAscending: StateFlow<Boolean> = _sortAscending.asStateFlow()
+
+    /**
+     * Reorders the queue by episode publish date (issue #17) -- unlike [reorder], this actually
+     * rewrites [com.bugzapperlabs.mycasts.data.local.QueueEntry.position] for every entry rather
+     * than just transforming the display, so it also changes playback order the same way a manual
+     * drag would; the user can still drag afterward to fine-tune from there. Episodes with no
+     * known publish date sort to one end depending on direction (Kotlin's nulls-first default,
+     * reversed for descending).
+     */
+    fun sortByPublishDate() {
+        val ascending = _sortAscending.value
+        val sorted = if (ascending) {
+            queue.value.sortedBy { it.item.publishDate }
+        } else {
+            queue.value.sortedByDescending { it.item.publishDate }
+        }
+        _sortAscending.value = !ascending
+        reorder(sorted.map { it.item.id })
+    }
+
     /** Removes the episode and, if it really was queued, stashes it so [undoRemove] can put it
      *  back (issue #284) -- looked up from the current [queue] snapshot rather than threading a
      *  whole [QueuedEpisode] through every caller just for its title. */

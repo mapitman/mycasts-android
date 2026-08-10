@@ -5,6 +5,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -61,6 +66,8 @@ fun PlayerBottomSheetContent(
     onPlayQueueEpisode: (QueuedEpisode) -> Unit,
     onReorder: (List<String>, onComplete: () -> Unit) -> Unit,
     onRemoveFromQueue: (String) -> Unit,
+    sortAscending: Boolean,
+    onSortByPublishDate: () -> Unit,
     queueSnackbarHostState: SnackbarHostState,
     onTogglePlayPause: () -> Unit,
     onSkipBackward: () -> Unit,
@@ -102,11 +109,26 @@ fun PlayerBottomSheetContent(
                     applyNavigationBarsPadding = false,
                 )
             }
-            Text(
-                text = stringResource(R.string.queue_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.queue_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                if (queue.size > 1) {
+                    IconButton(onClick = onSortByPublishDate) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = stringResource(
+                                if (sortAscending) R.string.cd_sort_queue_oldest_first else R.string.cd_sort_queue_newest_first,
+                            ),
+                        )
+                    }
+                }
+            }
             if (queue.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.queue_empty))

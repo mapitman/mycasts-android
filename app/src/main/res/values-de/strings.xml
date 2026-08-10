@@ -66,6 +66,8 @@
     <!-- Next Up queue -->
     <string name="queue_title">Als Nächstes</string>
     <string name="queue_empty">Nichts in der Warteschlange</string>
+    <string name="cd_sort_queue_oldest_first">Nach Veröffentlichungsdatum sortieren, älteste zuerst</string>
+    <string name="cd_sort_queue_newest_first">Nach Veröffentlichungsdatum sortieren, neueste zuerst</string>
     <string name="queue_feedback_added">Zu \"Als Nächstes\" hinzugefügt</string>
     <string name="queue_feedback_added_multiple">%1$d Episoden zu \"Als Nächstes\" hinzugefügt</string>
     <string name="queue_feedback_already_queued">Bereits in \"Als Nächstes\"</string>

@@ -66,6 +66,8 @@
     <!-- Next Up queue -->
     <string name="queue_title">In arrivo</string>
     <string name="queue_empty">Niente in coda</string>
+    <string name="cd_sort_queue_oldest_first">Ordina per data di pubblicazione, dal più vecchio</string>
+    <string name="cd_sort_queue_newest_first">Ordina per data di pubblicazione, dal più recente</string>
     <string name="queue_feedback_added">Aggiunto a In arrivo</string>
     <string name="queue_feedback_added_multiple">%1$d episodi aggiunti a In arrivo</string>
     <string name="queue_feedback_already_queued">Già in In arrivo</string>
