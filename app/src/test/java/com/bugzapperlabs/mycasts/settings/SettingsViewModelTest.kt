@@ -130,7 +130,7 @@ class SettingsViewModelTest {
             settingsDataStore = settingsDataStore,
             feedRepository = repository,
             opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore),
-            opmlExporter = OpmlExporter(db.feedDao(), db.feedItemDao()),
+            opmlExporter = OpmlExporter(db.feedDao()),
             feedRefreshScheduler = object : FeedRefreshScheduling {
                 override fun schedule(intervalMinutes: Long) {}
             },

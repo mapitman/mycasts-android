@@ -4,7 +4,6 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
-import com.bugzapperlabs.mycasts.data.local.FeedItem
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -26,7 +25,7 @@ class OpmlExporterTest {
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
-        exporter = OpmlExporter(db.feedDao(), db.feedItemDao())
+        exporter = OpmlExporter(db.feedDao())
     }
 
     @After
@@ -43,7 +42,7 @@ class OpmlExporterTest {
     }
 
     @Test
-    fun export_roundTripsNonPodcastFeedsThroughParser() = runTest {
+    fun export_roundTripsFeedsThroughParser() = runTest {
         db.feedDao().insert(Feed(title = "Ars Technica", feedUrl = "https://arstechnica.com/feed"))
         db.feedDao().insert(Feed(title = "Original Title", userTitle = "My Feed", feedUrl = "https://example.com/feed"))
 
@@ -52,7 +51,7 @@ class OpmlExporterTest {
 
         assertEquals(1, parsed.folders.size)
         val folder = parsed.folders.single()
-        assertEquals("Feeds", folder.name)
+        assertEquals("Podcasts", folder.name)
         assertEquals(
             setOf(
                 OpmlFeed("Ars Technica", "https://arstechnica.com/feed"),
@@ -60,28 +59,6 @@ class OpmlExporterTest {
             ),
             folder.feeds.toSet(),
         )
-    }
-
-    @Test
-    fun export_splitsPodcastAndOtherFeedsIntoSeparateFolders() = runTest {
-        val podcastFeedId = db.feedDao().insert(Feed(title = "Windows Weekly", feedUrl = "https://feeds.twit.tv/ww.xml"))
-        db.feedDao().insert(Feed(title = "BBC News", feedUrl = "https://feeds.bbci.co.uk/news/rss.xml"))
-        db.feedItemDao().insert(
-            FeedItem(
-                id = "item-1",
-                feedId = podcastFeedId,
-                title = "Episode 1",
-                enclosureUrl = "https://example.com/ep1.mp3",
-                enclosureType = "audio/mpeg",
-            ),
-        )
-
-        val opml = exporter.export()
-        val parsed = OpmlParser.parse(ByteArrayInputStream(opml.toByteArray()))
-
-        assertEquals(setOf("Podcasts", "Feeds"), parsed.folders.map { it.name }.toSet())
-        assertEquals(listOf("Windows Weekly"), parsed.folders.single { it.name == "Podcasts" }.feeds.map { it.title })
-        assertEquals(listOf("BBC News"), parsed.folders.single { it.name == "Feeds" }.feeds.map { it.title })
     }
 
     @Test
