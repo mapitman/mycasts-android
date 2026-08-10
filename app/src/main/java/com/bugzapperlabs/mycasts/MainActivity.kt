@@ -2,6 +2,7 @@ package com.bugzapperlabs.mycasts
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
@@ -69,6 +70,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import com.bugzapperlabs.mycasts.addfeed.AddFeedScreen
 import com.bugzapperlabs.mycasts.podcastdetails.PodcastDetailsScreen
 import com.bugzapperlabs.mycasts.episodelist.EpisodeListScreen
+import com.bugzapperlabs.mycasts.data.opml.OpmlDocument
+import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
+import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.downloads.DownloadsScreen
 import com.bugzapperlabs.mycasts.feedlist.FeedListScreen
@@ -114,6 +118,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var settingsDataStore: SettingsDataStore
 
+    @Inject
+    lateinit var opmlImportCoordinator: OpmlImportCoordinator
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -135,6 +142,34 @@ class MainActivity : ComponentActivity() {
         // the same way tapping a widget feed lands on that feed's episode list.
         val sharedUrl = intent.takeIf { it.action == Intent.ACTION_SEND && it.type == "text/plain" }
             ?.getStringExtra(Intent.EXTRA_TEXT)
+
+        // issue #38: sharing an .opml file (ACTION_SEND) or opening one directly (ACTION_VIEW,
+        // e.g. from a file manager) imports it the same way Settings'/Add Feed's "Import OPML"
+        // does -- via the same OpmlImportCoordinator, landing on the default feed list where
+        // FeedListViewModel's opmlImportResult already surfaces the outcome as a snackbar.
+        val opmlUri: Uri? = when {
+            intent.action == Intent.ACTION_SEND && intent.type in OPML_MIME_TYPES ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+            intent.action == Intent.ACTION_VIEW && intent.type in OPML_MIME_TYPES -> intent.data
+            else -> null
+        }
+        if (opmlUri != null) {
+            lifecycleScope.launch {
+                // A malformed/unreadable file falls back to an empty document rather than
+                // crashing -- OpmlImportCoordinator already surfaces "no feeds found" for that.
+                val document = try {
+                    contentResolver.openInputStream(opmlUri)?.use { OpmlParser.parse(it) }
+                } catch (_: Exception) {
+                    null
+                } ?: OpmlDocument(emptyList())
+                opmlImportCoordinator.startImport(document)
+            }
+        }
 
         val startDestination = intent.getLongExtra(WIDGET_FEED_ID_EXTRA, -1L)
             .takeIf { it >= 0 }
@@ -516,5 +551,8 @@ class MainActivity : ComponentActivity() {
         /** Matches [com.bugzapperlabs.mycasts.widget.FeedIdParam]'s key name -- Glance's actionStartActivity
          * puts ActionParameters into the launch Intent's extras keyed by parameter name. */
         const val WIDGET_FEED_ID_EXTRA = "feedId"
+
+        /** Mime types the OPML share/open intent filters (issue #38) register for in the manifest. */
+        private val OPML_MIME_TYPES = setOf("text/x-opml", "text/xml", "application/xml")
     }
 }
