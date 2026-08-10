@@ -6,8 +6,8 @@ set -euo pipefail
 # it (already covered by .gitignore's *.jks/*.keystore).
 # Usage: scripts/generate-release-keystore.sh [output-path] [alias]
 
-OUTPUT_PATH="${1:-myfeeds-release.jks}"
-KEY_ALIAS="${2:-myfeeds}"
+OUTPUT_PATH="${1:-mycasts-release.jks}"
+KEY_ALIAS="${2:-mycasts}"
 
 if [[ -e "$OUTPUT_PATH" ]]; then
   echo "$OUTPUT_PATH already exists -- refusing to overwrite." >&2
