@@ -514,9 +514,22 @@ class MainActivity : ComponentActivity() {
                                 exitTransition = { fadeOut(tween(150)) },
                                 popEnterTransition = { fadeIn(tween(150)) },
                                 popExitTransition = { shrinkVertically(tween(300), shrinkTowards = Alignment.Bottom) + fadeOut(tween(300)) },
-                            ) {
+                            ) { backStackEntry ->
+                                val feedId = backStackEntry.arguments?.getLong("feedId") ?: 0L
                                 EpisodeDetailsScreen(
-                                    onBack = { navController.popBackStack() },
+                                    // Always lands on this episode's own episode list (issue #55),
+                                    // regardless of how this screen was reached (episode list itself,
+                                    // Next Up queue, or the mini-player's "open current episode" tap
+                                    // from any screen) -- popUpTo this destination's own route pattern
+                                    // replaces it on the back stack rather than piling episodeList on
+                                    // top, so repeatedly opening episode details doesn't grow the
+                                    // stack unbounded.
+                                    onBack = {
+                                        navController.navigate("episodeList/$feedId") {
+                                            popUpTo("episodeDetails/{feedId}/{itemId}") { inclusive = true }
+                                            launchSingleTop = true
+                                        }
+                                    },
                                     onCurrentItemChange = { currentEpisodeDetailsItemId = it },
                                     onQueueClick = onQueueClick,
                                     sharedTransitionScope = sharedTransitionScope,
