@@ -187,14 +187,10 @@
     <string name="feed_properties_save_title">Guardar título</string>
     <string name="feed_properties_url_label">URL del feed (toca para copiar)</string>
     <string name="feed_properties_url_copied">URL del feed copiada al portapapeles</string>
-    <string name="feed_properties_use_global_max">Usar el ajuste global de máximo de artículos (%1$d)</string>
-    <string name="feed_properties_use_global_max_unlimited">Usar el ajuste global de máximo de artículos (Todos)</string>
-    <string name="feed_properties_use_global_max_episodes">Usar el ajuste global de máximo de episodios (%1$d)</string>
-    <string name="feed_properties_use_global_max_episodes_unlimited">Usar el ajuste global de máximo de episodios (Todos)</string>
-    <string name="feed_properties_max_articles_for_feed">Máximo de artículos para esta fuente: %1$d</string>
-    <string name="feed_properties_max_articles_for_feed_unlimited">Máximo de artículos para esta fuente: Todos</string>
-    <string name="feed_properties_max_episodes_for_feed">Máximo de episodios para esta fuente: %1$d</string>
-    <string name="feed_properties_max_episodes_for_feed_unlimited">Máximo de episodios para esta fuente: Todos</string>
+    <string name="feed_properties_use_global_max">Usar el ajuste global de máximo de episodios (%1$d)</string>
+    <string name="feed_properties_use_global_max_unlimited">Usar el ajuste global de máximo de episodios (Todos)</string>
+    <string name="feed_properties_max_articles_for_feed">Máximo de episodios para esta fuente: %1$d</string>
+    <string name="feed_properties_max_articles_for_feed_unlimited">Máximo de episodios para esta fuente: Todos</string>
     <string name="feed_properties_auto_download">Descargar automáticamente episodios nuevos</string>
     <string name="feed_properties_max_downloads_to_keep">Máx. episodios descargados para esta fuente</string>
     <string name="feed_properties_auto_queue">Añadir automáticamente episodios nuevos a la cola</string>
@@ -214,8 +210,7 @@
     <string name="feed_properties_start_skip_seconds">%1$d s</string>
     <string name="feed_properties_unsubscribe">Cancelar suscripción</string>
     <string name="feed_properties_confirm_unsubscribe_title">¿Cancelar la suscripción a esta fuente?</string>
-    <string name="feed_properties_confirm_unsubscribe_message">Esto elimina permanentemente la fuente y sus artículos.</string>
-    <string name="feed_properties_confirm_unsubscribe_message_podcast">Esto elimina permanentemente la fuente y sus episodios.</string>
+    <string name="feed_properties_confirm_unsubscribe_message">Esto elimina permanentemente la fuente y sus episodios.</string>
 
     <!-- Notifications -->
     <string name="notification_new_items_channel_name">Elementos nuevos</string>

@@ -187,14 +187,10 @@
     <string name="feed_properties_save_title">Salva titolo</string>
     <string name="feed_properties_url_label">URL del feed (tocca per copiare)</string>
     <string name="feed_properties_url_copied">URL del feed copiato negli appunti</string>
-    <string name="feed_properties_use_global_max">Usa impostazione globale di articoli massimi (%1$d)</string>
-    <string name="feed_properties_use_global_max_unlimited">Usa impostazione globale di articoli massimi (Tutti)</string>
-    <string name="feed_properties_use_global_max_episodes">Usa impostazione globale di episodi massimi (%1$d)</string>
-    <string name="feed_properties_use_global_max_episodes_unlimited">Usa impostazione globale di episodi massimi (Tutti)</string>
-    <string name="feed_properties_max_articles_for_feed">Articoli massimi per questo feed: %1$d</string>
-    <string name="feed_properties_max_articles_for_feed_unlimited">Articoli massimi per questo feed: Tutti</string>
-    <string name="feed_properties_max_episodes_for_feed">Episodi massimi per questo feed: %1$d</string>
-    <string name="feed_properties_max_episodes_for_feed_unlimited">Episodi massimi per questo feed: Tutti</string>
+    <string name="feed_properties_use_global_max">Usa impostazione globale di episodi massimi (%1$d)</string>
+    <string name="feed_properties_use_global_max_unlimited">Usa impostazione globale di episodi massimi (Tutti)</string>
+    <string name="feed_properties_max_articles_for_feed">Episodi massimi per questo feed: %1$d</string>
+    <string name="feed_properties_max_articles_for_feed_unlimited">Episodi massimi per questo feed: Tutti</string>
     <string name="feed_properties_auto_download">Scarica automaticamente i nuovi episodi</string>
     <string name="feed_properties_max_downloads_to_keep">Numero massimo di episodi scaricati per questo feed</string>
     <string name="feed_properties_auto_queue">Aggiungi automaticamente i nuovi episodi alla coda</string>
@@ -214,8 +210,7 @@
     <string name="feed_properties_start_skip_seconds">%1$d s</string>
     <string name="feed_properties_unsubscribe">Annulla iscrizione</string>
     <string name="feed_properties_confirm_unsubscribe_title">Annullare l\'iscrizione a questo feed?</string>
-    <string name="feed_properties_confirm_unsubscribe_message">Questo elimina definitivamente il feed e i suoi articoli.</string>
-    <string name="feed_properties_confirm_unsubscribe_message_podcast">Questo elimina definitivamente il feed e i suoi episodi.</string>
+    <string name="feed_properties_confirm_unsubscribe_message">Questo elimina definitivamente il feed e i suoi episodi.</string>
 
     <!-- Notifications -->
     <string name="notification_new_items_channel_name">Nuovi elementi</string>
