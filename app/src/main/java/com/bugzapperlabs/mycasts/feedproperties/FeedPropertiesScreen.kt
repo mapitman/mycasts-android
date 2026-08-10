@@ -137,22 +137,9 @@ fun FeedPropertiesScreen(
             ) {
                 Text(
                     text = if (uiState.globalMaxArticles == UNLIMITED_ITEMS_TO_KEEP) {
-                        stringResource(
-                            if (uiState.isPodcastFeed) {
-                                R.string.feed_properties_use_global_max_episodes_unlimited
-                            } else {
-                                R.string.feed_properties_use_global_max_unlimited
-                            },
-                        )
+                        stringResource(R.string.feed_properties_use_global_max_unlimited)
                     } else {
-                        stringResource(
-                            if (uiState.isPodcastFeed) {
-                                R.string.feed_properties_use_global_max_episodes
-                            } else {
-                                R.string.feed_properties_use_global_max
-                            },
-                            uiState.globalMaxArticles,
-                        )
+                        stringResource(R.string.feed_properties_use_global_max, uiState.globalMaxArticles)
                     },
                     style = MaterialTheme.typography.bodyLarge,
                 )
@@ -162,22 +149,9 @@ fun FeedPropertiesScreen(
                 val itemsToKeep = uiState.itemsToKeep ?: uiState.globalMaxArticles
                 Text(
                     if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) {
-                        stringResource(
-                            if (uiState.isPodcastFeed) {
-                                R.string.feed_properties_max_episodes_for_feed_unlimited
-                            } else {
-                                R.string.feed_properties_max_articles_for_feed_unlimited
-                            },
-                        )
+                        stringResource(R.string.feed_properties_max_articles_for_feed_unlimited)
                     } else {
-                        stringResource(
-                            if (uiState.isPodcastFeed) {
-                                R.string.feed_properties_max_episodes_for_feed
-                            } else {
-                                R.string.feed_properties_max_articles_for_feed
-                            },
-                            itemsToKeep,
-                        )
+                        stringResource(R.string.feed_properties_max_articles_for_feed, itemsToKeep)
                     },
                     style = MaterialTheme.typography.bodyLarge,
                 )
@@ -194,165 +168,161 @@ fun FeedPropertiesScreen(
                 )
             }
 
-            // Downloading, queuing, playback speed, volume boost, and skip-intro are all
-            // meaningless for a feed with no audio-enclosure items to play (issue #275).
-            if (uiState.isPodcastFeed) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .toggleable(
-                            value = uiState.autoDownloadEnabled,
-                            onValueChange = viewModel::setAutoDownloadEnabled,
-                            role = Role.Switch,
-                        )
-                        .padding(top = 24.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.feed_properties_auto_download),
-                        style = MaterialTheme.typography.bodyLarge,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = uiState.autoDownloadEnabled,
+                        onValueChange = viewModel::setAutoDownloadEnabled,
+                        role = Role.Switch,
                     )
-                    Switch(checked = uiState.autoDownloadEnabled, onCheckedChange = null)
-                }
-                if (uiState.autoDownloadEnabled) {
-                    Text(
-                        text = stringResource(R.string.feed_properties_max_downloads_to_keep),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                    Row(modifier = Modifier.padding(top = 4.dp)) {
-                        listOf(1, 3, 5, 10, null).forEach { maxCount ->
-                            FilterChip(
-                                selected = uiState.maxDownloadsToKeep == maxCount,
-                                onClick = { viewModel.setMaxDownloadsToKeep(maxCount) },
-                                label = {
-                                    Text(
-                                        maxCount?.toString()
-                                            ?: stringResource(R.string.feed_properties_auto_queue_unlimited),
-                                    )
-                                },
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
-                        }
-                    }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .toggleable(
-                            value = uiState.autoQueueEnabled,
-                            onValueChange = viewModel::setAutoQueueEnabled,
-                            role = Role.Switch,
-                        )
-                        .padding(top = 24.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.feed_properties_auto_queue),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    Switch(checked = uiState.autoQueueEnabled, onCheckedChange = null)
-                }
-                if (uiState.autoQueueEnabled) {
-                    Text(
-                        text = stringResource(R.string.feed_properties_auto_queue_max_count),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                    Row(modifier = Modifier.padding(top = 4.dp)) {
-                        listOf(1, 3, 5, 10, null).forEach { maxCount ->
-                            FilterChip(
-                                selected = uiState.autoQueueMaxCount == maxCount,
-                                onClick = { viewModel.setAutoQueueMaxCount(maxCount) },
-                                label = {
-                                    Text(
-                                        maxCount?.toString()
-                                            ?: stringResource(R.string.feed_properties_auto_queue_unlimited),
-                                    )
-                                },
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = stringResource(R.string.feed_properties_auto_queue_position),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 16.dp),
-                    )
-                    Row(modifier = Modifier.padding(top = 4.dp)) {
-                        listOf(
-                            AutoQueuePosition.TOP to R.string.feed_properties_auto_queue_position_top,
-                            AutoQueuePosition.BOTTOM to R.string.feed_properties_auto_queue_position_bottom,
-                        ).forEach { (position, labelRes) ->
-                            FilterChip(
-                                selected = uiState.autoQueuePosition == position,
-                                onClick = { viewModel.setAutoQueuePosition(position) },
-                                label = { Text(stringResource(labelRes)) },
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
-                        }
-                    }
-                }
-
+                    .padding(top = 24.dp),
+            ) {
                 Text(
-                    text = stringResource(R.string.feed_properties_playback_speed),
+                    text = stringResource(R.string.feed_properties_auto_download),
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 24.dp),
                 )
-                Row(modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
-                    listOf(1.0f, 1.25f, 1.5f, 1.75f, 2.0f).forEach { speed ->
-                        FilterChip(
-                            selected = uiState.playbackSpeed == speed,
-                            onClick = { viewModel.setPlaybackSpeed(speed) },
-                            label = { Text("${"%.2f".format(speed).trimEnd('0').trimEnd('.')}x") },
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                    }
-                }
-
+                Switch(checked = uiState.autoDownloadEnabled, onCheckedChange = null)
+            }
+            if (uiState.autoDownloadEnabled) {
                 Text(
-                    text = stringResource(R.string.feed_properties_volume_boost),
+                    text = stringResource(R.string.feed_properties_max_downloads_to_keep),
                     style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 24.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                 )
-                Row(modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
-                    listOf(
-                        0 to R.string.feed_properties_volume_boost_off,
-                        600 to R.string.feed_properties_volume_boost_low,
-                        1200 to R.string.feed_properties_volume_boost_medium,
-                        1800 to R.string.feed_properties_volume_boost_high,
-                    ).forEach { (millibels, labelRes) ->
+                Row(modifier = Modifier.padding(top = 4.dp)) {
+                    listOf(1, 3, 5, 10, null).forEach { maxCount ->
                         FilterChip(
-                            selected = uiState.volumeBoostMillibels == millibels,
-                            onClick = { viewModel.setVolumeBoostMillibels(millibels) },
-                            label = { Text(stringResource(labelRes)) },
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                    }
-                }
-
-                Text(
-                    text = stringResource(R.string.feed_properties_start_skip),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 24.dp),
-                )
-                Row(modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
-                    listOf(0, 15, 30, 45, 60).forEach { seconds ->
-                        FilterChip(
-                            selected = uiState.startSkipSeconds == seconds,
-                            onClick = { viewModel.setStartSkipSeconds(seconds) },
+                            selected = uiState.maxDownloadsToKeep == maxCount,
+                            onClick = { viewModel.setMaxDownloadsToKeep(maxCount) },
                             label = {
                                 Text(
-                                    if (seconds == 0) {
-                                        stringResource(R.string.feed_properties_start_skip_off)
-                                    } else {
-                                        stringResource(R.string.feed_properties_start_skip_seconds, seconds)
-                                    },
+                                    maxCount?.toString()
+                                        ?: stringResource(R.string.feed_properties_auto_queue_unlimited),
                                 )
                             },
                             modifier = Modifier.padding(end = 8.dp),
                         )
                     }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = uiState.autoQueueEnabled,
+                        onValueChange = viewModel::setAutoQueueEnabled,
+                        role = Role.Switch,
+                    )
+                    .padding(top = 24.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.feed_properties_auto_queue),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Switch(checked = uiState.autoQueueEnabled, onCheckedChange = null)
+            }
+            if (uiState.autoQueueEnabled) {
+                Text(
+                    text = stringResource(R.string.feed_properties_auto_queue_max_count),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Row(modifier = Modifier.padding(top = 4.dp)) {
+                    listOf(1, 3, 5, 10, null).forEach { maxCount ->
+                        FilterChip(
+                            selected = uiState.autoQueueMaxCount == maxCount,
+                            onClick = { viewModel.setAutoQueueMaxCount(maxCount) },
+                            label = {
+                                Text(
+                                    maxCount?.toString()
+                                        ?: stringResource(R.string.feed_properties_auto_queue_unlimited),
+                                )
+                            },
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                }
+
+                Text(
+                    text = stringResource(R.string.feed_properties_auto_queue_position),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+                Row(modifier = Modifier.padding(top = 4.dp)) {
+                    listOf(
+                        AutoQueuePosition.TOP to R.string.feed_properties_auto_queue_position_top,
+                        AutoQueuePosition.BOTTOM to R.string.feed_properties_auto_queue_position_bottom,
+                    ).forEach { (position, labelRes) ->
+                        FilterChip(
+                            selected = uiState.autoQueuePosition == position,
+                            onClick = { viewModel.setAutoQueuePosition(position) },
+                            label = { Text(stringResource(labelRes)) },
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.feed_properties_playback_speed),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            Row(modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
+                listOf(1.0f, 1.25f, 1.5f, 1.75f, 2.0f).forEach { speed ->
+                    FilterChip(
+                        selected = uiState.playbackSpeed == speed,
+                        onClick = { viewModel.setPlaybackSpeed(speed) },
+                        label = { Text("${"%.2f".format(speed).trimEnd('0').trimEnd('.')}x") },
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.feed_properties_volume_boost),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            Row(modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
+                listOf(
+                    0 to R.string.feed_properties_volume_boost_off,
+                    600 to R.string.feed_properties_volume_boost_low,
+                    1200 to R.string.feed_properties_volume_boost_medium,
+                    1800 to R.string.feed_properties_volume_boost_high,
+                ).forEach { (millibels, labelRes) ->
+                    FilterChip(
+                        selected = uiState.volumeBoostMillibels == millibels,
+                        onClick = { viewModel.setVolumeBoostMillibels(millibels) },
+                        label = { Text(stringResource(labelRes)) },
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                }
+            }
+
+            Text(
+                text = stringResource(R.string.feed_properties_start_skip),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            Row(modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
+                listOf(0, 15, 30, 45, 60).forEach { seconds ->
+                    FilterChip(
+                        selected = uiState.startSkipSeconds == seconds,
+                        onClick = { viewModel.setStartSkipSeconds(seconds) },
+                        label = {
+                            Text(
+                                if (seconds == 0) {
+                                    stringResource(R.string.feed_properties_start_skip_off)
+                                } else {
+                                    stringResource(R.string.feed_properties_start_skip_seconds, seconds)
+                                },
+                            )
+                        },
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
                 }
             }
 
@@ -369,17 +339,7 @@ fun FeedPropertiesScreen(
         AlertDialog(
             onDismissRequest = { showUnsubscribeConfirm = false },
             title = { Text(stringResource(R.string.feed_properties_confirm_unsubscribe_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        if (uiState.isPodcastFeed) {
-                            R.string.feed_properties_confirm_unsubscribe_message_podcast
-                        } else {
-                            R.string.feed_properties_confirm_unsubscribe_message
-                        },
-                    ),
-                )
-            },
+            text = { Text(stringResource(R.string.feed_properties_confirm_unsubscribe_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showUnsubscribeConfirm = false

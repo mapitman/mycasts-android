@@ -29,7 +29,6 @@ data class FeedPropertiesUiState(
     val volumeBoostMillibels: Int = 0,
     val startSkipSeconds: Int = 0,
     val isUnsubscribed: Boolean = false,
-    val isPodcastFeed: Boolean = false,
 )
 
 @HiltViewModel
@@ -43,8 +42,7 @@ class FeedPropertiesViewModel @Inject constructor(
     val uiState: StateFlow<FeedPropertiesUiState> = combine(
         feedRepository.observeFeed(feedId),
         settingsDataStore.settings,
-        feedRepository.observePodcastFeedIds(),
-    ) { feed, settings, podcastFeedIds ->
+    ) { feed, settings ->
         if (feed == null) {
             FeedPropertiesUiState(isUnsubscribed = true)
         } else {
@@ -62,7 +60,6 @@ class FeedPropertiesViewModel @Inject constructor(
                 playbackSpeed = feed.playbackSpeed,
                 volumeBoostMillibels = feed.volumeBoostMillibels,
                 startSkipSeconds = feed.startSkipSeconds,
-                isPodcastFeed = feedId in podcastFeedIds,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FeedPropertiesUiState())

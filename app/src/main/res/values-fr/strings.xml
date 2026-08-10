@@ -187,14 +187,10 @@
     <string name="feed_properties_save_title">Enregistrer le titre</string>
     <string name="feed_properties_url_label">URL du flux (appuyer pour copier)</string>
     <string name="feed_properties_url_copied">URL du flux copiée dans le presse-papiers</string>
-    <string name="feed_properties_use_global_max">Utiliser le réglage global du nombre max. d\'articles (%1$d)</string>
-    <string name="feed_properties_use_global_max_unlimited">Utiliser le réglage global du nombre max. d\'articles (Tous)</string>
-    <string name="feed_properties_use_global_max_episodes">Utiliser le réglage global du nombre max. d\'épisodes (%1$d)</string>
-    <string name="feed_properties_use_global_max_episodes_unlimited">Utiliser le réglage global du nombre max. d\'épisodes (Tous)</string>
-    <string name="feed_properties_max_articles_for_feed">Articles max. pour ce flux : %1$d</string>
-    <string name="feed_properties_max_articles_for_feed_unlimited">Articles max. pour ce flux : Tous</string>
-    <string name="feed_properties_max_episodes_for_feed">Épisodes max. pour ce flux : %1$d</string>
-    <string name="feed_properties_max_episodes_for_feed_unlimited">Épisodes max. pour ce flux : Tous</string>
+    <string name="feed_properties_use_global_max">Utiliser le réglage global du nombre max. d\'épisodes (%1$d)</string>
+    <string name="feed_properties_use_global_max_unlimited">Utiliser le réglage global du nombre max. d\'épisodes (Tous)</string>
+    <string name="feed_properties_max_articles_for_feed">Épisodes max. pour ce flux : %1$d</string>
+    <string name="feed_properties_max_articles_for_feed_unlimited">Épisodes max. pour ce flux : Tous</string>
     <string name="feed_properties_auto_download">Téléchargement automatique des nouveaux épisodes</string>
     <string name="feed_properties_max_downloads_to_keep">Nb. max. d\'épisodes téléchargés pour ce flux</string>
     <string name="feed_properties_auto_queue">Ajouter automatiquement les nouveaux épisodes à la file d\'attente</string>
@@ -214,8 +210,7 @@
     <string name="feed_properties_start_skip_seconds">%1$d s</string>
     <string name="feed_properties_unsubscribe">Se désabonner</string>
     <string name="feed_properties_confirm_unsubscribe_title">Se désabonner de ce flux ?</string>
-    <string name="feed_properties_confirm_unsubscribe_message">Cela supprime définitivement le flux et ses articles.</string>
-    <string name="feed_properties_confirm_unsubscribe_message_podcast">Cela supprime définitivement le flux et ses épisodes.</string>
+    <string name="feed_properties_confirm_unsubscribe_message">Cela supprime définitivement le flux et ses épisodes.</string>
 
     <!-- Notifications -->
     <string name="notification_new_items_channel_name">Nouveaux éléments</string>
