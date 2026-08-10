@@ -73,7 +73,7 @@ fun EpisodeListScreen(
     onFeedSettingsClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val listFontSize by viewModel.listFontSize.collectAsState()
+    val episodeListFontSize by viewModel.episodeListFontSize.collectAsState()
     val refreshError by viewModel.refreshError.collectAsState()
     val queueFeedback by viewModel.queueFeedback.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -190,7 +190,7 @@ fun EpisodeListScreen(
                                     episode = episode,
                                     selected = episode.id in uiState.selectedIds,
                                     selectionMode = true,
-                                    titleFontScale = listFontSize.scaleFactor,
+                                    titleFontScale = episodeListFontSize.scaleFactor,
                                     onClick = { viewModel.toggleSelection(episode.id) },
                                     onLongClick = { viewModel.toggleSelection(episode.id) },
                                     onAddToQueue = { viewModel.addToQueue(episode.id) },
@@ -204,7 +204,7 @@ fun EpisodeListScreen(
                                         episode = episode,
                                         selected = false,
                                         selectionMode = false,
-                                        titleFontScale = listFontSize.scaleFactor,
+                                        titleFontScale = episodeListFontSize.scaleFactor,
                                         onClick = { onEpisodeClick(episode.id) },
                                         onLongClick = { viewModel.toggleSelection(episode.id) },
                                         onAddToQueue = { viewModel.addToQueue(episode.id) },

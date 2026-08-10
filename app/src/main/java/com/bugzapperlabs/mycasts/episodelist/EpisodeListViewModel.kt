@@ -88,7 +88,7 @@ class EpisodeListViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val defaultToAllView = settingsDataStore.settings.first().defaultToAllArticleView
+            val defaultToAllView = settingsDataStore.settings.first().defaultToAllItemsView
             if (!showUnreadOnlyExplicitlySet) {
                 showUnreadOnly.value = !defaultToAllView
             }
@@ -117,8 +117,8 @@ class EpisodeListViewModel @Inject constructor(
         _refreshError.value = null
     }
 
-    val listFontSize: StateFlow<FontSize> = settingsDataStore.settings
-        .map { it.listFontSize }
+    val episodeListFontSize: StateFlow<FontSize> = settingsDataStore.settings
+        .map { it.episodeListFontSize }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
 
     fun setShowUnreadOnly(unreadOnly: Boolean) {

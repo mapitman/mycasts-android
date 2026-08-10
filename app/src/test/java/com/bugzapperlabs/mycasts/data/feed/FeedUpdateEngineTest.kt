@@ -242,7 +242,7 @@ class FeedUpdateEngineTest {
     fun updateFeed_noPerFeedItemsToKeep_fallsBackToGlobalMaxArticles() = runTest {
         // issue #82: null itemsToKeep means "use the app-wide default" (per Feed Properties'
         // display), not "unlimited" -- a feed relying on the global default was never trimmed.
-        settingsDataStore.setMaxArticles(1)
+        settingsDataStore.setMaxItemsPerFeed(1)
         val feed = subscribeFeed(itemsToKeep = null)
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
 
@@ -350,7 +350,7 @@ class FeedUpdateEngineTest {
      */
     @Test
     fun trimDuringRefresh_concurrentWithBulkMarkReadOnTrimmedItems_doesNotThrow() = runTest {
-        settingsDataStore.setMaxArticles(5)
+        settingsDataStore.setMaxItemsPerFeed(5)
         val feed = subscribeFeed()
         val existingItems = (1..30).map { i ->
             FeedItem(id = "item-$i", feedId = feed.id, itemGuid = "g$i", title = "Item $i", isRead = false)
@@ -388,7 +388,7 @@ class FeedUpdateEngineTest {
      *  can target items a concurrent refresh is about to trim. */
     @Test
     fun trimDuringRefresh_concurrentWithBulkDeleteOfSoonToBeTrimmedItems_doesNotThrow() = runTest {
-        settingsDataStore.setMaxArticles(5)
+        settingsDataStore.setMaxItemsPerFeed(5)
         val feed = subscribeFeed()
         val existingItems = (1..30).map { i ->
             FeedItem(id = "item-$i", feedId = feed.id, itemGuid = "g$i", title = "Item $i", isRead = false)

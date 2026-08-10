@@ -68,8 +68,8 @@ class EpisodeDetailsViewModel @Inject constructor(
         .map { queued -> queued.map { it.item.id }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
-    val articleFontSize: StateFlow<FontSize> = settingsDataStore.settings
-        .map { it.articleFontSize }
+    val episodeDetailsFontSize: StateFlow<FontSize> = settingsDataStore.settings
+        .map { it.episodeDetailsFontSize }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
 
     fun togglePlayPause(item: FeedItem) {

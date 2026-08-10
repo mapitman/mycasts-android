@@ -210,7 +210,7 @@ class OpmlImporterTest {
         // other concurrently in-flight feed mid-persist -- leaving them with items inserted but
         // never trimmed to itemsToKeep (root cause of a report that imported feeds weren't
         // honoring the max-articles-per-feed setting).
-        settingsDataStore.setMaxArticles(3)
+        settingsDataStore.setMaxItemsPerFeed(3)
         settingsDataStore.setFeedRefreshConcurrency(2)
         val goodItems = (1..10).joinToString(separator = "") { i ->
             "<item><title>Item $i</title><link>https://example.com/$i</link><guid>guid-$i</guid>" +

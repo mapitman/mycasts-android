@@ -161,11 +161,11 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun setArticleFontSize_persists() = runTest(testDispatcher, timeout = 120.seconds) {
-        viewModel.setArticleFontSize(FontSize.LARGE)
+    fun setEpisodeDetailsFontSize_persists() = runTest(testDispatcher, timeout = 120.seconds) {
+        viewModel.setEpisodeDetailsFontSize(FontSize.LARGE)
 
-        val settings = viewModel.settings.first { it.articleFontSize == FontSize.LARGE }
-        assertEquals(FontSize.LARGE, settings.articleFontSize)
+        val settings = viewModel.settings.first { it.episodeDetailsFontSize == FontSize.LARGE }
+        assertEquals(FontSize.LARGE, settings.episodeDetailsFontSize)
     }
 
     @Test
@@ -205,13 +205,13 @@ class SettingsViewModelTest {
     @Test
     fun resetSettings_restoresDefaultsWithoutTouchingFeeds() = runTest(testDispatcher, timeout = 120.seconds) {
         repository.subscribe(Feed(title = "A Feed"))
-        viewModel.setMaxArticles(99)
-        viewModel.settings.first { it.maxArticles == 99 }
+        viewModel.setMaxItemsPerFeed(99)
+        viewModel.settings.first { it.maxItemsPerFeed == 99 }
 
         viewModel.resetSettings()
 
-        val settings = viewModel.settings.first { it.maxArticles != 99 }
-        assertEquals(20, settings.maxArticles)
+        val settings = viewModel.settings.first { it.maxItemsPerFeed != 99 }
+        assertEquals(20, settings.maxItemsPerFeed)
         assertEquals(1, db.feedDao().observeAll().first().size)
     }
 }

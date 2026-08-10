@@ -127,7 +127,7 @@ fun FeedPropertiesScreen(
 
             val useGlobalMax = uiState.itemsToKeep == null
             val onUseGlobalMaxChange: (Boolean) -> Unit = { checked ->
-                viewModel.setItemsToKeep(if (checked) null else uiState.globalMaxArticles)
+                viewModel.setItemsToKeep(if (checked) null else uiState.globalMaxItems)
             }
             Column(
                 modifier = Modifier
@@ -136,17 +136,17 @@ fun FeedPropertiesScreen(
                     .padding(top = 24.dp),
             ) {
                 Text(
-                    text = if (uiState.globalMaxArticles == UNLIMITED_ITEMS_TO_KEEP) {
+                    text = if (uiState.globalMaxItems == UNLIMITED_ITEMS_TO_KEEP) {
                         stringResource(R.string.feed_properties_use_global_max_unlimited)
                     } else {
-                        stringResource(R.string.feed_properties_use_global_max, uiState.globalMaxArticles)
+                        stringResource(R.string.feed_properties_use_global_max, uiState.globalMaxItems)
                     },
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 Switch(checked = useGlobalMax, onCheckedChange = null)
             }
             if (!useGlobalMax) {
-                val itemsToKeep = uiState.itemsToKeep ?: uiState.globalMaxArticles
+                val itemsToKeep = uiState.itemsToKeep ?: uiState.globalMaxItems
                 Text(
                     if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) {
                         stringResource(R.string.feed_properties_max_articles_for_feed_unlimited)

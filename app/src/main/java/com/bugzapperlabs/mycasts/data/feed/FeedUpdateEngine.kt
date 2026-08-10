@@ -139,7 +139,7 @@ class FeedUpdateEngine @Inject constructor(
             updatedFeed = updatedFeed.copy(autoQueueEnabled = true, autoQueueMaxCount = NEW_PODCAST_AUTO_QUEUE_CAP)
         }
         feedRepository.updateFeed(updatedFeed)
-        val defaultItemsToKeep = settingsDataStore.settings.first().maxArticles
+        val defaultItemsToKeep = settingsDataStore.settings.first().maxItemsPerFeed
         val evicted = feedRepository.trimToItemsToKeep(feed.id, defaultItemsToKeep)
 
         return FeedUpdateResult.Success(feedId = feed.id, newItemIds = newItemIds, evictedItemIds = evicted.map { it.id })
