@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- issue #15: lets EnclosureDownloadWorker promote itself to a foreground worker with a
+         progress notification while an episode downloads. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- ExoPlayer's WAKE_MODE_NETWORK (below) needs this to hold a CPU/Wi-Fi wake lock so a new
          episode's stream can actually open while the screen is off (issue #179). -->
@@ -67,6 +70,13 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
+        <!-- issue #15: WorkManager's own SystemForegroundService needs this app's foreground
+             service type declared explicitly for EnclosureDownloadWorker's setForeground() call. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
         <receiver
             android:name=".widget.UnreadWidgetReceiver"
