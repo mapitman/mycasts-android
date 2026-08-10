@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Uploads the four release-signing secrets used by .github/workflows/release.yml to this repo
 # via the gh CLI, so you don't have to click through the GitHub Settings UI four times.
-# Usage: scripts/set-release-secrets.sh /path/to/myfeeds-release.jks
+# Usage: scripts/set-release-secrets.sh /path/to/mycasts-release.jks
 
 if [[ $# -ne 1 ]]; then
   echo "Usage: $0 /path/to/keystore.jks" >&2
@@ -16,8 +16,8 @@ if [[ ! -f "$KEYSTORE_PATH" ]]; then
   exit 1
 fi
 
-read -rp "Key alias [myfeeds]: " KEY_ALIAS
-KEY_ALIAS="${KEY_ALIAS:-myfeeds}"
+read -rp "Key alias [mycasts]: " KEY_ALIAS
+KEY_ALIAS="${KEY_ALIAS:-mycasts}"
 read -rsp "Keystore (store) password: " KEYSTORE_PASSWORD
 echo
 read -rsp "Key password (press enter to reuse the keystore password): " KEY_PASSWORD
