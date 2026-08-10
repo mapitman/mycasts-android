@@ -33,6 +33,8 @@
     <string name="cd_play">Reproducir</string>
     <string name="cd_delete_download">Eliminar descarga</string>
     <string name="cd_download_episode">Descargar episodio</string>
+    <string name="cd_episode_downloaded">Descargado</string>
+    <string name="cd_episode_downloading">Descargando</string>
     <string name="cd_stop_playback">Detener reproducción</string>
     <string name="cd_add_to_queue">Añadir a Reproducir a continuación</string>
     <string name="cd_already_in_queue">Ya está en Reproducir a continuación</string>

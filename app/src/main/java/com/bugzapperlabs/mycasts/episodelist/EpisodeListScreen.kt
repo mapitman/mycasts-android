@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
+import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
@@ -282,15 +284,29 @@ private fun EpisodeRow(
                     MaterialTheme.colorScheme.onSurface
                 },
             )
-            Text(
-                text = EpisodeDateFormatter.format(episode.publishDate),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (episode.isRead) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = EpisodeDateFormatter.format(episode.publishDate),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (episode.isRead) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
+                val isDownloaded = episode.downloadedFilePath != null
+                val isDownloading = !isDownloaded && episode.downloadedBytes != null
+                if (isDownloaded || isDownloading) {
+                    Icon(
+                        if (isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.Downloading,
+                        contentDescription = stringResource(
+                            if (isDownloaded) R.string.cd_episode_downloaded else R.string.cd_episode_downloading,
+                        ),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp).size(16.dp),
+                    )
+                }
+            }
         }
         if (episode.imageUrl != null) {
             AsyncImage(
