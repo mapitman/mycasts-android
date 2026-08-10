@@ -66,6 +66,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -78,7 +83,6 @@ import com.bugzapperlabs.mycasts.data.settings.scaleFactor
 import com.bugzapperlabs.mycasts.playback.PLAYER_ARTWORK_KEY
 import com.bugzapperlabs.mycasts.playback.PlaybackUiState
 import com.bugzapperlabs.mycasts.ui.components.ReaderText
-import com.bugzapperlabs.mycasts.ui.components.htmlToPlainText
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -324,8 +328,15 @@ private fun EpisodePage(
                         .clickable { onImageClick(imageUrl) },
                 )
             }
+            val linkColor = MaterialTheme.colorScheme.primary
+            val showNotes = remember(item.description, linkColor) {
+                AnnotatedString.fromHtml(
+                    item.description.orEmpty(),
+                    linkStyles = TextLinkStyles(style = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)),
+                )
+            }
             ReaderText(
-                text = htmlToPlainText(item.description.orEmpty()),
+                text = showNotes,
                 fontScale = fontScale,
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
             )
