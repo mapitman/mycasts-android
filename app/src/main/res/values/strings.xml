@@ -64,8 +64,7 @@
 
     <!-- Article list -->
     <string name="article_list_selected">%1$d selected</string>
-    <string name="article_list_unplayed_count">%1$d unplayed</string>
-    <string name="article_list_tab_unplayed">Unplayed</string>
+    <string name="article_list_tab_unplayed_count">Unplayed (%1$d)</string>
     <string name="article_list_tab_all">All</string>
     <string name="article_list_no_episodes">No episodes</string>
     <string name="article_list_no_unplayed_episodes">No unplayed episodes</string>

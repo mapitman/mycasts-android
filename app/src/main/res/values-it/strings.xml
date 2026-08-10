@@ -60,8 +60,7 @@
 
     <!-- Article list -->
     <string name="article_list_selected">%1$d selezionati</string>
-    <string name="article_list_unplayed_count">%1$d non riprodotti</string>
-    <string name="article_list_tab_unplayed">Non riprodotti</string>
+    <string name="article_list_tab_unplayed_count">Non riprodotti (%1$d)</string>
     <string name="article_list_tab_all">Tutti</string>
     <string name="article_list_no_episodes">Nessun episodio</string>
     <string name="article_list_no_unplayed_episodes">Nessun episodio non riprodotto</string>
