@@ -26,6 +26,18 @@ install:
 run: install
     adb shell am start -n com.bugzapperlabs.mycasts.debug/com.bugzapperlabs.mycasts.MainActivity
 
+# Download a signed release APK from GitHub and install it on a connected device.
+# Installs the latest release by default; pass a tag to install a specific one, e.g. `just release-install v0.1.2`.
+release-install tag="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -z "{{tag}}" ]; then
+        gh release download --repo mapitman/mycasts-android --pattern "app-release.apk" --dir /tmp --clobber
+    else
+        gh release download {{tag}} --repo mapitman/mycasts-android --pattern "app-release.apk" --dir /tmp --clobber
+    fi
+    adb install -r /tmp/app-release.apk
+
 # Everything CI runs: build, test, lint.
 ci: build test lint
 
