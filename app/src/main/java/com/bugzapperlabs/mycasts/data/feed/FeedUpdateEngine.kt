@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 /**
@@ -38,10 +39,27 @@ class FeedUpdateEngine @Inject constructor(
         }
     }
 
-    suspend fun updateFeeds(feeds: List<Feed>): List<FeedUpdateResult> = coroutineScope {
+    /**
+     * [onFeedComplete] (issue #16), if given, is invoked once per feed as its update finishes,
+     * with the running count of feeds completed so far -- calls can arrive out of order relative
+     * to [feeds] and interleaved across concurrent feeds, since updates run with bounded
+     * parallelism above, so [completedCount] is tracked with an atomic counter rather than a
+     * plain incrementing var.
+     */
+    suspend fun updateFeeds(
+        feeds: List<Feed>,
+        onFeedComplete: suspend (completedCount: Int, totalCount: Int) -> Unit = { _, _ -> },
+    ): List<FeedUpdateResult> = coroutineScope {
         val concurrency = settingsDataStore.settings.first().feedRefreshConcurrency.coerceAtLeast(1)
         val semaphore = Semaphore(concurrency)
-        feeds.map { feed -> async { semaphore.withPermit { updateFeed(feed) } } }.awaitAll()
+        val completedCount = AtomicInteger(0)
+        feeds.map { feed ->
+            async {
+                val result = semaphore.withPermit { updateFeed(feed) }
+                onFeedComplete(completedCount.incrementAndGet(), feeds.size)
+                result
+            }
+        }.awaitAll()
     }
 
     /**

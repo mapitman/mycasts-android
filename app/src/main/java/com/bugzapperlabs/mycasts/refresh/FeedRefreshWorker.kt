@@ -3,6 +3,7 @@ package com.bugzapperlabs.mycasts.refresh
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -10,6 +11,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.glance.appwidget.updateAll
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -38,6 +40,11 @@ import kotlinx.coroutines.flow.first
  * Also refreshes the home-screen widget's unread counts (issue #24) once the run completes, and
  * optionally posts a notification summarizing new items (issue #25) when the user has opted in
  * via [com.bugzapperlabs.mycasts.data.settings.AppSettings.notifyOnNewItems].
+ *
+ * Runs as a foreground worker (issue #16) with a silent progress notification while feeds are
+ * updating, the same pattern [com.bugzapperlabs.mycasts.download.EnclosureDownloadWorker] uses
+ * for downloads -- separate from the summary notification above, which only appears once the run
+ * finishes and only if new items were actually found.
  */
 @HiltWorker
 class FeedRefreshWorker @AssistedInject constructor(
@@ -51,7 +58,10 @@ class FeedRefreshWorker @AssistedInject constructor(
 ) : CoroutineWorker(context, workerParams) {
     override suspend fun doWork(): Result = feedRefreshState.track {
         val feeds = feedRepository.observeAllFeeds().first()
-        val results = feedUpdateEngine.updateFeeds(feeds)
+        if (feeds.isNotEmpty()) setForeground(createForegroundInfo(completedCount = 0, totalCount = feeds.size))
+        val results = feedUpdateEngine.updateFeeds(feeds) { completedCount, totalCount ->
+            setForeground(createForegroundInfo(completedCount, totalCount))
+        }
 
         // Per-feed failures don't fail the whole run (see class doc), but they shouldn't be
         // silently invisible either -- at minimum, surface them in logcat for debugging (issue #27).
@@ -69,6 +79,18 @@ class FeedRefreshWorker @AssistedInject constructor(
         }
 
         Result.success()
+    }
+
+    private fun createForegroundInfo(completedCount: Int, totalCount: Int): ForegroundInfo {
+        val notification = NotificationCompat.Builder(applicationContext, MyCastsApp.FEED_REFRESH_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(applicationContext.getString(R.string.notification_feed_refresh_title))
+            .setContentText(applicationContext.getString(R.string.notification_feed_refresh_progress, completedCount, totalCount))
+            .setOngoing(true)
+            .setSilent(true)
+            .setProgress(totalCount, completedCount, false)
+            .build()
+        return ForegroundInfo(FEED_REFRESH_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
     }
 
     private fun notifyNewItems(newItemCount: Int) {
@@ -103,6 +125,7 @@ class FeedRefreshWorker @AssistedInject constructor(
 
     companion object {
         private const val NEW_ITEMS_NOTIFICATION_ID = 1
+        private const val FEED_REFRESH_NOTIFICATION_ID = 2
         private const val TAG = "FeedRefreshWorker"
     }
 }

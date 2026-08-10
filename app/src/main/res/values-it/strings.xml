@@ -221,6 +221,10 @@
     <string name="notification_download_title_fallback">Download episodio in corso</string>
     <string name="notification_download_progress_with_total">%1$.1f MB di %2$.1f MB</string>
     <string name="notification_download_progress_no_total">%1$.1f MB scaricati</string>
+    <string name="notification_feed_refresh_channel_name">Aggiornamenti feed</string>
+    <string name="notification_feed_refresh_channel_description">Mostra l\'avanzamento durante l\'aggiornamento dei feed</string>
+    <string name="notification_feed_refresh_title">Aggiornamento feed in corso</string>
+    <string name="notification_feed_refresh_progress">%1$d di %2$d feed aggiornati</string>
 
     <!-- Widget -->
     <string name="widget_all_caught_up">Tutto letto</string>

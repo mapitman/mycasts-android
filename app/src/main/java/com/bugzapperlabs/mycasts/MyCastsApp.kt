@@ -36,10 +36,21 @@ class MyCastsApp : Application(), Configuration.Provider {
             NotificationManager.IMPORTANCE_LOW,
         ).apply { description = getString(R.string.notification_downloads_channel_description) }
         notificationManager.createNotificationChannel(downloadsChannel)
+
+        // IMPORTANCE_LOW (issue #16): same reasoning as the downloads channel above -- a silent
+        // progress notification while feeds refresh in the background, separate from the
+        // IMPORTANCE_DEFAULT "new items" channel, which is the actual alert-worthy summary.
+        val feedRefreshChannel = NotificationChannel(
+            FEED_REFRESH_CHANNEL_ID,
+            getString(R.string.notification_feed_refresh_channel_name),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply { description = getString(R.string.notification_feed_refresh_channel_description) }
+        notificationManager.createNotificationChannel(feedRefreshChannel)
     }
 
     companion object {
         const val NEW_ITEMS_CHANNEL_ID = "new_items"
         const val DOWNLOADS_CHANNEL_ID = "downloads"
+        const val FEED_REFRESH_CHANNEL_ID = "feed_refresh"
     }
 }
