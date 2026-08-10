@@ -2,24 +2,19 @@ package com.bugzapperlabs.mycasts.data.opml
 
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedDao
-import com.bugzapperlabs.mycasts.data.local.FeedItemDao
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 /**
- * Mirror image of [OpmlParser]/[OpmlImporter]. Categories are gone (issue #118), so feeds are
- * grouped into the same two fixed folders the feed list uses -- "Podcasts" and "Feeds" -- rather
- * than one outline per category. A folder is omitted entirely if it would be empty.
+ * Mirror image of [OpmlParser]/[OpmlImporter]. Categories are gone (issue #118), and the
+ * Podcasts/Feeds split is gone too (issue #10) now that every feed is a podcast -- every
+ * subscribed feed is exported into a single "Podcasts" outline, omitted entirely if empty.
  */
 class OpmlExporter @Inject constructor(
     private val feedDao: FeedDao,
-    private val feedItemDao: FeedItemDao,
 ) {
     suspend fun export(): String {
         val feeds = feedDao.observeAll().first()
-        val podcastFeedIds = feedItemDao.observePodcastFeedIds().first().toSet()
-        val podcastFeeds = feeds.filter { it.id in podcastFeedIds }
-        val otherFeeds = feeds.filterNot { it.id in podcastFeedIds }
 
         return buildString {
             append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
@@ -28,8 +23,7 @@ class OpmlExporter @Inject constructor(
             append("    <title>MyFeeds Exported Feeds</title>\n")
             append("  </head>\n")
             append("  <body>\n")
-            appendFolder("Podcasts", podcastFeeds)
-            appendFolder("Feeds", otherFeeds)
+            appendFolder("Podcasts", feeds)
             append("  </body>\n")
             append("</opml>\n")
         }
