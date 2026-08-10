@@ -33,6 +33,8 @@
     <string name="cd_play">Lecture</string>
     <string name="cd_delete_download">Supprimer le téléchargement</string>
     <string name="cd_download_episode">Télécharger l\'épisode</string>
+    <string name="cd_episode_downloaded">Téléchargé</string>
+    <string name="cd_episode_downloading">Téléchargement en cours</string>
     <string name="cd_stop_playback">Arrêter la lecture</string>
     <string name="cd_add_to_queue">Ajouter à la file d\'attente</string>
     <string name="cd_already_in_queue">Déjà dans la file d\'attente</string>
