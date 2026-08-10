@@ -1,14 +1,18 @@
 package com.bugzapperlabs.mycasts
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -55,6 +59,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.updateAll
@@ -242,6 +247,36 @@ class MainActivity : ComponentActivity() {
                         val powerManager = getSystemService(POWER_SERVICE) as PowerManager
                         if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
                             showBatteryOptimizationPrompt = true
+                        }
+                    }
+
+                    // One-time proactive POST_NOTIFICATIONS request (issue #43): without this, a
+                    // fresh Android 13+ install only ever prompts for the permission if the user
+                    // happens to visit Settings and flip "Notify on new items" -- otherwise both
+                    // that notification and the download-progress one (issue #15) silently fail to
+                    // post, since Android just drops an unpermitted notification instead of
+                    // erroring. Requested at app launch instead, and marked shown regardless of the
+                    // user's answer -- mirrors batteryOptimizationPromptShown above, since Android
+                    // only shows the system dialog once per install and re-requesting after a
+                    // denial returns denied without UI anyway.
+                    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission(),
+                    ) {
+                        coroutineScope.launch { settingsDataStore.setNotificationPermissionPromptShown(true) }
+                    }
+                    LaunchedEffect(settings?.notificationPermissionPromptShown) {
+                        val currentSettings = settings ?: return@LaunchedEffect
+                        if (currentSettings.notificationPermissionPromptShown ||
+                            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                        ) {
+                            return@LaunchedEffect
+                        }
+                        if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) !=
+                            PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            settingsDataStore.setNotificationPermissionPromptShown(true)
                         }
                     }
 

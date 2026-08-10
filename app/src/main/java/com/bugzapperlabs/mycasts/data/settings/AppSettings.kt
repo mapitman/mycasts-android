@@ -46,6 +46,13 @@ data class AppSettings(
      *  shown -- shown at most once regardless of the user's choice, since it's a system dialog
      *  they can always revisit from Settings if they change their mind. */
     val batteryOptimizationPromptShown: Boolean = false,
+    /** Whether the one-time proactive POST_NOTIFICATIONS request (issue #43) has already been
+     *  shown at app launch -- shown at most once regardless of the user's choice, since Android
+     *  only surfaces the system permission dialog once per install (a second call to
+     *  requestPermission() after a denial returns denied without showing UI). The Settings
+     *  screen's "Notify on new items" toggle can still re-request it as a secondary path if the
+     *  user changes their mind after granting it from system Settings. */
+    val notificationPermissionPromptShown: Boolean = false,
     /** Free API credentials for live podcast search via podcastindex.org (issue #93), registered
      *  by the user themselves -- there's no ToS-compliant way to bundle a single shared key in an
      *  open-source app. Search silently falls back to the offline directory when either is unset,
