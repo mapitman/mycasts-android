@@ -221,12 +221,12 @@
     <string name="feed_properties_confirm_unsubscribe_message">Questo elimina definitivamente il feed e i suoi episodi.</string>
 
     <!-- Notifications -->
-    <string name="notification_new_items_channel_name">Nuovi elementi</string>
-    <string name="notification_new_items_channel_description">Notifica quando un aggiornamento del feed trova nuovi elementi</string>
-    <string name="notification_new_items_title">Nuovi elementi</string>
-    <plurals name="notification_new_items_body">
-        <item quantity="one">%1$d nuovo elemento</item>
-        <item quantity="other">%1$d nuovi elementi</item>
+    <string name="notification_new_episodes_channel_name">Nuovi episodi</string>
+    <string name="notification_new_episodes_channel_description">Notifica quando un aggiornamento del feed trova nuovi episodi</string>
+    <string name="notification_new_episodes_title">Nuovi episodi</string>
+    <plurals name="notification_new_episodes_body">
+        <item quantity="one">%1$d nuovo episodio</item>
+        <item quantity="other">%1$d nuovi episodi</item>
     </plurals>
     <string name="notification_downloads_channel_name">Download episodi</string>
     <string name="notification_downloads_channel_description">Mostra l\'avanzamento durante il download degli episodi</string>

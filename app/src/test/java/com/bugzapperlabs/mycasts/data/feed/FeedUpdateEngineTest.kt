@@ -136,6 +136,58 @@ class FeedUpdateEngineTest {
     }
 
     @Test
+    fun updateFeed_reDiscoveringAPreviouslyTrimmedItem_doesNotCountItAsNewAgain() = runTest {
+        // issue #60: trimToItemsToKeep deletes evicted rows outright, so if a feed's upstream RSS
+        // keeps listing an episode after it's been trimmed out, the next refresh's GUID dedup no
+        // longer finds it, re-inserts it as "new", and immediately re-evicts it again -- inflating
+        // the new-episodes notification's count every single refresh instead of settling once.
+        // newItemCount must exclude items evicted in the same cycle they were "discovered" in.
+        fun rssWithDatedItems(vararg items: Triple<String, String, String>) = items.joinToString(
+            separator = "\n",
+            prefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel>" +
+                "<title>Test Feed</title><link>https://example.com</link><description>desc</description>",
+            postfix = "</channel></rss>",
+        ) { (guid, title, pubDate) ->
+            "<item><title>$title</title><link>https://example.com/$guid</link><guid>$guid</guid>" +
+                "<description>Body</description><pubDate>$pubDate</pubDate></item>"
+        }
+
+        val feed = subscribeFeed(itemsToKeep = 2)
+        // Cycle 1: three items, oldest ("old") gets evicted immediately after being inserted.
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("old", "Old", "Mon, 01 Jan 2024 00:00:00 GMT"),
+                    Triple("mid", "Mid", "Tue, 02 Jan 2024 00:00:00 GMT"),
+                    Triple("new", "New", "Wed, 03 Jan 2024 00:00:00 GMT"),
+                ),
+            ),
+        )
+        val firstResult = engine.updateFeed(feed) as FeedUpdateResult.Success
+        assertEquals(2, firstResult.newItemCount)
+        assertEquals(2, repository.observeItems(feed.id).first().size)
+
+        // Cycle 2: the feed still lists "old" (a real-world feed's RSS often keeps historical
+        // episodes), which was deleted by cycle 1's trim -- it re-appears as a DB insert, then gets
+        // evicted again immediately since it's still the oldest of the three.
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("old", "Old", "Mon, 01 Jan 2024 00:00:00 GMT"),
+                    Triple("mid", "Mid", "Tue, 02 Jan 2024 00:00:00 GMT"),
+                    Triple("new", "New", "Wed, 03 Jan 2024 00:00:00 GMT"),
+                ),
+            ),
+        )
+        val secondResult = engine.updateFeed(feed) as FeedUpdateResult.Success
+
+        assertEquals(0, secondResult.newItemCount)
+        val items = repository.observeItems(feed.id).first()
+        assertEquals(2, items.size)
+        assertEquals(setOf("mid", "new"), items.map { it.itemGuid }.toSet())
+    }
+
+    @Test
     fun updateFeed_updatesLastGetTimestamp() = runTest {
         val feed = subscribeFeed()
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First")))

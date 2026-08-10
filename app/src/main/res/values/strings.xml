@@ -225,12 +225,12 @@
     <string name="feed_properties_confirm_unsubscribe_message">This permanently deletes the feed and its episodes.</string>
 
     <!-- Notifications -->
-    <string name="notification_new_items_channel_name">New items</string>
-    <string name="notification_new_items_channel_description">Notifies when a feed refresh finds new items</string>
-    <string name="notification_new_items_title">New items</string>
-    <plurals name="notification_new_items_body">
-        <item quantity="one">%1$d new item</item>
-        <item quantity="other">%1$d new items</item>
+    <string name="notification_new_episodes_channel_name">New episodes</string>
+    <string name="notification_new_episodes_channel_description">Notifies when a feed refresh finds new episodes</string>
+    <string name="notification_new_episodes_title">New episodes</string>
+    <plurals name="notification_new_episodes_body">
+        <item quantity="one">%1$d new episode</item>
+        <item quantity="other">%1$d new episodes</item>
     </plurals>
     <string name="notification_downloads_channel_name">Episode downloads</string>
     <string name="notification_downloads_channel_description">Shows progress while episodes are downloading</string>
