@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
@@ -74,7 +75,7 @@ class OpmlImporterTest {
         val httpClient = OkHttpClient()
         val feedFetcher = FeedFetcher(httpClient)
         val repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore)
+        val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
         importer = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore)
     }
 

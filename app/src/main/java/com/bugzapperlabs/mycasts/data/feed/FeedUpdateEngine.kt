@@ -28,6 +28,7 @@ class FeedUpdateEngine @Inject constructor(
     private val feedFetcher: FeedFetcher,
     private val feedRepository: FeedRepository,
     private val settingsDataStore: SettingsDataStore,
+    private val feedRefreshLocks: FeedRefreshLocks,
 ) {
     suspend fun updateFeed(feed: Feed): FeedUpdateResult {
         val feedUrl = feed.feedUrl
@@ -77,9 +78,14 @@ class FeedUpdateEngine @Inject constructor(
      * could end up with items inserted but the trim-to-`itemsToKeep` step -- or even `Feed.lastGet`
      * -- never reached. Catching broadly here, rather than only the specific exceptions seen so
      * far, keeps one feed's failure (present or future) from corrupting unrelated feeds' state.
+     *
+     * [FeedRefreshLocks] additionally guards against *the same feed* being persisted twice at once
+     * (issue #70) -- e.g. a manual pull-to-refresh landing while the scheduled
+     * [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorker] is also refreshing that feed -- which
+     * otherwise duplicates episodes and lets the itemsToKeep trim fall badly behind.
      */
     private suspend fun persistSafely(feed: Feed, parsed: ParsedFeed): FeedUpdateResult = try {
-        persist(feed, parsed)
+        feedRefreshLocks.withLock(feed.id) { persist(feed, parsed) }
     } catch (e: CancellationException) {
         // Genuine cancellation (e.g. the caller's own scope was cancelled) must keep propagating
         // -- only *other* feeds' failures should be contained, not this one's real cancellation.

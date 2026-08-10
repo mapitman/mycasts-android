@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.TrackedViewModelStore
 import com.bugzapperlabs.mycasts.data.directory.FeedDirectory
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
@@ -85,7 +86,7 @@ class AddFeedViewModelTest {
         val settingsDataStore = SettingsDataStore(dataStore)
         val httpClient = OkHttpClient()
         val feedFetcher = FeedFetcher(httpClient)
-        val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore)
+        val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
         val opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore)
         opmlImportCoordinator = OpmlImportCoordinator(opmlImporter, context)
         viewModel = AddFeedViewModel(

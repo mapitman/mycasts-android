@@ -9,6 +9,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.TrackedViewModelStore
 import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
@@ -107,7 +108,7 @@ class EpisodeListViewModelTest {
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
-        feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+        feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
             downloadScheduling = object : DownloadScheduling {

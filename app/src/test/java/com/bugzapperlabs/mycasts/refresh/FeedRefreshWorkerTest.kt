@@ -13,6 +13,7 @@ import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
 import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
@@ -90,7 +91,7 @@ class FeedRefreshWorkerTest {
     fun doWork_toleratesPerFeedFailureAndStillSucceeds() = runTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         repository.subscribe(Feed(title = "A Feed", feedUrl = "http://localhost:1/feed.xml"))
-        val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+        val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
 
         val worker = TestListenableWorkerBuilder<FeedRefreshWorker>(context)
             .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))
@@ -130,7 +131,7 @@ class FeedRefreshWorkerTest {
                     """.trimIndent(),
                 ),
             )
-            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
 
             val worker = TestListenableWorkerBuilder<FeedRefreshWorker>(context)
                 .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))
@@ -173,7 +174,7 @@ class FeedRefreshWorkerTest {
                     """.trimIndent(),
                 ),
             )
-            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
 
             val worker = TestListenableWorkerBuilder<FeedRefreshWorker>(context)
                 .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))
@@ -227,7 +228,7 @@ class FeedRefreshWorkerTest {
                     """.trimIndent(),
                 ),
             )
-            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
 
             val worker = TestListenableWorkerBuilder<FeedRefreshWorker>(context)
                 .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))
@@ -273,7 +274,7 @@ class FeedRefreshWorkerTest {
                     """.trimIndent(),
                 ),
             )
-            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
 
             val worker = TestListenableWorkerBuilder<FeedRefreshWorker>(context)
                 .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))
@@ -319,7 +320,7 @@ class FeedRefreshWorkerTest {
                     """.trimIndent(),
                 ),
             )
-            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
 
             val worker = TestListenableWorkerBuilder<FeedRefreshWorker>(context)
                 .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))
@@ -373,7 +374,7 @@ class FeedRefreshWorkerTest {
                     """.trimMargin(),
                 ),
             )
-            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore)
+            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
 
             val worker = TestListenableWorkerBuilder<FeedRefreshWorker>(context)
                 .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))

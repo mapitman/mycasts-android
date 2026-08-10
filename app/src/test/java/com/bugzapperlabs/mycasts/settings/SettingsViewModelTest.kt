@@ -7,6 +7,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.TrackedViewModelStore
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
@@ -122,7 +123,7 @@ class SettingsViewModelTest {
             }
             .build()
         val feedFetcher = FeedFetcher(httpClient)
-        val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore)
+        val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
         // Real WorkManager deadlocked when touched from Robolectric-hosted ViewModel tests (see
         // the scheduled-refresh PR description), so SettingsViewModel depends on the
         // FeedRefreshScheduling interface and this test uses a no-op fake instead.
