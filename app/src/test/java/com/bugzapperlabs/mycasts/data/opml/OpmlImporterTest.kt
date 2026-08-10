@@ -10,7 +10,10 @@ import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.Dispatcher
@@ -253,6 +256,40 @@ class OpmlImporterTest {
         assertEquals(1, result.invalidCount)
         val goodFeed = db.feedDao().observeAll().first().single { it.title == "Good Feed" }
         assertEquals(3, db.feedItemDao().observeByFeed(goodFeed.id).first().size)
+    }
+
+    @Test
+    fun import_savesFeedsToTheDatabaseBeforeFetchingThem() = runTest {
+        // issue #50: a candidate must be visible in the feed list as soon as it's parsed from the
+        // OPML file, not only once its own network fetch happens to finish -- a large import used
+        // to leave the screen looking mostly empty until each feed's fetch resolved one at a time.
+        settingsDataStore.setFeedRefreshConcurrency(1)
+        val fetchStarted = CompletableDeferred<Unit>()
+        val releaseFetch = CompletableDeferred<Unit>()
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                fetchStarted.complete(Unit)
+                runBlocking { releaseFetch.await() }
+                return MockResponse().setResponseCode(200).setBody(rssXml("Slow Feed"))
+            }
+        }
+        val document = OpmlDocument(
+            folders = listOf(OpmlFolder("Tech", listOf(OpmlFeed("OPML Title", server.url("/feed").toString())))),
+        )
+
+        val importJob = launch { importer.import(document) }
+        fetchStarted.await()
+
+        // The fetch is still blocked mid-flight (releaseFetch hasn't fired yet), but the feed
+        // should already be saved and visible with the OPML-provided title as a placeholder.
+        val feedsWhileFetching = db.feedDao().observeAll().first()
+        assertEquals(listOf("OPML Title"), feedsWhileFetching.map { it.title })
+
+        releaseFetch.complete(Unit)
+        importJob.join()
+
+        val feedsAfterImport = db.feedDao().observeAll().first()
+        assertEquals(listOf("Slow Feed"), feedsAfterImport.map { it.title })
     }
 
     @Test
