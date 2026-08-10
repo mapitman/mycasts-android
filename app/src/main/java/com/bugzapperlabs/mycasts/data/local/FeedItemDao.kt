@@ -64,13 +64,6 @@ interface FeedItemDao {
     @Query("SELECT feedId, COUNT(*) as count FROM feed_items WHERE isRead = 0 GROUP BY feedId")
     fun observeUnreadCountsByFeed(): Flow<List<FeedUnreadCount>>
 
-    // Podcast-ness (issue #65) is derived, not stored: a feed is a podcast if any of its items
-    // has a playable (audio) enclosure, regardless of which category it's subscribed under. Not
-    // just "has an enclosure" -- some feeds (e.g. Windows Central, Sky News) set <enclosure> on
-    // ordinary articles for a featured image, which isn't a podcast episode (see isPodcastEpisode).
-    @Query("SELECT DISTINCT feedId FROM feed_items WHERE enclosureType LIKE 'audio/%'")
-    fun observePodcastFeedIds(): Flow<List<Long>>
-
     @Query("UPDATE feed_items SET enclosurePosition = NULL WHERE enclosurePosition IS NOT NULL")
     suspend fun clearAllEnclosurePositions()
 

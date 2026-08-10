@@ -50,8 +50,6 @@ class FeedRepository @Inject constructor(
     fun observeUnreadCountsByFeed(): Flow<Map<Long, Int>> =
         feedItemDao.observeUnreadCountsByFeed().map { counts -> counts.associate { it.feedId to it.count } }
 
-    fun observePodcastFeedIds(): Flow<Set<Long>> = feedItemDao.observePodcastFeedIds().map { it.toSet() }
-
     suspend fun insertItems(items: List<FeedItem>) = feedItemDao.insertAll(items)
 
     // Must be a real SQL UPDATE, not insertAll's OnConflictStrategy.REPLACE -- REPLACE does a
