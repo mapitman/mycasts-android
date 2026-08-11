@@ -14,6 +14,7 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadFeedbackCoordinator
 import com.bugzapperlabs.mycasts.download.DownloadScheduling
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.playback.ChaptersFetcher
@@ -62,6 +63,7 @@ class EpisodeDetailsViewModelTest {
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var playbackController: PlaybackController
     private lateinit var downloadRepository: EnclosureDownloadRepository
+    private lateinit var downloadFeedbackCoordinator: DownloadFeedbackCoordinator
     private lateinit var appContext: android.content.Context
     private var feedId: Long = 0
 
@@ -92,6 +94,11 @@ class EpisodeDetailsViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
+        downloadFeedbackCoordinator = DownloadFeedbackCoordinator(
+            downloadRepository = downloadRepository,
+            feedRepository = repository,
+            context = context,
+        )
 
         feedId = repository.subscribe(Feed(title = "A Feed"))
         repository.insertItems(
@@ -112,6 +119,7 @@ class EpisodeDetailsViewModelTest {
         runTest(testDispatcher) {
             viewModelStore.clearAndJoin()
             playbackController.awaitShutdownForTest()
+            downloadFeedbackCoordinator.cancelForTest()
         }
         db.close()
         Dispatchers.resetMain()
@@ -123,6 +131,7 @@ class EpisodeDetailsViewModelTest {
             feedRepository = repository,
             playbackController = playbackController,
             downloadRepository = downloadRepository,
+            downloadFeedbackCoordinator = downloadFeedbackCoordinator,
             queueRepository = queueRepository,
             settingsDataStore = settingsDataStore,
             context = appContext,
