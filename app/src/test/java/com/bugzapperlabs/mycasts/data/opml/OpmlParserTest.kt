@@ -81,8 +81,8 @@ class OpmlParserTest {
 
         val document = OpmlParser.parse(input)
 
-        assertEquals(3, document.folders.size)
-        assertEquals(setOf("Tech", "Mobile", "News"), document.folders.map { it.name }.toSet())
-        document.folders.forEach { category -> assertEquals(4, category.feeds.size) }
+        assertEquals(2, document.folders.size)
+        assertEquals(setOf("Tech", "News & Society"), document.folders.map { it.name }.toSet())
+        assertEquals(7, document.folders.sumOf { it.feeds.size })
     }
 }

@@ -134,7 +134,7 @@ class SettingsViewModelTest {
         // regardless of its original host, and answered with a generic valid RSS body.
         server = MockWebServer()
         server.start()
-        repeat(12) { server.enqueue(MockResponse().setResponseCode(200).setBody(defaultFeedsRssXml)) }
+        repeat(7) { server.enqueue(MockResponse().setResponseCode(200).setBody(defaultFeedsRssXml)) }
         val httpClient = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val original = chain.request()
@@ -197,9 +197,9 @@ class SettingsViewModelTest {
     fun addDefaultFeeds_importsBundledOpml() = runTest(testDispatcher, timeout = 120.seconds) {
         viewModel.addDefaultFeeds()
 
-        val feeds = db.feedDao().observeAll().first { it.size == 12 }
-        assertEquals(12, feeds.size)
-        assertEquals("Imported 12 feeds", viewModel.addDefaultFeedsMessage.first { it != null })
+        val feeds = db.feedDao().observeAll().first { it.size == 7 }
+        assertEquals(7, feeds.size)
+        assertEquals("Imported 7 feeds", viewModel.addDefaultFeedsMessage.first { it != null })
     }
 
     @Test
