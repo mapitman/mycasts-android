@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -63,7 +64,14 @@ class EpisodeListViewModel @Inject constructor(
 ) : ViewModel() {
     private val feedId: Long = checkNotNull(savedStateHandle["feedId"])
 
-    private val showUnreadOnly = MutableStateFlow(true)
+    // Null means "not yet resolved" -- neither an explicit setShowUnreadOnly() call nor the
+    // settings-derived default has landed. Kept nullable (issue #75) rather than defaulting
+    // eagerly to `true`: a combine() that depends on this value only ever observes its first
+    // *real* (non-null) value via filterNotNull() below, so there's no window where a downstream
+    // reader could see the placeholder default and later see it silently change underneath it --
+    // a race that showed up as this ViewModel's `feedTitle`/`stableSource` update (a separate,
+    // independently-scheduled combine branch) sometimes settling before this one had caught up.
+    private val showUnreadOnly = MutableStateFlow<Boolean?>(null)
     private val selectedIds = MutableStateFlow<Set<String>>(emptySet())
     private val feedTitle = MutableStateFlow("")
     private val isRefreshing = MutableStateFlow(false)
@@ -92,7 +100,7 @@ class EpisodeListViewModel @Inject constructor(
 
     val uiState: StateFlow<EpisodeListUiState> = combine(
         stableSource,
-        showUnreadOnly,
+        showUnreadOnly.filterNotNull(),
         selectedIds,
         isRefreshing,
         queueRepository.observeQueuedItemIds(),
@@ -108,17 +116,16 @@ class EpisodeListViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EpisodeListUiState())
 
-    // Guards the init block below from clobbering an explicit setShowUnreadOnly() call that
-    // arrives before settingsDataStore.settings.first() resolves (issue #215) -- if that read
-    // requires a real suspension (e.g. a cold DataStore file read) rather than completing
-    // synchronously, the caller's explicit choice can otherwise be silently overwritten once the
-    // deferred default-loading coroutine finally runs.
-    private var showUnreadOnlyExplicitlySet = false
-
     init {
         viewModelScope.launch {
             val defaultToAllView = settingsDataStore.settings.first().defaultToAllItemsView
-            if (!showUnreadOnlyExplicitlySet) {
+            // Only applies the settings-derived default if nothing has set showUnreadOnly yet
+            // (issue #215) -- an explicit setShowUnreadOnly() call that arrives before this
+            // settings read resolves must win, not get silently overwritten once this deferred
+            // default-loading coroutine finally runs. Safe without extra locking: this check and
+            // the write below are both plain (non-suspending) statements, so nothing else can run
+            // on this ViewModel's single-threaded dispatcher between them.
+            if (showUnreadOnly.value == null) {
                 showUnreadOnly.value = !defaultToAllView
             }
 
@@ -137,7 +144,7 @@ class EpisodeListViewModel @Inject constructor(
             var hasEmittedInitialSnapshot = false
             combine(
                 feedTitle,
-                showUnreadOnly.flatMapLatest { unreadOnly ->
+                showUnreadOnly.filterNotNull().flatMapLatest { unreadOnly ->
                     if (unreadOnly) feedRepository.observeUnreadItems(feedId) else feedRepository.observeItems(feedId)
                 },
                 feedRepository.observeUnreadCount(feedId),
@@ -176,7 +183,7 @@ class EpisodeListViewModel @Inject constructor(
     }
 
     private suspend fun captureCurrentSnapshot(): EpisodeListSourceData {
-        val episodes = if (showUnreadOnly.value) {
+        val episodes = if (showUnreadOnly.filterNotNull().first()) {
             feedRepository.observeUnreadItems(feedId).first()
         } else {
             feedRepository.observeItems(feedId).first()
@@ -194,7 +201,6 @@ class EpisodeListViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
 
     fun setShowUnreadOnly(unreadOnly: Boolean) {
-        showUnreadOnlyExplicitlySet = true
         showUnreadOnly.value = unreadOnly
     }
 
