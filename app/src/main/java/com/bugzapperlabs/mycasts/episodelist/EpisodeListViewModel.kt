@@ -43,6 +43,12 @@ data class EpisodeListUiState(
     val isSelectionMode: Boolean get() = selectedIds.isNotEmpty()
 }
 
+private data class EpisodeListSourceData(
+    val feedTitle: String,
+    val episodes: List<FeedItem>,
+    val unreadCount: Int,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class EpisodeListViewModel @Inject constructor(
@@ -74,20 +80,32 @@ class EpisodeListViewModel @Inject constructor(
     /** One-shot bulk-download confirmation for a Snackbar (issue #42); cleared via [consumeDownloadFeedback]. */
     val downloadFeedback: StateFlow<String?> = _downloadFeedback
 
+    // Holds the last snapshot taken while NOT refreshing (issue #73, mirroring issue #152's fix
+    // for the feed list): a refresh inserts/dedupes/evicts items one at a time, so reacting to
+    // every intermediate write made the unread count and episode list visibly rise then fall
+    // mid-refresh -- e.g. climbing well past a 20-episode limit before resting back at 20 -- instead
+    // of settling once, atomically, when the refresh is actually done. `isRefreshing` itself is
+    // exposed live (below) so the spinner still responds instantly; only episodes/unreadCount
+    // freeze. `showUnreadOnly` is also live, not frozen, since it's user-driven tab selection, not
+    // refresh-driven data.
+    private val stableSource = MutableStateFlow(EpisodeListSourceData("", emptyList(), 0))
+
     val uiState: StateFlow<EpisodeListUiState> = combine(
-        feedTitle,
+        stableSource,
         showUnreadOnly,
-        showUnreadOnly.flatMapLatest { unreadOnly ->
-            if (unreadOnly) feedRepository.observeUnreadItems(feedId) else feedRepository.observeItems(feedId)
-        },
-        feedRepository.observeUnreadCount(feedId),
         selectedIds,
-    ) { title, unreadOnly, episodes, unreadCount, selected ->
-        EpisodeListUiState(title, unreadOnly, episodes, unreadCount, selected)
-    }.combine(isRefreshing) { state, refreshing ->
-        state.copy(isRefreshing = refreshing)
-    }.combine(queueRepository.observeQueuedItemIds()) { state, queuedIds ->
-        state.copy(queuedIds = queuedIds)
+        isRefreshing,
+        queueRepository.observeQueuedItemIds(),
+    ) { source, unreadOnly, selected, refreshing, queuedIds ->
+        EpisodeListUiState(
+            feedTitle = source.feedTitle,
+            showUnreadOnly = unreadOnly,
+            episodes = source.episodes,
+            unreadCount = source.unreadCount,
+            selectedIds = selected,
+            isRefreshing = refreshing,
+            queuedIds = queuedIds,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EpisodeListUiState())
 
     // Guards the init block below from clobbering an explicit setShowUnreadOnly() call that
@@ -106,6 +124,32 @@ class EpisodeListViewModel @Inject constructor(
 
             val feed = feedRepository.getFeed(feedId)
             feedTitle.value = feed?.userTitle ?: feed?.title.orEmpty()
+
+            // Whether stableSource has ever been populated yet (issue #276 parity): a scheduled
+            // refresh (e.g. FeedRefreshWorker firing right as this screen opens) can already be
+            // running by the time this collector's very first emission arrives, before any real
+            // snapshot has ever been stored -- unconditionally requiring `!refreshing` then left
+            // stableSource stuck at its empty default, rendering the screen blank/empty-state for
+            // the whole refresh instead of showing whatever's already in the DB. The first
+            // emission is let through regardless of `refreshing` so cold start always shows
+            // current data immediately; only *subsequent* emissions freeze while a refresh is in
+            // flight.
+            var hasEmittedInitialSnapshot = false
+            combine(
+                feedTitle,
+                showUnreadOnly.flatMapLatest { unreadOnly ->
+                    if (unreadOnly) feedRepository.observeUnreadItems(feedId) else feedRepository.observeItems(feedId)
+                },
+                feedRepository.observeUnreadCount(feedId),
+                isRefreshing,
+            ) { title, episodes, unreadCount, refreshing ->
+                EpisodeListSourceData(title, episodes, unreadCount) to refreshing
+            }.collect { (source, refreshing) ->
+                if (!refreshing || !hasEmittedInitialSnapshot) {
+                    stableSource.value = source
+                    hasEmittedInitialSnapshot = true
+                }
+            }
         }
     }
 
@@ -120,8 +164,25 @@ class EpisodeListViewModel @Inject constructor(
                     _refreshError.value = context.getString(R.string.feed_list_refresh_error)
                 }
             }
+            // Captured explicitly rather than trusting the init block's reactive combine to have
+            // already caught up (issue #73): Room's invalidation-triggered re-query for the
+            // just-finished insert/trim runs on its own background thread, with no guarantee it's
+            // landed by the instant this coroutine reaches this line, so isRefreshing flipping to
+            // false could otherwise unfreeze stableSource onto a stale, not-yet-trimmed count for a
+            // frame before the real query result arrives a moment later.
+            stableSource.value = captureCurrentSnapshot()
             isRefreshing.value = false
         }
+    }
+
+    private suspend fun captureCurrentSnapshot(): EpisodeListSourceData {
+        val episodes = if (showUnreadOnly.value) {
+            feedRepository.observeUnreadItems(feedId).first()
+        } else {
+            feedRepository.observeItems(feedId).first()
+        }
+        val unreadCount = feedRepository.observeUnreadCount(feedId).first()
+        return EpisodeListSourceData(feedTitle.value, episodes, unreadCount)
     }
 
     fun consumeRefreshError() {
