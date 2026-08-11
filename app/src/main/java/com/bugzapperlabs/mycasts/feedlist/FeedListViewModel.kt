@@ -110,18 +110,25 @@ class FeedListViewModel @Inject constructor(
             ) { feeds, unreadCounts, totalUnread, refreshing ->
                 FeedListSourceData(feeds, unreadCounts, totalUnread, refreshing)
             }.collect { source ->
-                if (!source.refreshing || !hasEmittedInitialSnapshot) {
+                // Checked directly against feedRefreshState rather than trusting this combine
+                // tuple's own `refreshing` field (issue #76 follow-up): combine() collects each
+                // upstream flow via its own independently-scheduled child coroutine, so under load
+                // the feeds/counts branch can be processed before the isRefreshing branch has
+                // caught up, letting a DB write that lands mid-refresh be paired with a stale
+                // "not refreshing" and leak through the freeze. activeCount's raw `.value` has no
+                // such lag -- it's a plain field read, always immediately current.
+                val actuallyRefreshing = feedRefreshState.isCurrentlyRefreshing()
+                if (!actuallyRefreshing || !hasEmittedInitialSnapshot) {
                     // The falling edge of `refreshing` (issue #76) can't just trust this combine
-                    // tuple's feeds/counts even though `refreshing` is now false -- `isRefreshing`
-                    // is a shared, app-wide signal (manual refresh here or FeedRefreshWorker in the
-                    // background), and Room's invalidation-triggered re-query for whichever refresh
-                    // just finished runs on its own background thread with no guarantee it's landed
-                    // by the instant this particular combine tuple was produced. An explicit,
-                    // synchronous re-read guarantees the settled snapshot is actually current.
-                    stableSource.value = if (wasRefreshing && !source.refreshing) captureCurrentSnapshot() else source
+                    // tuple's feeds/counts even though it's now unfrozen -- Room's
+                    // invalidation-triggered re-query for whichever refresh just finished runs on
+                    // its own background thread with no guarantee it's landed by the instant this
+                    // particular combine tuple was produced. An explicit, synchronous re-read
+                    // guarantees the settled snapshot is actually current.
+                    stableSource.value = if (wasRefreshing && !actuallyRefreshing) captureCurrentSnapshot() else source
                     hasEmittedInitialSnapshot = true
                 }
-                wasRefreshing = source.refreshing
+                wasRefreshing = actuallyRefreshing
             }
         }
     }
