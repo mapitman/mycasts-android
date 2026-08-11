@@ -319,6 +319,12 @@ class PlaybackService : MediaSessionService() {
             advanceWakeLock.acquire(ADVANCE_WAKE_LOCK_TIMEOUT_MS)
             serviceScope.launch {
                 try {
+                    // Starts the next episode first (issue #82): none of the finished episode's
+                    // bookkeeping below is a prerequisite for it, and every DB write/settings read
+                    // done beforehand was pure added silence between episodes, on top of whatever
+                    // buffering the next episode's own prepare() needs (worse for a streamed
+                    // episode than a downloaded one, since that also has to open a connection).
+                    playNextQueued()
                     feedRepository.setEnclosurePosition(itemId, null)
                     feedRepository.markRead(itemId, true)
                     // Storage cap / auto-cleanup (issue #71): only ever deletes an episode that
@@ -328,8 +334,6 @@ class PlaybackService : MediaSessionService() {
                             ?.takeIf { it.downloadedFilePath != null }
                             ?.let { downloadRepository.deleteDownload(it) }
                     }
-                    settingsDataStore.setLastPlayingItem(null, null)
-                    playNextQueued()
                     // The wake lock is released once playback actually starts (onIsPlayingChanged
                     // above) or fails (onPlayerError above), not here -- see issue #241. The
                     // ADVANCE_WAKE_LOCK_TIMEOUT_MS cap still bounds it if neither ever fires.
@@ -350,12 +354,17 @@ class PlaybackService : MediaSessionService() {
         val itemId = queueRepository.popNext()
         if (itemId == null) {
             player.clearMediaItems()
+            settingsDataStore.setLastPlayingItem(null, null)
             return
         }
-        val item = feedRepository.getItem(itemId) ?: return
+        // lastPlayingItem is cleared on every early-return path below (issue #82) -- this used to
+        // be set unconditionally by the caller before playNextQueued() ran at all, but that clear
+        // is now deferred to here so it doesn't add to the silence gap ahead of the *success*
+        // path's player.prepare()/play() below.
+        val item = feedRepository.getItem(itemId) ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
         val feed = feedRepository.getFeed(item.feedId)
         val resolved = PlaybackMediaItemFactory.resolve(item, feed?.userTitle ?: feed?.title, feedRepository, settingsDataStore)
-            ?: return
+            ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
         player.setMediaItem(resolved.mediaItem, resolved.startPositionMs)
         player.setPlaybackSpeed(resolved.speed)
         player.prepare()
