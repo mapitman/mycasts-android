@@ -51,13 +51,37 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Skipped in CI only (see setUp): this file hangs reliably in GitHub Actions -- always timing out
  * at runTest's dispatch timeout (raised 60s -> 120s below, which still wasn't enough) -- but has
- * never reproduced locally despite many repeated full-suite and CPU-constrained runs. Tracked in
- * https://github.com/mapitman/myfeeds-android/issues/54; still runs normally outside CI.
+ * never reproduced locally despite many repeated full-suite and CPU-constrained runs. Originally
+ * tracked in https://github.com/mapitman/myfeeds-android/issues/54, carried forward as issue #77.
  *
  * The quiescent tearDown below (clear + join before resetMain, via TrackedViewModelStore) fixes
  * one real source of cross-test corruption -- see that class's doc -- but CI still hangs even
  * with it in place, so the skip stays. See issue #215 for further diagnostics on this general
  * class of timing-dependent coroutine-test flakiness.
+ *
+ * Re-investigated for issue #77 (2026-08-11) with the skip temporarily removed on a scratch
+ * branch to gather real evidence rather than guessing further -- findings, so a future attempt
+ * starts here instead of from zero:
+ * - The hang only reproduces when `addDefaultFeeds_importsBundledOpml` (12 concurrent feed
+ *   fetches via OpmlImporter) runs before some other, otherwise-trivial test in the same class --
+ *   confirmed by isolating just the two originally-observed failing tests (passed cleanly) and
+ *   then adding addDefaultFeeds back alone (reproduced the hang). addDefaultFeeds itself always
+ *   passes fast; it's whatever runs *after* it, in the same Gradle test JVM fork, that hangs.
+ * - Explicitly tearing down likely-shared resources (a dedicated, cancellable CoroutineScope for
+ *   the DataStore instead of its default internal one; explicit OkHttpClient dispatcher/
+ *   connection-pool shutdown; a dedicated Room query/transaction executor instead of the shared
+ *   ArchTaskExecutor) reduced but did not eliminate the hang -- the specific test that hangs
+ *   shifts between runs, which still points at some form of cross-test state leakage in the same
+ *   JVM fork rather than something inherent to whichever test happens to fail.
+ * - A thread-dump-on-hang watchdog showed the hang is NOT simple thread/resource exhaustion:
+ *   every worker pool (Dispatchers.IO, Room's disk-io threads, the dedicated executors above) is
+ *   idle, not stuck, at the time of the hang. The actual test-runner thread ("SDK 35 Main
+ *   Thread") is parked inside runTest's own runBlocking, waiting on the test's coroutine body,
+ *   which itself never resumes -- consistent with a write (e.g. via SettingsDataStore) never
+ *   actually propagating back through `settings: StateFlow`, so a `.first { ... }` predicate
+ *   waits on a condition that never becomes true. This needs an instrumented, targeted
+ *   reproduction of that specific propagation path next, not more general resource-cleanup
+ *   hygiene fixes.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
