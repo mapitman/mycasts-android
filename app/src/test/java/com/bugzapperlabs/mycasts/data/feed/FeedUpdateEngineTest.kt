@@ -291,6 +291,48 @@ class FeedUpdateEngineTest {
     }
 
     @Test
+    fun updateFeed_autoDownloadEnabled_protectsNewItemsFromSameRefreshTrim() = runTest {
+        // issue #83: trimToItemsToKeep runs inside persist(), before the caller ever gets a
+        // chance to run AutoQueueAndDownloadEnforcer.apply() against this refresh's newItemIds --
+        // a feed publishing more new episodes in one refresh than itemsToKeep allows used to have
+        // the oldest of that very batch evicted immediately, so the enforcer's later
+        // feedRepository.getItem(itemId) lookup silently found nothing and skipped auto-download
+        // entirely for those episodes, with no error or trace of it happening.
+        val url = server.url("/feed.xml").toString()
+        val feedId = repository.subscribe(
+            Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1, autoDownloadEnabled = true),
+        )
+        val feed = repository.getFeed(feedId)!!
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
+
+        val result = engine.updateFeed(feed)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        val success = result as FeedUpdateResult.Success
+        // Nothing evicted this refresh -- both new items survive long enough for the enforcer to
+        // see them, even though itemsToKeep=1 would normally trim one of them immediately.
+        assertTrue("evictedItemIds=${success.evictedItemIds}", success.evictedItemIds.isEmpty())
+        assertEquals(2, success.newItemIds.size)
+        success.newItemIds.forEach { itemId ->
+            assertTrue("item $itemId should still exist", repository.getItem(itemId) != null)
+        }
+    }
+
+    @Test
+    fun updateFeed_autoDownloadDisabled_stillTrimsNewItemsNormally() = runTest {
+        // The protection above is specific to feeds the enforcer will actually process --
+        // without auto-download/auto-queue enabled, same-refresh trimming behaves exactly as
+        // before (issue #82's original trim-to-itemsToKeep behavior is unaffected).
+        val feed = subscribeFeed(itemsToKeep = 1)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
+
+        val result = engine.updateFeed(feed)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        assertEquals(1, (result as FeedUpdateResult.Success).evictedItemIds.size)
+    }
+
+    @Test
     fun updateFeed_concurrentRefreshesOfSameFeed_doNotDuplicateItemsOrExceedLimit() = runTest {
         // issue #70: two overlapping refreshes of the same feed (e.g. a manual pull-to-refresh
         // landing while the scheduled FeedRefreshWorker is also refreshing) used to race --

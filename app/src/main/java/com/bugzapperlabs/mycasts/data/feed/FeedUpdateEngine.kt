@@ -168,7 +168,14 @@ class FeedUpdateEngine @Inject constructor(
         // its own next refresh.
         feedRepository.deduplicateItems(feed.id)
         val defaultItemsToKeep = settingsDataStore.settings.first().maxItemsPerFeed
-        val evicted = feedRepository.trimToItemsToKeep(feed.id, defaultItemsToKeep)
+        // Protects this refresh's own new items from same-refresh eviction when the enforcer is
+        // guaranteed to process them right after (issue #83) -- see trimToItemsToKeep's doc.
+        val protectedNewItemIds = if (updatedFeed.autoDownloadEnabled || updatedFeed.autoQueueEnabled) {
+            newItemIds.toSet()
+        } else {
+            emptySet()
+        }
+        val evicted = feedRepository.trimToItemsToKeep(feed.id, defaultItemsToKeep, protectedNewItemIds)
 
         return FeedUpdateResult.Success(feedId = feed.id, newItemIds = newItemIds, evictedItemIds = evicted.map { it.id })
     }
