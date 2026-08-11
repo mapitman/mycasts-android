@@ -272,6 +272,53 @@ class EpisodeListViewModelTest {
     }
 
     @Test
+    fun refresh_doesNotVisiblySpikePastItemsToKeepMidRefresh() = runTest(testDispatcher) {
+        // issue #73: episodes/unreadCount used to update on every intermediate insert during a
+        // refresh, so the UI visibly climbed well past itemsToKeep before settling back down --
+        // e.g. a 3-episode limit briefly showing 10 mid-refresh.
+        settingsDataStore.setMaxItemsPerFeed(3)
+        val server = MockWebServer()
+        server.start()
+        try {
+            val url = server.url("/feed.xml").toString()
+            feedId = repository.subscribe(Feed(title = "A Podcast", feedUrl = url))
+            val itemsXml = (1..10).joinToString(separator = "") { i ->
+                "<item><title>Item $i</title><link>https://example.com/$i</link><guid>guid-$i</guid>" +
+                    "<description>Body $i</description><pubDate>Mon, 0${(i % 9) + 1} Jun 2013 11:05:30 GMT</pubDate></item>"
+            }
+            val body = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel>" +
+                "<title>A Podcast</title><link>https://example.com</link><description>desc</description>" +
+                "$itemsXml</channel></rss>"
+            server.enqueue(MockResponse().setResponseCode(200).setBody(body))
+
+            val viewModel = createViewModel()
+            // Spies on every intermediate emission during the refresh (issue #73): the episode
+            // count must never exceed itemsToKeep, not just settle there once the refresh finishes.
+            val observedCounts = mutableListOf<Int>()
+            val collectJob = launch { viewModel.uiState.collect { observedCounts += it.episodes.size } }
+            viewModel.setShowUnreadOnly(false)
+            viewModel.uiState.first { it.feedTitle == "A Podcast" }
+
+            viewModel.refresh()
+            // isRefreshing starts false, so waiting only for "!isRefreshing" would trivially match
+            // the pre-refresh state before refresh()'s real (non-virtual-time) Room dispatch even
+            // begins (issue #215's same pitfall) -- wait for it to flip true first.
+            viewModel.uiState.first { it.isRefreshing }
+            // Also wait for the settled episode count itself, not just "!isRefreshing" -- Room's
+            // invalidation-triggered re-query runs on a real background thread, so it isn't
+            // guaranteed to have landed the instant refresh()'s own coroutine finishes and flips
+            // isRefreshing back to false.
+            val settled = viewModel.uiState.first { !it.isRefreshing && it.episodes.size == 3 }
+            collectJob.cancel()
+
+            assertEquals("episodes=${settled.episodes.map { it.id }}", 3, settled.episodes.size)
+            assertTrue("observedCounts=$observedCounts", observedCounts.all { it <= 3 })
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun addSelectedToQueue_queuesOnlyPodcastEpisodesAndClearsSelection() = runTest(testDispatcher) {
         // issue #159: selection mode isn't podcast-specific, so a plain item ("read-1", no
         // enclosure) mixed into the selection should be silently skipped rather than queued.
