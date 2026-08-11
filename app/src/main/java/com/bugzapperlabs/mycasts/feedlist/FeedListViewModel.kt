@@ -101,6 +101,7 @@ class FeedListViewModel @Inject constructor(
             // *subsequent* emissions freeze while a refresh is in flight, preserving #152's
             // original anti-flicker behavior for refreshes triggered after the list is populated.
             var hasEmittedInitialSnapshot = false
+            var wasRefreshing = false
             combine(
                 feedRepository.observeAllFeeds(),
                 feedRepository.observeUnreadCountsByFeed(),
@@ -110,12 +111,27 @@ class FeedListViewModel @Inject constructor(
                 FeedListSourceData(feeds, unreadCounts, totalUnread, refreshing)
             }.collect { source ->
                 if (!source.refreshing || !hasEmittedInitialSnapshot) {
-                    stableSource.value = source
+                    // The falling edge of `refreshing` (issue #76) can't just trust this combine
+                    // tuple's feeds/counts even though `refreshing` is now false -- `isRefreshing`
+                    // is a shared, app-wide signal (manual refresh here or FeedRefreshWorker in the
+                    // background), and Room's invalidation-triggered re-query for whichever refresh
+                    // just finished runs on its own background thread with no guarantee it's landed
+                    // by the instant this particular combine tuple was produced. An explicit,
+                    // synchronous re-read guarantees the settled snapshot is actually current.
+                    stableSource.value = if (wasRefreshing && !source.refreshing) captureCurrentSnapshot() else source
                     hasEmittedInitialSnapshot = true
                 }
+                wasRefreshing = source.refreshing
             }
         }
     }
+
+    private suspend fun captureCurrentSnapshot(): FeedListSourceData = FeedListSourceData(
+        feeds = feedRepository.observeAllFeeds().first(),
+        unreadCounts = feedRepository.observeUnreadCountsByFeed().first(),
+        totalUnread = feedRepository.observeTotalUnreadCount().first(),
+        refreshing = false,
+    )
 
     val feedListFontSize: StateFlow<FontSize> = settingsDataStore.settings
         .map { it.feedListFontSize }
