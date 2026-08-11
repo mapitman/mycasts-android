@@ -134,15 +134,27 @@ class FeedRepository @Inject constructor(
      * Items currently in the Next Up queue are exempt, even if they'd otherwise be old enough to
      * evict -- deleting a queued [FeedItem] cascades to its `queue_entries` row (issue #125:
      * episodes a user had manually queued were being silently dropped from Next Up by this trim).
+     *
+     * [alwaysExempt] additionally protects specific items regardless of age (issue #83): when a
+     * feed publishes more new episodes in one refresh than `itemsToKeep` allows, this trim (called
+     * from within [FeedUpdateEngine.persist] right after inserting them) used to run *before*
+     * [com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer.apply] -- which runs
+     * separately afterward, once the caller has this refresh's full [com.bugzapperlabs.mycasts.data.feed.FeedUpdateResult]
+     * -- ever got a chance to auto-download/auto-queue them, silently evicting the oldest of that
+     * batch first and leaving the enforcer with nothing but already-deleted item ids to look up.
+     * The caller passes this refresh's own newly-inserted item ids here when the feed has
+     * auto-download or auto-queue enabled, so they survive long enough for the enforcer to act on
+     * them; from the *next* refresh onward they're just ordinary items again, subject to the same
+     * trim rules (via the queue exemption above) as anything else.
      */
-    suspend fun trimToItemsToKeep(feedId: Long, defaultItemsToKeep: Int): List<FeedItem> {
+    suspend fun trimToItemsToKeep(feedId: Long, defaultItemsToKeep: Int, alwaysExempt: Set<String> = emptySet()): List<FeedItem> {
         val itemsToKeep = feedDao.getById(feedId)?.itemsToKeep ?: defaultItemsToKeep
         if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) return emptyList()
         val items = feedItemDao.observeByFeed(feedId).first()
         if (items.size <= itemsToKeep) return emptyList()
 
         val queuedItemIds = queueDao.orderedItemIdsForFeed(feedId).toSet()
-        val evicted = items.drop(itemsToKeep).filterNot { it.id in queuedItemIds }
+        val evicted = items.drop(itemsToKeep).filterNot { it.id in queuedItemIds || it.id in alwaysExempt }
         if (evicted.isEmpty()) return emptyList()
         feedItemDao.deleteAll(evicted)
         return evicted
