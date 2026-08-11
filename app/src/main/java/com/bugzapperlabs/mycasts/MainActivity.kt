@@ -34,6 +34,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
@@ -79,6 +81,7 @@ import com.bugzapperlabs.mycasts.data.opml.OpmlDocument
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadFeedbackCoordinator
 import com.bugzapperlabs.mycasts.downloads.DownloadsScreen
 import com.bugzapperlabs.mycasts.feedlist.FeedListScreen
 import com.bugzapperlabs.mycasts.feedproperties.FeedPropertiesScreen
@@ -125,6 +128,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var opmlImportCoordinator: OpmlImportCoordinator
+
+    @Inject
+    lateinit var downloadFeedbackCoordinator: DownloadFeedbackCoordinator
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -220,6 +226,21 @@ class MainActivity : ComponentActivity() {
                             queueViewModel.undoRemove(removed)
                         }
                         queueViewModel.consumeRemovedEpisode()
+                    }
+                    // Surfaces here rather than on whichever screen started the download (issue
+                    // #84): DownloadFeedbackCoordinator's own scope outlives any one screen, since
+                    // the user can navigate away from the episode details page well before a
+                    // download either starts making progress or times out. Its own SnackbarHost
+                    // (below, as a direct child of the outer Box) rather than reusing
+                    // queueSnackbarHostState -- that one only renders inside the player bottom
+                    // sheet's own scrollable content, so it isn't actually visible while the sheet
+                    // is collapsed/peeked, which is most of the time this message needs to show.
+                    val downloadSnackbarHostState = remember { SnackbarHostState() }
+                    val downloadFeedbackResult by downloadFeedbackCoordinator.result.collectAsState()
+                    LaunchedEffect(downloadFeedbackResult) {
+                        val message = downloadFeedbackResult ?: return@LaunchedEffect
+                        downloadSnackbarHostState.showSnackbar(message)
+                        downloadFeedbackCoordinator.consumeResult()
                     }
                     val currentBackStackEntry by navController.currentBackStackEntryAsState()
                     var currentEpisodeDetailsItemId by remember { mutableStateOf<String?>(null) }
@@ -599,6 +620,13 @@ class MainActivity : ComponentActivity() {
                             },
                         )
                     }
+                    // A direct child of this outer Box (issue #84), not nested inside the player
+                    // bottom sheet, so it's visible regardless of whether that sheet is expanded,
+                    // peeked, or hidden -- see downloadSnackbarHostState's own doc above.
+                    SnackbarHost(
+                        downloadSnackbarHostState,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                    ) { Snackbar(it) }
                     }
                 }
             }

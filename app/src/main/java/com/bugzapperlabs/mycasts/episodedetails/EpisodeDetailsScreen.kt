@@ -102,6 +102,7 @@ fun EpisodeDetailsScreen(
     val episodeDetailsFontSize by viewModel.episodeDetailsFontSize.collectAsState()
     val queueFeedback by viewModel.queueFeedback.collectAsState()
     val queuedItemIds by viewModel.queuedItemIds.collectAsState()
+    val pendingDownloadItemIds by viewModel.pendingDownloadItemIds.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -196,6 +197,7 @@ fun EpisodeDetailsScreen(
                     feedImageUrl = uiState.feedImageUrl,
                     onTogglePlayPause = { viewModel.togglePlayPause(uiState.items[page]) },
                     onSeek = viewModel::seekTo,
+                    isPendingDownload = uiState.items[page].id in pendingDownloadItemIds,
                     onDownload = { viewModel.downloadEnclosure(uiState.items[page]) },
                     onDelete = { viewModel.deleteDownload(uiState.items[page]) },
                     onSpeedChange = viewModel::setPlaybackSpeed,
@@ -241,6 +243,7 @@ private fun EpisodePage(
     feedImageUrl: String?,
     onTogglePlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
+    isPendingDownload: Boolean,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
     onSpeedChange: (Float) -> Unit,
@@ -316,6 +319,7 @@ private fun EpisodePage(
                     downloadedFilePath = item.downloadedFilePath,
                     downloadedBytes = item.downloadedBytes,
                     enclosureLength = item.enclosureLength,
+                    isPendingDownload = isPendingDownload,
                     onTogglePlayPause = onTogglePlayPause,
                     onSeek = onSeek,
                     onDownload = onDownload,
@@ -367,6 +371,7 @@ private fun PodcastPlayerControls(
     downloadedFilePath: String?,
     downloadedBytes: Long?,
     enclosureLength: Long?,
+    isPendingDownload: Boolean,
     onTogglePlayPause: () -> Unit,
     onSeek: (Long) -> Unit,
     onDownload: () -> Unit,
@@ -397,7 +402,11 @@ private fun PodcastPlayerControls(
     }
     val isPlaying = isCurrentItem && playbackState.isPlaying
     val isDownloaded = downloadedFilePath != null
-    val isDownloading = !isDownloaded && downloadedBytes != null
+    // isPendingDownload (issue #84) bridges the gap between tapping download and real progress
+    // existing to react to -- downloadedBytes is only persisted once the worker has actually
+    // written a chunk, which can lag noticeably behind the tap (WorkManager scheduling, network
+    // constraints), during which the button used to show no feedback at all.
+    val isDownloading = !isDownloaded && (downloadedBytes != null || isPendingDownload)
     // issue #95: chapter nav only makes sense while this episode is the one actually loaded, since
     // playbackState.chapters/currentChapter reflect whatever's currently playing, not this item.
     val hasChapters = isCurrentItem && playbackState.chapters.isNotEmpty()
@@ -478,8 +487,11 @@ private fun PodcastPlayerControls(
             }
             when {
                 isDownloading -> {
-                    val progress = if (enclosureLength != null && enclosureLength > 0) {
-                        (downloadedBytes!!.toFloat() / enclosureLength).coerceIn(0f, 1f)
+                    // downloadedBytes can still be null here while isPendingDownload alone is
+                    // true (issue #84) -- an indeterminate spinner (progress == null) is correct
+                    // for that case, since there's no real progress yet to show.
+                    val progress = if (downloadedBytes != null && enclosureLength != null && enclosureLength > 0) {
+                        (downloadedBytes.toFloat() / enclosureLength).coerceIn(0f, 1f)
                     } else {
                         null
                     }

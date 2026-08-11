@@ -80,6 +80,7 @@
     <string name="download_feedback_deleted">Descarga eliminada</string>
     <string name="download_feedback_deleted_multiple">%1$d descargas eliminadas</string>
     <string name="download_feedback_nothing_to_delete">No hay descargas que eliminar</string>
+    <string name="download_feedback_not_started">No se pudo iniciar la descarga de \"%1$s\"</string>
     <string name="cd_download_selected">Descargar episodios seleccionados</string>
     <string name="action_undo">Deshacer</string>
 

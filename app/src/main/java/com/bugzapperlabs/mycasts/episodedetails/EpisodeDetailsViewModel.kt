@@ -12,6 +12,7 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadFeedbackCoordinator
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.playback.PlaybackController
 import com.bugzapperlabs.mycasts.playback.PlaybackUiState
@@ -37,6 +38,7 @@ class EpisodeDetailsViewModel @Inject constructor(
     private val feedRepository: FeedRepository,
     private val playbackController: PlaybackController,
     private val downloadRepository: EnclosureDownloadRepository,
+    private val downloadFeedbackCoordinator: DownloadFeedbackCoordinator,
     private val queueRepository: QueueRepository,
     settingsDataStore: SettingsDataStore,
     @ApplicationContext private val context: Context,
@@ -71,6 +73,11 @@ class EpisodeDetailsViewModel @Inject constructor(
     val episodeDetailsFontSize: StateFlow<FontSize> = settingsDataStore.settings
         .map { it.episodeDetailsFontSize }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
+
+    /** Item IDs whose download was just requested but hasn't shown real progress yet (issue #84) --
+     *  drives an immediate spinner on the download button, rather than waiting on
+     *  [FeedItem.downloadedBytes], which only exists once actual progress has been persisted. */
+    val pendingDownloadItemIds: StateFlow<Set<String>> = downloadFeedbackCoordinator.pendingItemIds
 
     fun togglePlayPause(item: FeedItem) {
         val playback = playbackState.value
@@ -110,7 +117,7 @@ class EpisodeDetailsViewModel @Inject constructor(
     }
 
     fun downloadEnclosure(item: FeedItem) {
-        viewModelScope.launch { downloadRepository.startDownload(item) }
+        downloadFeedbackCoordinator.startDownload(item)
     }
 
     fun deleteDownload(item: FeedItem) {
