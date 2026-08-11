@@ -32,7 +32,6 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -49,15 +48,13 @@ import kotlin.time.Duration.Companion.seconds
  * The test dispatcher is shared between setMain and runTest so runTest's automatic
  * child-coroutine cleanup also covers the ViewModel's viewModelScope children.
  *
- * Skipped in CI only (see setUp): this file hangs reliably in GitHub Actions -- always timing out
- * at runTest's dispatch timeout (raised 60s -> 120s below, which still wasn't enough) -- but has
- * never reproduced locally despite many repeated full-suite and CPU-constrained runs. Tracked in
- * https://github.com/mapitman/myfeeds-android/issues/54; still runs normally outside CI.
- *
- * The quiescent tearDown below (clear + join before resetMain, via TrackedViewModelStore) fixes
- * one real source of cross-test corruption -- see that class's doc -- but CI still hangs even
- * with it in place, so the skip stays. See issue #215 for further diagnostics on this general
- * class of timing-dependent coroutine-test flakiness.
+ * This file used to be unconditionally skipped in CI (issue #77, formerly
+ * https://github.com/mapitman/myfeeds-android/issues/54) -- it hung reliably in GitHub Actions
+ * even at a 120s runTest timeout, but never reproduced locally despite many repeated
+ * full-suite/CPU-constrained runs. Re-enabled to check whether that's still true after this
+ * ViewModel family's various coroutine-timing fixes (issues #73/#75/#76) -- if it starts hanging
+ * in CI again, re-add the `assumeTrue` skip that used to be in setUp() rather than raising the
+ * timeout further, since a higher timeout never actually fixed it before.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -90,9 +87,6 @@ class SettingsViewModelTest {
 
     @Before
     fun setUp() {
-        // See the class doc: this file hangs reliably in CI (issue #54) but never locally, so
-        // it's skipped there for now rather than blocking unrelated work.
-        assumeTrue("Skipped in CI: see issue #54", System.getenv("CI") == null)
         runTestBody()
     }
 
