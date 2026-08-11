@@ -43,6 +43,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -85,6 +86,13 @@ class SettingsViewModelTest {
     // can cancel it outright before the backing file goes away.
     private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // Room otherwise falls back to AndroidX's shared, JVM-static ArchTaskExecutor for query/Flow
+    // invalidation dispatch (issue #77) -- every in-memory database across every test in this
+    // class (and every other Robolectric test sharing the same Gradle test JVM fork) contends for
+    // that same small, fixed-size pool. A dedicated executor per test isolates this database's
+    // work from whatever else that shared pool is doing.
+    private val dbExecutor = Executors.newSingleThreadExecutor()
+
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
     // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
     // behind the #54/#60 flakiness this prevents.
@@ -107,7 +115,11 @@ class SettingsViewModelTest {
     private fun runTestBody() = runTest(testDispatcher, timeout = 120.seconds) {
         Dispatchers.setMain(testDispatcher)
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .setQueryExecutor(dbExecutor)
+            .setTransactionExecutor(dbExecutor)
+            .allowMainThreadQueries()
+            .build()
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             scope = dataStoreScope,
@@ -164,6 +176,7 @@ class SettingsViewModelTest {
         httpClient.dispatcher.executorService.shutdown()
         httpClient.connectionPool.evictAll()
         db.close()
+        dbExecutor.shutdown()
         server.shutdown()
         Dispatchers.resetMain()
     }
