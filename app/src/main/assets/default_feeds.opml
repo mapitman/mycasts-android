@@ -7,20 +7,13 @@
     <outline text="Tech">
       <outline text="Windows Weekly" xmlUrl="https://feeds.twit.tv/podcasts/ww.xml" />
       <outline text="This Week in Tech" xmlUrl="https://feeds.twit.tv/podcasts/twit.xml" />
-      <outline text="Engadget" xmlUrl="https://www.engadget.com/rss.xml" />
-      <outline text="Ars Technica" xmlUrl="https://feeds.arstechnica.com/arstechnica/index/" />
+      <outline text="Accidental Tech Podcast" xmlUrl="https://atp.fm/rss" />
+      <outline text="The Vergecast" xmlUrl="https://feeds.megaphone.fm/vergecast" />
     </outline>
-    <outline text="Mobile">
-      <outline text="Windows Central" xmlUrl="https://www.windowscentral.com/feeds.xml" />
-      <outline text="Android Central" xmlUrl="https://www.androidcentral.com/feeds.xml" />
-      <outline text="9to5Google" xmlUrl="https://9to5google.com/feed/" />
-      <outline text="Android Authority" xmlUrl="https://www.androidauthority.com/feed/" />
-    </outline>
-    <outline text="News">
-      <outline text="BBC News" xmlUrl="https://feeds.bbci.co.uk/news/rss.xml" />
-      <outline text="Sky News World" xmlUrl="https://feeds.skynews.com/feeds/rss/world.xml" />
-      <outline text="NPR News" xmlUrl="https://feeds.npr.org/1001/rss.xml" />
-      <outline text="The Guardian World News" xmlUrl="https://www.theguardian.com/world/rss" />
+    <outline text="News &amp; Society">
+      <outline text="Up First from NPR" xmlUrl="https://feeds.npr.org/510318/podcast.xml" />
+      <outline text="Planet Money" xmlUrl="https://feeds.npr.org/510289/podcast.xml" />
+      <outline text="Stuff You Should Know" xmlUrl="https://omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/A91018A4-EA4F-4130-BF55-AE270180C327/44710ECC-10BB-48D1-93C7-AE270180C33E/podcast.rss" />
     </outline>
   </body>
 </opml>
