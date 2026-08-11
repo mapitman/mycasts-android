@@ -18,11 +18,8 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -35,18 +32,15 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import org.junit.rules.TestWatcher
-import org.junit.runner.Description
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
-import java.util.concurrent.Executors
-import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -55,13 +49,39 @@ import kotlin.time.Duration.Companion.seconds
  * The test dispatcher is shared between setMain and runTest so runTest's automatic
  * child-coroutine cleanup also covers the ViewModel's viewModelScope children.
  *
- * This file used to be unconditionally skipped in CI (issue #77, formerly
- * https://github.com/mapitman/myfeeds-android/issues/54) -- it hung reliably in GitHub Actions
- * even at a 120s runTest timeout, but never reproduced locally despite many repeated
- * full-suite/CPU-constrained runs. Re-enabled to check whether that's still true after this
- * ViewModel family's various coroutine-timing fixes (issues #73/#75/#76) -- if it starts hanging
- * in CI again, re-add the `assumeTrue` skip that used to be in setUp() rather than raising the
- * timeout further, since a higher timeout never actually fixed it before.
+ * Skipped in CI only (see setUp): this file hangs reliably in GitHub Actions -- always timing out
+ * at runTest's dispatch timeout (raised 60s -> 120s below, which still wasn't enough) -- but has
+ * never reproduced locally despite many repeated full-suite and CPU-constrained runs. Originally
+ * tracked in https://github.com/mapitman/myfeeds-android/issues/54, carried forward as issue #77.
+ *
+ * The quiescent tearDown below (clear + join before resetMain, via TrackedViewModelStore) fixes
+ * one real source of cross-test corruption -- see that class's doc -- but CI still hangs even
+ * with it in place, so the skip stays. See issue #215 for further diagnostics on this general
+ * class of timing-dependent coroutine-test flakiness.
+ *
+ * Re-investigated for issue #77 (2026-08-11) with the skip temporarily removed on a scratch
+ * branch to gather real evidence rather than guessing further -- findings, so a future attempt
+ * starts here instead of from zero:
+ * - The hang only reproduces when `addDefaultFeeds_importsBundledOpml` (12 concurrent feed
+ *   fetches via OpmlImporter) runs before some other, otherwise-trivial test in the same class --
+ *   confirmed by isolating just the two originally-observed failing tests (passed cleanly) and
+ *   then adding addDefaultFeeds back alone (reproduced the hang). addDefaultFeeds itself always
+ *   passes fast; it's whatever runs *after* it, in the same Gradle test JVM fork, that hangs.
+ * - Explicitly tearing down likely-shared resources (a dedicated, cancellable CoroutineScope for
+ *   the DataStore instead of its default internal one; explicit OkHttpClient dispatcher/
+ *   connection-pool shutdown; a dedicated Room query/transaction executor instead of the shared
+ *   ArchTaskExecutor) reduced but did not eliminate the hang -- the specific test that hangs
+ *   shifts between runs, which still points at some form of cross-test state leakage in the same
+ *   JVM fork rather than something inherent to whichever test happens to fail.
+ * - A thread-dump-on-hang watchdog showed the hang is NOT simple thread/resource exhaustion:
+ *   every worker pool (Dispatchers.IO, Room's disk-io threads, the dedicated executors above) is
+ *   idle, not stuck, at the time of the hang. The actual test-runner thread ("SDK 35 Main
+ *   Thread") is parked inside runTest's own runBlocking, waiting on the test's coroutine body,
+ *   which itself never resumes -- consistent with a write (e.g. via SettingsDataStore) never
+ *   actually propagating back through `settings: StateFlow`, so a `.first { ... }` predicate
+ *   waits on a condition that never becomes true. This needs an instrumented, targeted
+ *   reproduction of that specific propagation path next, not more general resource-cleanup
+ *   hygiene fixes.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -72,57 +92,11 @@ class SettingsViewModelTest {
     @get:Rule
     val tempFolder = TemporaryFolder()
 
-    // TEMP issue #77 diagnostic: dumps every thread's stack to stdout if a test is still running
-    // 20s after it started, so a CI hang shows exactly what's blocked and on what, instead of just
-    // timing out with no information. Remove once the hang is root-caused.
-    @get:Rule
-    val threadDumpOnHang = object : TestWatcher() {
-        @Volatile private var watchdog: Thread? = null
-
-        override fun starting(description: Description) {
-            watchdog = thread(isDaemon = true, name = "issue-77-watchdog") {
-                try {
-                    Thread.sleep(20_000)
-                    println("=== issue #77 THREAD DUMP: ${description.methodName} still running after 20s ===")
-                    Thread.getAllStackTraces().entries.sortedBy { it.key.name }.forEach { (t, stack) ->
-                        println("--- Thread \"${t.name}\" state=${t.state} daemon=${t.isDaemon} ---")
-                        stack.forEach { println("    at $it") }
-                    }
-                    println("=== end thread dump ===")
-                } catch (_: InterruptedException) {
-                    // Test finished before the watchdog fired -- nothing to report.
-                }
-            }
-        }
-
-        override fun finished(description: Description) {
-            watchdog?.interrupt()
-        }
-    }
-
     private lateinit var server: MockWebServer
-    private lateinit var httpClient: OkHttpClient
     private lateinit var db: AppDatabase
     private lateinit var repository: FeedRepository
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var viewModel: SettingsViewModel
-
-    // DataStore's own internal write-ahead actor runs on whatever scope it's given -- left at the
-    // library default (Dispatchers.IO + a scope DataStore owns itself), it isn't cancelled by
-    // anything this test does, so it can still be alive after the test method returns (issue #77).
-    // JUnit's TemporaryFolder rule deletes the backing file right after the test, so a still-live
-    // actor racing that deletion -- more likely the busier a test is, e.g. the 12-feed OPML import
-    // below -- was a plausible source of the "hangs in CI, never locally" pattern this class used
-    // to be skipped for entirely. Handing DataStore this explicit, per-test scope means tearDown
-    // can cancel it outright before the backing file goes away.
-    private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    // Room otherwise falls back to AndroidX's shared, JVM-static ArchTaskExecutor for query/Flow
-    // invalidation dispatch (issue #77) -- every in-memory database across every test in this
-    // class (and every other Robolectric test sharing the same Gradle test JVM fork) contends for
-    // that same small, fixed-size pool. A dedicated executor per test isolates this database's
-    // work from whatever else that shared pool is doing.
-    private val dbExecutor = Executors.newSingleThreadExecutor()
 
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
     // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
@@ -140,20 +114,18 @@ class SettingsViewModelTest {
 
     @Before
     fun setUp() {
+        // See the class doc: this file hangs reliably in CI (issue #54) but never locally, so
+        // it's skipped there for now rather than blocking unrelated work.
+        assumeTrue("Skipped in CI: see issue #54", System.getenv("CI") == null)
         runTestBody()
     }
 
     private fun runTestBody() = runTest(testDispatcher, timeout = 120.seconds) {
         Dispatchers.setMain(testDispatcher)
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
-            .setQueryExecutor(dbExecutor)
-            .setTransactionExecutor(dbExecutor)
-            .allowMainThreadQueries()
-            .build()
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            scope = dataStoreScope,
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
@@ -163,7 +135,7 @@ class SettingsViewModelTest {
         server = MockWebServer()
         server.start()
         repeat(12) { server.enqueue(MockResponse().setResponseCode(200).setBody(defaultFeedsRssXml)) }
-        httpClient = OkHttpClient.Builder()
+        val httpClient = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val original = chain.request()
                 val rewritten = original.url.newBuilder()
@@ -194,20 +166,13 @@ class SettingsViewModelTest {
 
     @After
     fun tearDown() {
+        // setUp bails out early via Assume when skipped in CI (see setUp/issue #54), leaving db
+        // uninitialized -- guard against that so the skip doesn't itself register as a failure.
+        if (!::db.isInitialized) return
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
         // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
         runTest(testDispatcher) { viewModelStore.clearAndJoin() }
-        // Explicitly torn down (issue #77), in this order, before TemporaryFolder's own cleanup
-        // deletes the DataStore's backing file: DataStore's internal actor and OkHttp's dispatcher
-        // executor/connection pool otherwise keep running past this test method's return with
-        // nothing to stop them, which is a plausible source of the old "hangs in CI" symptom this
-        // class used to be skipped for -- the busier a test (e.g. 12 concurrent feed fetches in
-        // addDefaultFeeds_importsBundledOpml), the more there is left to still be running.
-        dataStoreScope.cancel()
-        httpClient.dispatcher.executorService.shutdown()
-        httpClient.connectionPool.evictAll()
         db.close()
-        dbExecutor.shutdown()
         server.shutdown()
         Dispatchers.resetMain()
     }
