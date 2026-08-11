@@ -39,11 +39,14 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.junit.rules.TestWatcher
+import org.junit.runner.Description
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
 import java.util.concurrent.Executors
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -68,6 +71,34 @@ class SettingsViewModelTest {
 
     @get:Rule
     val tempFolder = TemporaryFolder()
+
+    // TEMP issue #77 diagnostic: dumps every thread's stack to stdout if a test is still running
+    // 20s after it started, so a CI hang shows exactly what's blocked and on what, instead of just
+    // timing out with no information. Remove once the hang is root-caused.
+    @get:Rule
+    val threadDumpOnHang = object : TestWatcher() {
+        @Volatile private var watchdog: Thread? = null
+
+        override fun starting(description: Description) {
+            watchdog = thread(isDaemon = true, name = "issue-77-watchdog") {
+                try {
+                    Thread.sleep(20_000)
+                    println("=== issue #77 THREAD DUMP: ${description.methodName} still running after 20s ===")
+                    Thread.getAllStackTraces().entries.sortedBy { it.key.name }.forEach { (t, stack) ->
+                        println("--- Thread \"${t.name}\" state=${t.state} daemon=${t.isDaemon} ---")
+                        stack.forEach { println("    at $it") }
+                    }
+                    println("=== end thread dump ===")
+                } catch (_: InterruptedException) {
+                    // Test finished before the watchdog fired -- nothing to report.
+                }
+            }
+        }
+
+        override fun finished(description: Description) {
+            watchdog?.interrupt()
+        }
+    }
 
     private lateinit var server: MockWebServer
     private lateinit var httpClient: OkHttpClient
