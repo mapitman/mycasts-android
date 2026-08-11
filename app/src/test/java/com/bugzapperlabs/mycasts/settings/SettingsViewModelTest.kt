@@ -18,8 +18,11 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -66,10 +69,21 @@ class SettingsViewModelTest {
     val tempFolder = TemporaryFolder()
 
     private lateinit var server: MockWebServer
+    private lateinit var httpClient: OkHttpClient
     private lateinit var db: AppDatabase
     private lateinit var repository: FeedRepository
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var viewModel: SettingsViewModel
+
+    // DataStore's own internal write-ahead actor runs on whatever scope it's given -- left at the
+    // library default (Dispatchers.IO + a scope DataStore owns itself), it isn't cancelled by
+    // anything this test does, so it can still be alive after the test method returns (issue #77).
+    // JUnit's TemporaryFolder rule deletes the backing file right after the test, so a still-live
+    // actor racing that deletion -- more likely the busier a test is, e.g. the 12-feed OPML import
+    // below -- was a plausible source of the "hangs in CI, never locally" pattern this class used
+    // to be skipped for entirely. Handing DataStore this explicit, per-test scope means tearDown
+    // can cancel it outright before the backing file goes away.
+    private val dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
     // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
@@ -96,6 +110,7 @@ class SettingsViewModelTest {
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
+            scope = dataStoreScope,
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
@@ -105,7 +120,7 @@ class SettingsViewModelTest {
         server = MockWebServer()
         server.start()
         repeat(12) { server.enqueue(MockResponse().setResponseCode(200).setBody(defaultFeedsRssXml)) }
-        val httpClient = OkHttpClient.Builder()
+        httpClient = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val original = chain.request()
                 val rewritten = original.url.newBuilder()
@@ -136,12 +151,18 @@ class SettingsViewModelTest {
 
     @After
     fun tearDown() {
-        // setUp bails out early via Assume when skipped in CI (see setUp/issue #54), leaving db
-        // uninitialized -- guard against that so the skip doesn't itself register as a failure.
-        if (!::db.isInitialized) return
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
         // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
         runTest(testDispatcher) { viewModelStore.clearAndJoin() }
+        // Explicitly torn down (issue #77), in this order, before TemporaryFolder's own cleanup
+        // deletes the DataStore's backing file: DataStore's internal actor and OkHttp's dispatcher
+        // executor/connection pool otherwise keep running past this test method's return with
+        // nothing to stop them, which is a plausible source of the old "hangs in CI" symptom this
+        // class used to be skipped for -- the busier a test (e.g. 12 concurrent feed fetches in
+        // addDefaultFeeds_importsBundledOpml), the more there is left to still be running.
+        dataStoreScope.cancel()
+        httpClient.dispatcher.executorService.shutdown()
+        httpClient.connectionPool.evictAll()
         db.close()
         server.shutdown()
         Dispatchers.resetMain()
