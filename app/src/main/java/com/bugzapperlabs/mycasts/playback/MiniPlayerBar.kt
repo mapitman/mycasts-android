@@ -30,8 +30,8 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -89,6 +89,7 @@ private val MINI_STRIP_SWIPE_UP_MAX_DRAG = 120.dp
 fun MiniPlayerBar(
     playbackState: PlaybackUiState,
     onClick: () -> Unit,
+    onSeek: (Long) -> Unit,
     onTogglePlayPause: () -> Unit,
     onSkipBackward: () -> Unit,
     onSkipForward: () -> Unit,
@@ -141,12 +142,16 @@ fun MiniPlayerBar(
                 )
             }
         Column(modifier = if (applyNavigationBarsPadding) Modifier.navigationBarsPadding() else Modifier) {
-            val progress = if (playbackState.durationMs > 0) {
-                (playbackState.positionMs.toFloat() / playbackState.durationMs).coerceIn(0f, 1f)
-            } else {
-                0f
-            }
-            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+            // issue #93: seeks directly from onValueChange rather than buffering a separate
+            // "currently dragging" position, same as EpisodeDetailsScreen's in-page Slider --
+            // trusts PlaybackController's own position ticker to echo the seek back fast enough
+            // that the thumb doesn't visibly fight the finger.
+            Slider(
+                value = playbackState.positionMs.toFloat(),
+                onValueChange = { onSeek(it.toLong()) },
+                valueRange = 0f..playbackState.durationMs.coerceAtLeast(1L).toFloat(),
+                modifier = Modifier.fillMaxWidth(),
+            )
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
