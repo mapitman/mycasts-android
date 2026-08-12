@@ -496,10 +496,16 @@ private fun PodcastPlayerControls(
                         null
                     }
                     Box(modifier = Modifier.padding(8.dp)) {
+                        // Tertiary (issue #95) as the podcast/enclosure accent, matching the
+                        // download-status icon in the episode list.
                         if (progress != null) {
-                            CircularProgressIndicator(progress = { progress }, modifier = Modifier.size(24.dp))
+                            CircularProgressIndicator(
+                                progress = { progress },
+                                color = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(24.dp),
+                            )
                         } else {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(24.dp))
                         }
                     }
                 }
@@ -510,7 +516,11 @@ private fun PodcastPlayerControls(
                 }
                 else -> {
                     IconButton(onClick = onDownload) {
-                        Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_download_episode))
+                        Icon(
+                            Icons.Filled.Download,
+                            contentDescription = stringResource(R.string.cd_download_episode),
+                            tint = MaterialTheme.colorScheme.tertiary,
+                        )
                     }
                 }
             }

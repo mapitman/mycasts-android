@@ -28,6 +28,15 @@ interface FeedItemDao {
     @Query("SELECT * FROM feed_items WHERE feedId = :feedId ORDER BY publishDate DESC")
     fun observeByFeed(feedId: Long): Flow<List<FeedItem>>
 
+    // Same query as observeByFeed, as a plain one-shot suspend read rather than a live Flow
+    // subscription (issue #106) -- for callers that just need a snapshot (deduplicateItems,
+    // trimToItemsToKeep), going through observeByFeed(...).first() means registering and then
+    // immediately tearing down a Room InvalidationTracker observer for every single call, adding
+    // needless overhead under FeedUpdateEngine.persist()'s heavy per-feed write load and removing
+    // any dependency on that Flow's own emission timing for what's really just a direct query.
+    @Query("SELECT * FROM feed_items WHERE feedId = :feedId ORDER BY publishDate DESC")
+    suspend fun getByFeed(feedId: Long): List<FeedItem>
+
     @Query("SELECT * FROM feed_items WHERE feedId = :feedId AND isRead = 0 ORDER BY publishDate DESC")
     fun observeUnreadByFeed(feedId: Long): Flow<List<FeedItem>>
 

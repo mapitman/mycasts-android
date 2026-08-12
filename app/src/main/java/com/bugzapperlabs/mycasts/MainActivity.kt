@@ -189,7 +189,11 @@ class MainActivity : ComponentActivity() {
             ?: "feedList"
 
         setContent {
-            MyCastsTheme {
+            // Read up-front, before MyCastsTheme itself, so the device-theme-colors setting
+            // (issue #95) can decide dynamicColor -- collected again with the same key further
+            // down for the battery-optimization prompt below, reusing this single subscription.
+            val settings by settingsDataStore.settings.collectAsState(initial = null)
+            MyCastsTheme(dynamicColor = settings?.useDeviceThemeColors ?: true) {
                 // Backs the mini-player <-> full-player shared-element morph (issue #112): the
                 // artwork image and player container carry matching shared keys across
                 // MiniPlayerBar (used both standalone and as the player sheet's sticky header,
@@ -260,7 +264,6 @@ class MainActivity : ComponentActivity() {
                     // window, intermittently breaking background auto-advance. Triggered off
                     // actual playback starting, rather than e.g. app launch, so it's shown at a
                     // moment the exemption is obviously relevant.
-                    val settings by settingsDataStore.settings.collectAsState(initial = null)
                     var showBatteryOptimizationPrompt by remember { mutableStateOf(false) }
                     LaunchedEffect(playbackState.currentItemId, settings?.batteryOptimizationPromptShown) {
                         val currentSettings = settings ?: return@LaunchedEffect

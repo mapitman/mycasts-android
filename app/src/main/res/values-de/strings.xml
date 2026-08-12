@@ -106,6 +106,7 @@
     <string name="settings_section_actions">Aktionen</string>
     <string name="settings_section_about">Über</string>
     <string name="settings_show_images">Bilder anzeigen</string>
+    <string name="settings_use_device_theme_colors">Gerätedesignfarben verwenden</string>
     <string name="settings_default_to_all_items">Standardmäßig alle Elemente anzeigen</string>
     <string name="settings_notify_on_new_items">Bei neuen Artikeln benachrichtigen</string>
     <string name="settings_update_interval">Aktualisierungsintervall: %1$d Min.</string>

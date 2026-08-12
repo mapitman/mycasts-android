@@ -8,7 +8,6 @@ import com.bugzapperlabs.mycasts.data.local.FeedItemDao
 import com.bugzapperlabs.mycasts.data.local.QueueDao
 import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -108,7 +107,7 @@ class FeedRepository @Inject constructor(
      * newest-first). The rest are deleted outright.
      */
     suspend fun deduplicateItems(feedId: Long) {
-        val items = feedItemDao.observeByFeed(feedId).first()
+        val items = feedItemDao.getByFeed(feedId)
         val queuedItemIds = queueDao.orderedItemIdsForFeed(feedId).toSet()
         items.filterNot { it.itemGuid.isNullOrBlank() }
             .groupBy { it.itemGuid }
@@ -150,7 +149,7 @@ class FeedRepository @Inject constructor(
     suspend fun trimToItemsToKeep(feedId: Long, defaultItemsToKeep: Int, alwaysExempt: Set<String> = emptySet()): List<FeedItem> {
         val itemsToKeep = feedDao.getById(feedId)?.itemsToKeep ?: defaultItemsToKeep
         if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) return emptyList()
-        val items = feedItemDao.observeByFeed(feedId).first()
+        val items = feedItemDao.getByFeed(feedId)
         if (items.size <= itemsToKeep) return emptyList()
 
         val queuedItemIds = queueDao.orderedItemIdsForFeed(feedId).toSet()
