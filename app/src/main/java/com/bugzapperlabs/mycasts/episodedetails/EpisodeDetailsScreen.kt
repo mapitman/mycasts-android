@@ -85,6 +85,7 @@ import com.bugzapperlabs.mycasts.data.settings.scaleFactor
 import com.bugzapperlabs.mycasts.playback.PLAYER_ARTWORK_KEY
 import com.bugzapperlabs.mycasts.playback.PlaybackUiState
 import com.bugzapperlabs.mycasts.ui.components.ReaderText
+import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -445,6 +446,10 @@ private fun PodcastPlayerControls(
             onValueChange = { onSeek(it.toLong()) },
             valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
             enabled = isCurrentItem,
+            // A full-width Slider drag starting near either screen edge otherwise gets
+            // intercepted as system back/forward-edge gesture navigation instead of moving the
+            // slider (issue #114, same fix as issue #302's Settings/Feed Properties sliders).
+            modifier = Modifier.excludeFromSystemGestures(),
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
