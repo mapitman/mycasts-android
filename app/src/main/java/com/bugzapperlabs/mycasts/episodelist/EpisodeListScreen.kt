@@ -300,7 +300,9 @@ private fun EpisodeRow(
                         contentDescription = stringResource(
                             if (isDownloaded) R.string.cd_episode_downloaded else R.string.cd_episode_downloading,
                         ),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        // Tertiary (issue #95) as the podcast/enclosure accent, distinguishing an
+                        // episode's download state from the neutral onSurfaceVariant used elsewhere.
+                        tint = MaterialTheme.colorScheme.tertiary,
                         modifier = Modifier.padding(start = 4.dp).size(16.dp),
                     )
                 }
