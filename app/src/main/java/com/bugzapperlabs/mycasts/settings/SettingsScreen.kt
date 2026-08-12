@@ -248,10 +248,17 @@ private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean
             .fillMaxWidth()
             .toggleable(value = checked, onValueChange = onCheckedChange, role = Role.Switch)
             .padding(vertical = 8.dp),
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        // weight(1f) lets a long label wrap onto multiple lines instead of pushing the Switch
+        // off the edge of the screen -- SpaceBetween alone (the previous layout) gave the label
+        // its full intrinsic single-line width, which overflowed for longer strings (issue #98
+        // follow-up: "Auto-download new subscriptions by default").
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f).padding(end = 16.dp),
+        )
         Switch(checked = checked, onCheckedChange = null)
     }
 }
