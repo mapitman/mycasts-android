@@ -69,6 +69,7 @@ fun PlayerBottomSheetContent(
     sortAscending: Boolean,
     onSortByPublishDate: () -> Unit,
     queueSnackbarHostState: SnackbarHostState,
+    onSeek: (Long) -> Unit,
     onTogglePlayPause: () -> Unit,
     onSkipBackward: () -> Unit,
     onSkipForward: () -> Unit,
@@ -93,6 +94,7 @@ fun PlayerBottomSheetContent(
                 MiniPlayerBar(
                     playbackState = playbackState,
                     onClick = onOpenCurrentEpisode,
+                    onSeek = onSeek,
                     onTogglePlayPause = onTogglePlayPause,
                     onSkipBackward = onSkipBackward,
                     onSkipForward = onSkipForward,

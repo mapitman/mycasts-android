@@ -436,6 +436,7 @@ class MainActivity : ComponentActivity() {
                                     sortAscending = queueSortAscending,
                                     onSortByPublishDate = queueViewModel::sortByPublishDate,
                                     queueSnackbarHostState = queueSnackbarHostState,
+                                    onSeek = miniPlayerViewModel::seekTo,
                                     onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
                                     onSkipBackward = miniPlayerViewModel::skipBackward,
                                     onSkipForward = miniPlayerViewModel::skipForward,
