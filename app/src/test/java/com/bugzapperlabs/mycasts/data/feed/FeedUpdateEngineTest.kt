@@ -279,25 +279,48 @@ class FeedUpdateEngineTest {
     }
 
     @Test
-    fun updateFeed_trimsToItemsToKeepAfterPersisting() = runTest {
+    fun updateFeed_firstFetch_capsToItemsToKeepBeforeInserting() = runTest {
+        // issue #110: a feed's first fetch caps how many parsed items get built into rows and
+        // inserted in the first place, rather than inserting the whole batch and relying on
+        // trimToItemsToKeep afterward -- supersedes this test's old premise (issue #83's
+        // protectedNewItemIds saving both items from eviction), since nothing exceeds itemsToKeep
+        // post-insert anymore for there to be anything left to evict. Distinct, out-of-chronological-
+        // order pubDates so the assertion also proves the *newest* item survives, not just
+        // whichever one the feed's XML happened to list first.
+        fun rssWithDatedItems(vararg items: Triple<String, String, String>) = items.joinToString(
+            separator = "\n",
+            prefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel>" +
+                "<title>Test Feed</title><link>https://example.com</link><description>desc</description>",
+            postfix = "</channel></rss>",
+        ) { (guid, title, pubDate) ->
+            "<item><title>$title</title><link>https://example.com/$guid</link><guid>$guid</guid>" +
+                "<description>Body for $title</description><pubDate>$pubDate</pubDate></item>"
+        }
         val feed = subscribeFeed(itemsToKeep = 1)
-        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("guid-1", "Older", "Mon, 03 Jun 2013 11:05:30 GMT"),
+                    Triple("guid-2", "Newer", "Wed, 05 Jun 2013 11:05:30 GMT"),
+                ),
+            ),
+        )
 
         val result = engine.updateFeed(feed)
 
         assertTrue(result is FeedUpdateResult.Success)
-        assertEquals(1, (result as FeedUpdateResult.Success).evictedItemIds.size)
-        assertEquals(1, repository.observeItems(feed.id).first().size)
+        val success = result as FeedUpdateResult.Success
+        assertTrue("evictedItemIds=${success.evictedItemIds}", success.evictedItemIds.isEmpty())
+        assertEquals(1, success.newItemIds.size)
+        val stored = repository.observeItems(feed.id).first()
+        assertEquals(listOf("guid-2"), stored.map { it.itemGuid })
     }
 
     @Test
-    fun updateFeed_autoDownloadEnabled_protectsNewItemsFromSameRefreshTrim() = runTest {
-        // issue #83: trimToItemsToKeep runs inside persist(), before the caller ever gets a
-        // chance to run AutoQueueAndDownloadEnforcer.apply() against this refresh's newItemIds --
-        // a feed publishing more new episodes in one refresh than itemsToKeep allows used to have
-        // the oldest of that very batch evicted immediately, so the enforcer's later
-        // feedRepository.getItem(itemId) lookup silently found nothing and skipped auto-download
-        // entirely for those episodes, with no error or trace of it happening.
+    fun updateFeed_autoDownloadEnabled_firstFetchStillOnlyCapsRatherThanProtectingFromEviction() = runTest {
+        // issue #83's protectedNewItemIds mechanism no longer has anything to do on a first fetch
+        // now that issue #110 caps before insert -- confirms auto-download being enabled doesn't
+        // change that outcome (the cap itself is unconditional, not gated on it).
         val url = server.url("/feed.xml").toString()
         val feedId = repository.subscribe(
             Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1, autoDownloadEnabled = true),
@@ -309,6 +332,54 @@ class FeedUpdateEngineTest {
 
         assertTrue(result is FeedUpdateResult.Success)
         val success = result as FeedUpdateResult.Success
+        assertTrue("evictedItemIds=${success.evictedItemIds}", success.evictedItemIds.isEmpty())
+        assertEquals(1, success.newItemIds.size)
+    }
+
+    @Test
+    fun updateFeed_subsequentRefresh_stillTrimsNewItemsNormally() = runTest {
+        // issue #110 only caps a feed's *first* fetch -- a later refresh (lastGet already set)
+        // still inserts everything new and relies on trimToItemsToKeep afterward, same as before
+        // that change (issue #82's original trim-to-itemsToKeep behavior is unaffected here).
+        val feed = subscribeFeed(itemsToKeep = 1)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First")))
+        engine.updateFeed(feed)
+        val refreshedFeed = repository.getFeed(feed.id)!!
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
+
+        val result = engine.updateFeed(refreshedFeed)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        assertEquals(1, (result as FeedUpdateResult.Success).evictedItemIds.size)
+    }
+
+    @Test
+    fun updateFeed_autoDownloadEnabled_subsequentRefresh_protectsNewItemsFromSameRefreshTrim() = runTest {
+        // issue #83's original mechanism, still live for a *subsequent* refresh (as opposed to
+        // issue #110's first-fetch cap above): trimToItemsToKeep runs inside persist(), before the
+        // caller ever gets a chance to run AutoQueueAndDownloadEnforcer.apply() against this
+        // refresh's newItemIds -- a feed publishing more new episodes in one refresh than
+        // itemsToKeep allows used to have the oldest of that very batch evicted immediately, so the
+        // enforcer's later feedRepository.getItem(itemId) lookup silently found nothing and
+        // skipped auto-download entirely for those episodes, with no error or trace of it happening.
+        // The prior fetch deliberately returns zero items (rather than, say, one) -- keeps this
+        // refresh's eviction candidates limited to just this refresh's own new items, since
+        // FeedItemDao.getByFeed has no explicit ORDER BY and this test shouldn't depend on
+        // whatever order an unrelated pre-existing item happens to come back in.
+        val url = server.url("/feed.xml").toString()
+        val feedId = repository.subscribe(
+            Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1, autoDownloadEnabled = true),
+        )
+        val feed = repository.getFeed(feedId)!!
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems()))
+        engine.updateFeed(feed)
+        val refreshedFeed = repository.getFeed(feedId)!!
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
+
+        val result = engine.updateFeed(refreshedFeed)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        val success = result as FeedUpdateResult.Success
         // Nothing evicted this refresh -- both new items survive long enough for the enforcer to
         // see them, even though itemsToKeep=1 would normally trim one of them immediately.
         assertTrue("evictedItemIds=${success.evictedItemIds}", success.evictedItemIds.isEmpty())
@@ -316,20 +387,6 @@ class FeedUpdateEngineTest {
         success.newItemIds.forEach { itemId ->
             assertTrue("item $itemId should still exist", repository.getItem(itemId) != null)
         }
-    }
-
-    @Test
-    fun updateFeed_autoDownloadDisabled_stillTrimsNewItemsNormally() = runTest {
-        // The protection above is specific to feeds the enforcer will actually process --
-        // without auto-download/auto-queue enabled, same-refresh trimming behaves exactly as
-        // before (issue #82's original trim-to-itemsToKeep behavior is unaffected).
-        val feed = subscribeFeed(itemsToKeep = 1)
-        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
-
-        val result = engine.updateFeed(feed)
-
-        assertTrue(result is FeedUpdateResult.Success)
-        assertEquals(1, (result as FeedUpdateResult.Success).evictedItemIds.size)
     }
 
     @Test
@@ -433,6 +490,8 @@ class FeedUpdateEngineTest {
     fun updateFeed_noPerFeedItemsToKeep_fallsBackToGlobalMaxArticles() = runTest {
         // issue #82: null itemsToKeep means "use the app-wide default" (per Feed Properties'
         // display), not "unlimited" -- a feed relying on the global default was never trimmed.
+        // Evicted count is 0, not 1, since issue #110's first-fetch cap already applies the same
+        // global-fallback resolution before insert, leaving nothing left over to trim afterward.
         settingsDataStore.setMaxItemsPerFeed(1)
         val feed = subscribeFeed(itemsToKeep = null)
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
@@ -440,7 +499,7 @@ class FeedUpdateEngineTest {
         val result = engine.updateFeed(feed)
 
         assertTrue(result is FeedUpdateResult.Success)
-        assertEquals(1, (result as FeedUpdateResult.Success).evictedItemIds.size)
+        assertEquals(0, (result as FeedUpdateResult.Success).evictedItemIds.size)
         assertEquals(1, repository.observeItems(feed.id).first().size)
     }
 
