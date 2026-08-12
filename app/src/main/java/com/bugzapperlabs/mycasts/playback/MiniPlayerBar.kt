@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -150,7 +151,10 @@ fun MiniPlayerBar(
                 value = playbackState.positionMs.toFloat(),
                 onValueChange = { onSeek(it.toLong()) },
                 valueRange = 0f..playbackState.durationMs.coerceAtLeast(1L).toFloat(),
-                modifier = Modifier.fillMaxWidth(),
+                // A full-width Slider drag starting near either screen edge otherwise gets
+                // intercepted as system back/forward-edge gesture navigation instead of moving
+                // the slider (issue #114, same fix as issue #302's Settings/Feed Properties sliders).
+                modifier = Modifier.fillMaxWidth().excludeFromSystemGestures(),
             )
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
