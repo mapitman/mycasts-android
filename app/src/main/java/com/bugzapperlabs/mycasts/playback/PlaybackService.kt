@@ -17,6 +17,8 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
+import androidx.media3.exoplayer.source.preload.TargetPreloadStatusControl
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -38,7 +40,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -46,6 +50,22 @@ import javax.inject.Inject
 // Safety cap on the advance-to-next-episode wake lock below, so a stuck/crashed advance can't
 // hold it forever.
 private const val ADVANCE_WAKE_LOCK_TIMEOUT_MS = 30_000L
+
+// How much of the Next Up head episode to keep buffered ahead of time (issue #87). The observed
+// silence gap between episodes was dominated by connection setup + first chunk, not by needing a
+// deep buffer, so this is generous headroom rather than a tuned minimum.
+private const val PRELOAD_TARGET_MS = 15_000L
+
+/**
+ * Trivial by design (issue #87): this app only ever preloads a single candidate at a time (the
+ * Next Up head), unlike a carousel with many ranked candidates, so there's no need to track a
+ * moving "current index" to decide what's worth preloading -- whatever's been added always is.
+ */
+@androidx.media3.common.util.UnstableApi
+private class NextEpisodePreloadStatusControl : TargetPreloadStatusControl<Int> {
+    override fun getTargetPreloadStatus(rankingData: Int): TargetPreloadStatusControl.PreloadStatus =
+        DefaultPreloadManager.Status(DefaultPreloadManager.Status.STAGE_LOADED_FOR_DURATION_MS, PRELOAD_TARGET_MS)
+}
 
 /**
  * Ported from MyFeeds.AudioPlaybackAgent AudioPlayer.cs OnPlayStateChanged: while playing, saves
@@ -70,8 +90,18 @@ class PlaybackService : MediaSessionService() {
     lateinit var queueRepository: QueueRepository
 
     private lateinit var player: ExoPlayer
+
+    @UnstableApi
+    private lateinit var preloadManager: DefaultPreloadManager
     private lateinit var advanceWakeLock: PowerManager.WakeLock
     private var mediaSession: MediaSession? = null
+
+    // The Next Up head's resolved media, kept in sync with the queue by preloadQueueHeadJob below
+    // (issue #87) -- cached (rather than re-resolving at transition time) so playNextQueued() can
+    // look its MediaItem up in preloadManager by reference-equal match, and so a resolve() that
+    // depends on settings/position doesn't drift between when it was registered for preload and
+    // when it's actually needed a few seconds/minutes later.
+    private var preloadedNext: Pair<String, ResolvedPlaybackMedia>? = null
 
     // Boosts loudness beyond ExoPlayer's unity-gain volume cap (issue #199), keyed to the
     // player's audio session ID which is fixed for the lifetime of this ExoPlayer instance. Some
@@ -97,26 +127,35 @@ class PlaybackService : MediaSessionService() {
         // returns true for AUDIO_CONTENT_TYPE_SPEECH. Podcast speech talking under a nav prompt at
         // reduced volume is still unintelligible, so mark the content as speech to get an outright
         // pause/resume instead of a duck.
-        player = ExoPlayer.Builder(this)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                    .build(),
-                /* handleAudioFocus= */ true,
-            )
-            // Without this, continuing an already-open stream in the background works fine, but
-            // opening a *new* one (auto-advancing to the next Next Up episode while backgrounded,
-            // issue #179) can stall indefinitely once the device dozes / Wi-Fi goes idle, since
-            // nothing is holding a CPU/Wi-Fi wake lock to let the new connection actually open.
-            .setWakeMode(C.WAKE_MODE_NETWORK)
-            // Defaults to false, so without this, audio rerouted from a disconnecting Bluetooth
-            // device (or unplugged wired headphones) keeps playing out loud on the speaker
-            // instead of pausing (issue #243).
-            .setHandleAudioBecomingNoisy(true)
-            .build()
+        // Routed through DefaultPreloadManager.Builder (issue #87) rather than built directly, so
+        // the Next Up head episode can be warming up (connection opened, first chunk buffered) in
+        // the background while the current one still plays -- see preloadQueueHeadJob below. All
+        // of ExoPlayer's own configuration below is unchanged from before that; the preload
+        // manager just needs to build the player itself to wire in its shared internals.
+        val preloadManagerBuilder = DefaultPreloadManager.Builder(this, NextEpisodePreloadStatusControl())
+        preloadManager = preloadManagerBuilder.build()
+        player = preloadManagerBuilder.buildExoPlayer(
+            ExoPlayer.Builder(this)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                        .build(),
+                    /* handleAudioFocus= */ true,
+                )
+                // Without this, continuing an already-open stream in the background works fine, but
+                // opening a *new* one (auto-advancing to the next Next Up episode while backgrounded,
+                // issue #179) can stall indefinitely once the device dozes / Wi-Fi goes idle, since
+                // nothing is holding a CPU/Wi-Fi wake lock to let the new connection actually open.
+                .setWakeMode(C.WAKE_MODE_NETWORK)
+                // Defaults to false, so without this, audio rerouted from a disconnecting Bluetooth
+                // device (or unplugged wired headphones) keeps playing out loud on the speaker
+                // instead of pausing (issue #243).
+                .setHandleAudioBecomingNoisy(true),
+        )
         player.addListener(playerListener)
         loudnessEnhancer = runCatching { LoudnessEnhancer(player.audioSessionId) }.getOrNull()
+        startPreloadingQueueHead()
 
         // ExoPlayer's own WAKE_MODE_NETWORK lock only covers actively-playing time -- it releases
         // the instant an episode hits STATE_ENDED, before the auto-advance coroutine below has run
@@ -151,6 +190,30 @@ class PlaybackService : MediaSessionService() {
         updateMediaButtonPreferences()
     }
 
+    /**
+     * Keeps [preloadManager] warming up whatever's currently at the head of Next Up (issue #87),
+     * reacting to every mutation that can change it -- add/remove/reorder/auto-queue eviction all
+     * flow through [QueueRepository.observeQueue]. Runs for the service's whole lifetime, not
+     * gated on anything currently playing, so the head is already warm by the time an episode
+     * actually finishes and [playNextQueued] needs it.
+     */
+    @OptIn(markerClass = [UnstableApi::class])
+    private fun startPreloadingQueueHead() {
+        serviceScope.launch {
+            queueRepository.observeQueue().map { it.firstOrNull() }.distinctUntilChanged { old, new -> old?.item?.id == new?.item?.id }
+                .collect { head ->
+                    preloadManager.reset()
+                    preloadedNext = null
+                    if (head == null) return@collect
+                    val resolved = PlaybackMediaItemFactory.resolve(head.item, head.feedTitle, feedRepository, settingsDataStore)
+                        ?: return@collect
+                    preloadedNext = head.item.id to resolved
+                    preloadManager.add(resolved.mediaItem, /* rankingData= */ 0)
+                    preloadManager.invalidate()
+                }
+        }
+    }
+
     /** Pushes the skip/speed buttons through the session itself, not just the notification
      *  provider (issue #293) -- see [buildSkipAndSpeedMediaButtonPreferences]'s doc for why both
      *  are needed. Called again whenever the speed changes so the system media card's speed
@@ -165,6 +228,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
+    @OptIn(markerClass = [UnstableApi::class])
     override fun onDestroy() {
         positionSaveJob?.cancel()
         if (advanceWakeLock.isHeld) advanceWakeLock.release()
@@ -172,6 +236,7 @@ class PlaybackService : MediaSessionService() {
         loudnessEnhancer = null
         mediaSession?.let { session ->
             player.release()
+            preloadManager.release()
             session.release()
             mediaSession = null
         }
@@ -350,6 +415,7 @@ class PlaybackService : MediaSessionService() {
      * issue #179: this has to keep working even with no UI/MediaController attached (backgrounded
      * or screen off), and this service is the one guaranteed to still be running when that happens.
      */
+    @OptIn(markerClass = [UnstableApi::class])
     private suspend fun playNextQueued() {
         val itemId = queueRepository.popNext()
         if (itemId == null) {
@@ -361,15 +427,32 @@ class PlaybackService : MediaSessionService() {
         // be set unconditionally by the caller before playNextQueued() ran at all, but that clear
         // is now deferred to here so it doesn't add to the silence gap ahead of the *success*
         // path's player.prepare()/play() below.
-        val item = feedRepository.getItem(itemId) ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
-        val feed = feedRepository.getFeed(item.feedId)
-        val resolved = PlaybackMediaItemFactory.resolve(item, feed?.userTitle ?: feed?.title, feedRepository, settingsDataStore)
-            ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
-        player.setMediaItem(resolved.mediaItem, resolved.startPositionMs)
+        //
+        // Reuses startPreloadingQueueHead's cached resolve for this exact item id if it's still
+        // current (issue #87), rather than resolving fresh -- both to avoid a redundant DB read
+        // and because getMediaSource() below matches by the same MediaItem instance passed to
+        // preloadManager.add(), so a freshly re-resolved MediaItem wouldn't match it anyway.
+        val cachedPreload = preloadedNext?.takeIf { it.first == itemId }?.second
+        val resolved = cachedPreload ?: run {
+            val item = feedRepository.getItem(itemId) ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
+            val feed = feedRepository.getFeed(item.feedId)
+            PlaybackMediaItemFactory.resolve(item, feed?.userTitle ?: feed?.title, feedRepository, settingsDataStore)
+                ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
+        }
+        val feedId = resolved.mediaItem.mediaMetadata.extras?.getLong(FEED_ID_EXTRA_KEY)
+        val preloadedSource = cachedPreload?.let { preloadManager.getMediaSource(resolved.mediaItem) }
+        if (preloadedSource != null) {
+            player.setMediaSource(preloadedSource)
+            player.seekTo(resolved.startPositionMs)
+        } else {
+            player.setMediaItem(resolved.mediaItem, resolved.startPositionMs)
+        }
         player.setPlaybackSpeed(resolved.speed)
         player.prepare()
         player.play()
-        settingsDataStore.setLastPlayingItem(item.feedId, item.id)
+        settingsDataStore.setLastPlayingItem(feedId, itemId)
+        preloadedNext = null
+        preloadManager.reset()
     }
 
     private fun startPositionSaveLoop() {
