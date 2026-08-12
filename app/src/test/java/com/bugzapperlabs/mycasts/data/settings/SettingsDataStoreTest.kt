@@ -91,6 +91,15 @@ class SettingsDataStoreTest {
     }
 
     @Test
+    fun setAddDefaultFeedsPromptShown_roundTrips() = runTest {
+        assertFalse(settingsDataStore.settings.first().addDefaultFeedsPromptShown)
+
+        settingsDataStore.setAddDefaultFeedsPromptShown(true)
+
+        assertTrue(settingsDataStore.settings.first().addDefaultFeedsPromptShown)
+    }
+
+    @Test
     fun reset_clearsBackToDefaults() = runTest {
         settingsDataStore.setMaxItemsPerFeed(999)
         settingsDataStore.setAllowPodcastStreaming(false)

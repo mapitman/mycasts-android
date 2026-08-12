@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -26,6 +27,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.pullToRefresh
@@ -63,7 +65,22 @@ fun FeedListScreen(
     val refreshError by viewModel.refreshError.collectAsState()
     val opmlImportResult by viewModel.opmlImportResult.collectAsState()
     val opmlImportProgress by viewModel.opmlImportProgress.collectAsState()
+    val showAddDefaultFeedsPrompt by viewModel.showAddDefaultFeedsPrompt.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    if (showAddDefaultFeedsPrompt) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissAddDefaultFeedsPrompt,
+            title = { Text(stringResource(R.string.feed_list_add_default_feeds_prompt_title)) },
+            text = { Text(stringResource(R.string.feed_list_add_default_feeds_prompt_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::acceptAddDefaultFeedsPrompt) { Text(stringResource(R.string.action_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissAddDefaultFeedsPrompt) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
 
     LaunchedEffect(refreshError) {
         refreshError?.let {
