@@ -136,6 +136,8 @@
     <string name="settings_about_description">Un cliente de podcasts.</string>
     <string name="settings_export_opml">Exportar OPML</string>
     <string name="settings_save_opml_to_file">Guardar OPML en un archivo</string>
+    <string name="settings_copy_opml_to_clipboard">Copiar OPML al portapapeles</string>
+    <string name="settings_opml_copied_to_clipboard">OPML copiado al portapapeles</string>
     <string name="settings_export_feeds_chooser_title">Exportar fuentes</string>
     <string name="settings_clear_podcasts">Borrar podcasts</string>
     <string name="settings_add_default_feeds">Añadir fuentes predeterminadas</string>
