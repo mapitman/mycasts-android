@@ -102,6 +102,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setAutoDownloadNewFeedsMaxCount(value) }
     }
 
+    fun setUseDeviceThemeColors(value: Boolean) {
+        viewModelScope.launch { settingsDataStore.setUseDeviceThemeColors(value) }
+    }
+
     fun setNotifyOnNewItems(value: Boolean) {
         viewModelScope.launch { settingsDataStore.setNotifyOnNewItems(value) }
     }

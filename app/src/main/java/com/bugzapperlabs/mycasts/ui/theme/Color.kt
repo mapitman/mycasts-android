@@ -24,3 +24,17 @@ val MyCastsOrangeDark = Color(0xFFFFB77C)
 val OnMyCastsOrangeDark = Color(0xFF4A2800)
 val MyCastsOrangeContainerDark = Color(0xFF693C00)
 val OnMyCastsOrangeContainerDark = Color(0xFFFFDCC1)
+
+// Muted sage-green secondary (issue #95) -- a desaturated companion to the brand green primary,
+// giving the fixed/fallback color scheme (used whenever device theme colors are off or
+// unavailable) a third distinct accent role instead of leaving `secondary` at Material 3's
+// generic baseline.
+val MyCastsSecondaryLight = Color(0xFF54634F)
+val OnMyCastsSecondaryLight = Color(0xFFFFFFFF)
+val MyCastsSecondaryContainerLight = Color(0xFFD7E8CF)
+val OnMyCastsSecondaryContainerLight = Color(0xFF121F0F)
+
+val MyCastsSecondaryDark = Color(0xFFBBCCB3)
+val OnMyCastsSecondaryDark = Color(0xFF263422)
+val MyCastsSecondaryContainerDark = Color(0xFF3C4B37)
+val OnMyCastsSecondaryContainerDark = Color(0xFFD7E8CF)

@@ -118,6 +118,11 @@ fun SettingsScreen(
             UpdateIntervalSetting(settings, viewModel)
             SwitchRow(stringResource(R.string.settings_show_images), settings.enableImageDisplay, viewModel::setEnableImageDisplay)
             SwitchRow(
+                stringResource(R.string.settings_use_device_theme_colors),
+                settings.useDeviceThemeColors,
+                viewModel::setUseDeviceThemeColors,
+            )
+            SwitchRow(
                 stringResource(R.string.settings_default_to_all_items),
                 settings.defaultToAllItemsView,
                 viewModel::setDefaultToAllItemsView,

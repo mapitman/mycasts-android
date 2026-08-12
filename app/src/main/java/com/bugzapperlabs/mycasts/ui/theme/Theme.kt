@@ -15,6 +15,10 @@ private val DarkColorScheme = darkColorScheme(
     onPrimary = OnMyCastsGreenDark,
     primaryContainer = MyCastsGreenContainerDark,
     onPrimaryContainer = OnMyCastsGreenContainerDark,
+    secondary = MyCastsSecondaryDark,
+    onSecondary = OnMyCastsSecondaryDark,
+    secondaryContainer = MyCastsSecondaryContainerDark,
+    onSecondaryContainer = OnMyCastsSecondaryContainerDark,
     tertiary = MyCastsOrangeDark,
     onTertiary = OnMyCastsOrangeDark,
     tertiaryContainer = MyCastsOrangeContainerDark,
@@ -26,6 +30,10 @@ private val LightColorScheme = lightColorScheme(
     onPrimary = OnMyCastsGreenLight,
     primaryContainer = MyCastsGreenContainerLight,
     onPrimaryContainer = OnMyCastsGreenContainerLight,
+    secondary = MyCastsSecondaryLight,
+    onSecondary = OnMyCastsSecondaryLight,
+    secondaryContainer = MyCastsSecondaryContainerLight,
+    onSecondaryContainer = OnMyCastsSecondaryContainerLight,
     tertiary = MyCastsOrangeLight,
     onTertiary = OnMyCastsOrangeLight,
     tertiaryContainer = MyCastsOrangeContainerLight,
@@ -33,8 +41,10 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * @param dynamicColor Opt-in to Android 12+ wallpaper-derived color. Off by default so the
- * ported MyCasts brand (green accent, orange tertiary) always shows.
+ * @param dynamicColor Opt-in to Android 12+ wallpaper-derived color, defaulting to off here so
+ * callers that don't care (previews, tests) get the fixed MyCasts brand scheme. The app's own
+ * entry point (`MainActivity`) explicitly passes the user's "Use device theme colors" setting
+ * (issue #95, on by default there) rather than relying on this default.
  */
 @Composable
 fun MyCastsTheme(

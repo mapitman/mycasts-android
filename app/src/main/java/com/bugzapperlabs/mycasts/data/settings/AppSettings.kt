@@ -75,4 +75,8 @@ data class AppSettings(
      *  [autoDownloadNewFeedsByDefault] (issue #98) -- same 1/3/5/10/unlimited(null) options as the
      *  per-feed chips in Feed Properties. */
     val autoDownloadNewFeedsMaxCount: Int? = 5,
+    /** Follows the device's Material You theme color when available (issue #95), instead of the
+     *  fixed MyCasts brand colors. Defaults to on; a user who prefers the brand colors can turn it
+     *  back off. Has no effect below Android 12 (see [com.bugzapperlabs.mycasts.ui.theme.MyCastsTheme]). */
+    val useDeviceThemeColors: Boolean = true,
 )
