@@ -16,6 +16,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 data class OpmlImportResult(
@@ -23,6 +24,9 @@ data class OpmlImportResult(
     val alreadySubscribedCount: Int,
     val invalidCount: Int,
 )
+
+/** Progress through [OpmlImporter.import]'s concurrent-fetch phase, for an in-app indicator (issue #105). */
+data class ImportProgress(val completedCount: Int, val totalCount: Int)
 
 /**
  * Imports a parsed [OpmlDocument]'s flat feed list:
@@ -60,7 +64,10 @@ class OpmlImporter @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val autoQueueAndDownloadEnforcer: AutoQueueAndDownloadEnforcer,
 ) {
-    suspend fun import(document: OpmlDocument): OpmlImportResult = coroutineScope {
+    suspend fun import(
+        document: OpmlDocument,
+        onFeedComplete: suspend (completedCount: Int, totalCount: Int) -> Unit = { _, _ -> },
+    ): OpmlImportResult = coroutineScope {
         val seenUrls = mutableSetOf<String>()
         var alreadySubscribedCount = 0
         val candidates = document.feeds.filter { feed ->
@@ -84,8 +91,18 @@ class OpmlImporter @Inject constructor(
         // reproducibly hung indefinitely on a large multi-feed import.
         val settings = settingsDataStore.settings.first()
         val semaphore = Semaphore(settings.feedRefreshConcurrency.coerceAtLeast(1))
+        val completedCount = AtomicInteger(0)
+        // Unlike FeedUpdateEngine.updateFeeds (whose caller already knows the total up front and
+        // reports 0/total itself before starting), the candidate count here isn't known to callers
+        // until after the already-subscribed/duplicate filtering above -- reported once immediately
+        // so a progress indicator has something to show before the first feed finishes.
+        onFeedComplete(0, inserted.size)
         val imported = inserted.map { (feed, feedRow) ->
-            async { semaphore.withPermit { validateAndPersist(feed, feedRow, settings) } }
+            async {
+                val result = semaphore.withPermit { validateAndPersist(feed, feedRow, settings) }
+                onFeedComplete(completedCount.incrementAndGet(), inserted.size)
+                result
+            }
         }.awaitAll()
 
         autoQueueAndDownloadEnforcer.apply(imported.filterNotNull())

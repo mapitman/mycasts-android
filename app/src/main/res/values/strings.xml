@@ -176,6 +176,7 @@
     <string name="add_feed_enter_opml_url_error">Enter an OPML URL</string>
     <string name="add_feed_could_not_load_opml">Could not load OPML from %1$s</string>
     <string name="add_feed_imported_count">Imported %1$d feeds</string>
+    <string name="opml_import_progress">%1$d of %2$d feeds imported</string>
     <string name="add_feed_no_feeds_found_in_opml">No feeds found in OPML</string>
     <string name="add_feed_all_feeds_already_subscribed">All feeds in this OPML are already subscribed</string>
     <plurals name="add_feed_import_started">

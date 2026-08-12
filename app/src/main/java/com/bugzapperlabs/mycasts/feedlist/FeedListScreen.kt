@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -61,6 +62,7 @@ fun FeedListScreen(
     val feedListFontSize by viewModel.feedListFontSize.collectAsState()
     val refreshError by viewModel.refreshError.collectAsState()
     val opmlImportResult by viewModel.opmlImportResult.collectAsState()
+    val opmlImportProgress by viewModel.opmlImportProgress.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(refreshError) {
@@ -102,84 +104,97 @@ fun FeedListScreen(
             }
         },
     ) { innerPadding ->
-        if (uiState.feeds.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-            ) {
-                Text(
-                    text = stringResource(R.string.feed_list_no_feeds_yet),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 24.dp, bottom = 96.dp)
-                        .widthIn(max = 220.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.feed_list_empty_hint),
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.End,
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .size(40.dp)
-                            .rotate(90f),
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+            // A background OPML import (issue #271) can finish well after the screen that started
+            // it -- Add Feed or a share-intent -- has already closed, so its progress is shown here
+            // too (issue #105), above either branch below, since it's just as likely to be running
+            // while the feed list is still empty as once feeds already exist.
+            opmlImportProgress?.takeIf { it.totalCount > 0 }?.let { progress ->
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Text(stringResource(R.string.opml_import_progress, progress.completedCount, progress.totalCount))
+                    LinearProgressIndicator(
+                        progress = { progress.completedCount.toFloat() / progress.totalCount },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
-            return@Scaffold
-        }
 
-        // A taller-than-default pull threshold (issue #45): overshooting while flicking the list
-        // to the top was accidentally triggering a refresh-all-feeds. The gesture itself stays --
-        // just requires a more deliberate pull to actually fire.
-        val pullToRefreshThreshold = PullToRefreshDefaults.PositionalThreshold * 2
-        val pullToRefreshState = rememberPullToRefreshState()
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .pullToRefresh(
-                    state = pullToRefreshState,
-                    isRefreshing = uiState.isRefreshing,
-                    onRefresh = viewModel::refresh,
-                    threshold = pullToRefreshThreshold,
-                ),
-        ) {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                item {
+            if (uiState.feeds.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     Text(
-                        text = stringResource(R.string.feed_list_section_unplayed, uiState.totalUnread),
+                        text = stringResource(R.string.feed_list_no_feeds_yet),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.align(Alignment.Center),
                     )
+                    Column(
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 24.dp, bottom = 96.dp)
+                            .widthIn(max = 220.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.feed_list_empty_hint),
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.End,
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                .size(40.dp)
+                                .rotate(90f),
+                        )
+                    }
                 }
-                items(uiState.feeds, key = { it.feed.id }) { item ->
-                    ListItemRow(
-                        title = item.feed.userTitle ?: item.feed.title.orEmpty(),
-                        subtitle = item.feed.description,
-                        imageUrl = item.feed.imageUrl,
-                        unreadCount = item.unreadCount,
-                        titleFontScale = feedListFontSize.scaleFactor,
-                        onClick = { onFeedClick(item.feed.id) },
-                        onLongClick = { onFeedLongClick(item.feed.id) },
+            } else {
+                // A taller-than-default pull threshold (issue #45): overshooting while flicking the
+                // list to the top was accidentally triggering a refresh-all-feeds. The gesture
+                // itself stays -- just requires a more deliberate pull to actually fire.
+                val pullToRefreshThreshold = PullToRefreshDefaults.PositionalThreshold * 2
+                val pullToRefreshState = rememberPullToRefreshState()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .pullToRefresh(
+                            state = pullToRefreshState,
+                            isRefreshing = uiState.isRefreshing,
+                            onRefresh = viewModel::refresh,
+                            threshold = pullToRefreshThreshold,
+                        ),
+                ) {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.feed_list_section_unplayed, uiState.totalUnread),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                        items(uiState.feeds, key = { it.feed.id }) { item ->
+                            ListItemRow(
+                                title = item.feed.userTitle ?: item.feed.title.orEmpty(),
+                                subtitle = item.feed.description,
+                                imageUrl = item.feed.imageUrl,
+                                unreadCount = item.unreadCount,
+                                titleFontScale = feedListFontSize.scaleFactor,
+                                onClick = { onFeedClick(item.feed.id) },
+                                onLongClick = { onFeedLongClick(item.feed.id) },
+                            )
+                        }
+                    }
+                    PullToRefreshDefaults.Indicator(
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        isRefreshing = uiState.isRefreshing,
+                        state = pullToRefreshState,
+                        threshold = pullToRefreshThreshold,
                     )
                 }
             }
-            PullToRefreshDefaults.Indicator(
-                modifier = Modifier.align(Alignment.TopCenter),
-                isRefreshing = uiState.isRefreshing,
-                state = pullToRefreshState,
-                threshold = pullToRefreshThreshold,
-            )
         }
     }
 }

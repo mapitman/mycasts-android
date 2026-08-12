@@ -1,13 +1,16 @@
 package com.bugzapperlabs.mycasts.data.opml
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import com.bugzapperlabs.mycasts.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,13 +35,22 @@ class OpmlImportCoordinator @Inject constructor(
     /** One-shot completed-import message for a Snackbar; cleared via [consumeResult]. */
     val result: StateFlow<String?> = _result
 
+    private val _progress = MutableStateFlow<ImportProgress?>(null)
+
+    /** Live completed/total counts while an import runs, `null` when none is in progress (issue #105). */
+    val progress: StateFlow<ImportProgress?> = _progress
+
     fun consumeResult() {
         _result.value = null
     }
 
     fun startImport(document: OpmlDocument) {
         scope.launch {
-            val importResult = opmlImporter.import(document)
+            val importResult = try {
+                opmlImporter.import(document) { completed, total -> _progress.value = ImportProgress(completed, total) }
+            } finally {
+                _progress.value = null
+            }
             _result.value = when {
                 importResult.importedCount > 0 ->
                     context.getString(R.string.add_feed_imported_count, importResult.importedCount)
@@ -47,5 +59,15 @@ class OpmlImportCoordinator @Inject constructor(
                 else -> context.getString(R.string.add_feed_all_feeds_already_subscribed)
             }
         }
+    }
+
+    /**
+     * Test-only teardown: cancels [scope] and waits until every coroutine launched into it has
+     * actually finished, so nothing is left mid-flight against the test's own database once it
+     * closes (mirrors [com.bugzapperlabs.mycasts.download.DownloadFeedbackCoordinator.cancelForTest]).
+     */
+    @VisibleForTesting
+    internal suspend fun cancelForTest() {
+        scope.coroutineContext.job.cancelAndJoin()
     }
 }

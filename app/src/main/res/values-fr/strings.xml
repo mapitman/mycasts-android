@@ -172,6 +172,7 @@
     <string name="add_feed_enter_opml_url_error">Saisissez une URL OPML</string>
     <string name="add_feed_could_not_load_opml">Impossible de charger l\'OPML depuis %1$s</string>
     <string name="add_feed_imported_count">%1$d flux importés</string>
+    <string name="opml_import_progress">%1$d flux sur %2$d importés</string>
     <string name="add_feed_no_feeds_found_in_opml">Aucun flux trouvé dans l\'OPML</string>
     <string name="add_feed_all_feeds_already_subscribed">Tous les flux de cet OPML sont déjà suivis</string>
     <plurals name="add_feed_import_started">

@@ -10,6 +10,7 @@ import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateResult
 import com.bugzapperlabs.mycasts.data.local.Feed
+import com.bugzapperlabs.mycasts.data.opml.ImportProgress
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.FontSize
@@ -63,6 +64,9 @@ class FeedListViewModel @Inject constructor(
     // started it has already closed, so its result is surfaced here instead, on the screen the
     // user lands back on.
     val opmlImportResult: StateFlow<String?> = opmlImportCoordinator.result
+
+    /** Live completed/total counts while that same import runs (issue #105). */
+    val opmlImportProgress: StateFlow<ImportProgress?> = opmlImportCoordinator.progress
 
     fun consumeOpmlImportResult() {
         opmlImportCoordinator.consumeResult()
