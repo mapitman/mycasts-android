@@ -7,8 +7,9 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.opml.ImportProgress
 import com.bugzapperlabs.mycasts.data.opml.OpmlExporter
-import com.bugzapperlabs.mycasts.data.opml.OpmlImporter
+import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
@@ -18,6 +19,7 @@ import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -27,7 +29,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
     private val feedRepository: FeedRepository,
-    private val opmlImporter: OpmlImporter,
+    private val opmlImportCoordinator: OpmlImportCoordinator,
     private val opmlExporter: OpmlExporter,
     private val feedRefreshScheduler: FeedRefreshScheduling,
     @ApplicationContext private val context: Context,
@@ -35,12 +37,25 @@ class SettingsViewModel @Inject constructor(
     val settings: StateFlow<AppSettings> =
         settingsDataStore.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
 
+    /** Live completed/total counts while "Add default feeds" runs (issue #105). */
+    val addDefaultFeedsProgress: StateFlow<ImportProgress?> = opmlImportCoordinator.progress
+
+    // addDefaultFeeds() runs on OpmlImportCoordinator's app-lifetime scope (issue #105) so
+    // navigating away from Settings mid-import no longer cancels it, the same reason
+    // AddFeedViewModel's own OPML import already went through the coordinator (issue #271) --
+    // merged with this ViewModel's own local message rather than exposing the coordinator's result
+    // directly, since this screen must also report a local OPML-parse failure below. WhileSubscribed
+    // (matching [settings] above) rather than a plain always-collecting coroutine, so nothing is
+    // left running once nobody's observing it.
+    private val _localMessage = MutableStateFlow<String?>(null)
+
     /** One-shot "Add default feeds" result for a Snackbar; cleared via [consumeAddDefaultFeedsMessage]. */
-    private val _addDefaultFeedsMessage = MutableStateFlow<String?>(null)
-    val addDefaultFeedsMessage: StateFlow<String?> = _addDefaultFeedsMessage
+    val addDefaultFeedsMessage: StateFlow<String?> =
+        merge(_localMessage, opmlImportCoordinator.result).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun consumeAddDefaultFeedsMessage() {
-        _addDefaultFeedsMessage.value = null
+        _localMessage.value = null
+        opmlImportCoordinator.consumeResult()
     }
 
     fun setUpdateIntervalMinutes(minutes: Long) {
@@ -129,16 +144,10 @@ class SettingsViewModel @Inject constructor(
             } catch (_: Exception) {
                 null
             }
-            _addDefaultFeedsMessage.value = if (document == null) {
-                context.getString(R.string.add_feed_invalid_opml)
+            if (document == null) {
+                _localMessage.value = context.getString(R.string.add_feed_invalid_opml)
             } else {
-                val result = opmlImporter.import(document)
-                when {
-                    result.importedCount > 0 -> context.getString(R.string.add_feed_imported_count, result.importedCount)
-                    document.feeds.isEmpty() -> context.getString(R.string.add_feed_no_feeds_found_in_opml)
-                    result.invalidCount > 0 -> context.getString(R.string.add_feed_some_feeds_could_not_be_imported)
-                    else -> context.getString(R.string.add_feed_all_feeds_already_subscribed)
-                }
+                opmlImportCoordinator.startImport(document)
             }
         }
     }

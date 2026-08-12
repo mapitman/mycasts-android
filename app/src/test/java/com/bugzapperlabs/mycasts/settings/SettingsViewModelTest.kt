@@ -14,6 +14,7 @@ import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.opml.OpmlExporter
+import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlImporter
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
@@ -100,6 +101,7 @@ class SettingsViewModelTest {
     private lateinit var db: AppDatabase
     private lateinit var repository: FeedRepository
     private lateinit var settingsDataStore: SettingsDataStore
+    private lateinit var opmlImportCoordinator: OpmlImportCoordinator
     private lateinit var viewModel: SettingsViewModel
 
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
@@ -161,13 +163,15 @@ class SettingsViewModelTest {
             settingsDataStore = settingsDataStore,
         )
         val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, QueueRepository(db.queueDao()))
+        val opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer)
+        opmlImportCoordinator = OpmlImportCoordinator(opmlImporter, context)
         // Real WorkManager deadlocked when touched from Robolectric-hosted ViewModel tests (see
         // the scheduled-refresh PR description), so SettingsViewModel depends on the
         // FeedRefreshScheduling interface and this test uses a no-op fake instead.
         viewModel = SettingsViewModel(
             settingsDataStore = settingsDataStore,
             feedRepository = repository,
-            opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer),
+            opmlImportCoordinator = opmlImportCoordinator,
             opmlExporter = OpmlExporter(db.feedDao()),
             feedRefreshScheduler = object : FeedRefreshScheduling {
                 override fun schedule(intervalMinutes: Long) {}
@@ -184,7 +188,13 @@ class SettingsViewModelTest {
         if (!::db.isInitialized) return
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
         // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
-        runTest(testDispatcher) { viewModelStore.clearAndJoin() }
+        runTest(testDispatcher) {
+            viewModelStore.clearAndJoin()
+            // OpmlImportCoordinator runs on its own real (non-test-scheduler) scope (issue #105),
+            // same reason DownloadFeedbackCoordinator needs this -- nothing should be left mid-flight
+            // against db below.
+            opmlImportCoordinator.cancelForTest()
+        }
         db.close()
         server.shutdown()
         Dispatchers.resetMain()

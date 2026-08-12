@@ -26,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -524,8 +525,22 @@ private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: Snac
         OutlinedButton(onClick = { confirmAction = ConfirmableAction.ClearPodcasts }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Text(stringResource(R.string.settings_clear_podcasts))
         }
-        OutlinedButton(onClick = { confirmAction = ConfirmableAction.AddDefaultFeeds }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        val addDefaultFeedsProgress by viewModel.addDefaultFeedsProgress.collectAsState()
+        OutlinedButton(
+            onClick = { confirmAction = ConfirmableAction.AddDefaultFeeds },
+            enabled = addDefaultFeedsProgress == null,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        ) {
             Text(stringResource(R.string.settings_add_default_feeds))
+        }
+        addDefaultFeedsProgress?.takeIf { it.totalCount > 0 }?.let { progress ->
+            Column(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                Text(stringResource(R.string.opml_import_progress, progress.completedCount, progress.totalCount))
+                LinearProgressIndicator(
+                    progress = { progress.completedCount.toFloat() / progress.totalCount },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
         Button(onClick = { confirmAction = ConfirmableAction.RemoveAllFeeds }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Text(stringResource(R.string.settings_remove_all_feeds))

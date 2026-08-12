@@ -174,6 +174,38 @@ class OpmlImporterTest {
     }
 
     @Test
+    fun import_reportsProgressAsEachFeedCompletes() = runTest {
+        // issue #105: onFeedComplete should report 0/total up front, then an increasing count as
+        // each candidate resolves, ending at total/total -- regardless of concurrency/ordering.
+        dispatchByPath(
+            "/a" to MockResponse().setResponseCode(200).setBody(rssXml("A")),
+            "/b" to MockResponse().setResponseCode(200).setBody(rssXml("B")),
+            "/c" to MockResponse().setResponseCode(200).setBody(rssXml("C")),
+        )
+        val document = OpmlDocument(
+            folders = listOf(
+                OpmlFolder(
+                    "Tech",
+                    listOf(
+                        OpmlFeed("A", server.url("/a").toString()),
+                        OpmlFeed("B", server.url("/b").toString()),
+                        OpmlFeed("C", server.url("/c").toString()),
+                    ),
+                ),
+            ),
+        )
+        val progressUpdates = mutableListOf<ImportProgress>()
+
+        importer.import(document) { completed, total -> progressUpdates.add(ImportProgress(completed, total)) }
+
+        assertEquals(ImportProgress(0, 3), progressUpdates.first())
+        assertEquals(ImportProgress(3, 3), progressUpdates.last())
+        assertEquals(4, progressUpdates.size)
+        assertEquals(listOf(3, 3, 3, 3), progressUpdates.map { it.totalCount })
+        assertEquals(listOf(0, 1, 2, 3), progressUpdates.map { it.completedCount })
+    }
+
+    @Test
     fun import_emptyDocument_returnsZero() = runTest {
         val result = importer.import(OpmlDocument(folders = emptyList()))
 
