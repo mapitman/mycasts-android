@@ -94,6 +94,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setAutoDeleteFinishedDownloads(value) }
     }
 
+    fun setAutoDownloadNewFeedsByDefault(value: Boolean) {
+        viewModelScope.launch { settingsDataStore.setAutoDownloadNewFeedsByDefault(value) }
+    }
+
+    fun setAutoDownloadNewFeedsMaxCount(value: Int?) {
+        viewModelScope.launch { settingsDataStore.setAutoDownloadNewFeedsMaxCount(value) }
+    }
+
     fun setNotifyOnNewItems(value: Boolean) {
         viewModelScope.launch { settingsDataStore.setNotifyOnNewItems(value) }
     }

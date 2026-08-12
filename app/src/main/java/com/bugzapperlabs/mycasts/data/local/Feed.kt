@@ -45,8 +45,9 @@ data class Feed(
      *  (issue #250); null means unlimited. Manually-downloaded episodes are never auto-deleted by
      *  this cap, and a queued or currently-playing episode is exempt from eviction even if it's
      *  the oldest auto-download, mirroring [com.bugzapperlabs.mycasts.data.repository.FeedRepository.trimToItemsToKeep]'s
-     *  queue exemption. */
-    val maxDownloadsToKeep: Int? = null,
+     *  queue exemption. Defaults to 5 rather than unlimited (issue #98) -- only affects a brand
+     *  new [Feed] instance; existing rows keep whatever value is already persisted. */
+    val maxDownloadsToKeep: Int? = 5,
 )
 
 /** Where auto-queued episodes are inserted in the Next Up queue (issue #166). Room stores enums

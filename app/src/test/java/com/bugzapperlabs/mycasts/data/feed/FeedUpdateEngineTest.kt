@@ -333,6 +333,72 @@ class FeedUpdateEngineTest {
     }
 
     @Test
+    fun updateFeed_globalAutoDownloadDefaultEnabled_setsAutoDownloadAndMaxCountOnFirstFetch() = runTest {
+        // issue #98: mirrors the existing auto-queue default-on-first-fetch behavior (issue #137),
+        // but for auto-download, gated by a global Settings toggle rather than being unconditional.
+        settingsDataStore.setAutoDownloadNewFeedsByDefault(true)
+        settingsDataStore.setAutoDownloadNewFeedsMaxCount(10)
+        val feed = subscribeFeed()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                |<?xml version="1.0" encoding="UTF-8"?>
+                |<rss version="2.0"><channel>
+                |  <title>Test Feed</title>
+                |  <link>https://example.com</link>
+                |  <description>desc</description>
+                |  <item>
+                |    <title>Episode 1</title>
+                |    <link>https://example.com/1</link>
+                |    <guid>guid-1</guid>
+                |    <description>Body</description>
+                |    <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+                |    <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1" />
+                |  </item>
+                |</channel></rss>
+                """.trimMargin(),
+            ),
+        )
+
+        engine.updateFeed(feed)
+
+        val updated = repository.getFeed(feed.id)!!
+        assertTrue(updated.autoDownloadEnabled)
+        assertEquals(10, updated.maxDownloadsToKeep)
+    }
+
+    @Test
+    fun updateFeed_globalAutoDownloadDefaultDisabled_leavesAutoDownloadOff() = runTest {
+        // The global default is opt-in (issue #98) -- off by default, a feed's first fetch should
+        // leave autoDownloadEnabled exactly as it already was (false).
+        val feed = subscribeFeed()
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                """
+                |<?xml version="1.0" encoding="UTF-8"?>
+                |<rss version="2.0"><channel>
+                |  <title>Test Feed</title>
+                |  <link>https://example.com</link>
+                |  <description>desc</description>
+                |  <item>
+                |    <title>Episode 1</title>
+                |    <link>https://example.com/1</link>
+                |    <guid>guid-1</guid>
+                |    <description>Body</description>
+                |    <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+                |    <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1" />
+                |  </item>
+                |</channel></rss>
+                """.trimMargin(),
+            ),
+        )
+
+        engine.updateFeed(feed)
+
+        assertTrue(!repository.getFeed(feed.id)!!.autoDownloadEnabled)
+    }
+
+    @Test
     fun updateFeed_concurrentRefreshesOfSameFeed_doNotDuplicateItemsOrExceedLimit() = runTest {
         // issue #70: two overlapping refreshes of the same feed (e.g. a manual pull-to-refresh
         // landing while the scheduled FeedRefreshWorker is also refreshing) used to race --

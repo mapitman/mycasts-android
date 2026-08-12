@@ -171,6 +171,33 @@ fun SettingsScreen(
                 settings.autoDeleteFinishedDownloads,
                 viewModel::setAutoDeleteFinishedDownloads,
             )
+            SwitchRow(
+                stringResource(R.string.settings_auto_download_new_feeds),
+                settings.autoDownloadNewFeedsByDefault,
+                viewModel::setAutoDownloadNewFeedsByDefault,
+            )
+            if (settings.autoDownloadNewFeedsByDefault) {
+                Text(
+                    text = stringResource(R.string.settings_auto_download_max_count),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Row(modifier = Modifier.padding(top = 4.dp)) {
+                    listOf(1, 3, 5, 10, null).forEach { maxCount ->
+                        FilterChip(
+                            selected = settings.autoDownloadNewFeedsMaxCount == maxCount,
+                            onClick = { viewModel.setAutoDownloadNewFeedsMaxCount(maxCount) },
+                            label = {
+                                Text(
+                                    maxCount?.toString()
+                                        ?: stringResource(R.string.feed_properties_auto_queue_unlimited),
+                                )
+                            },
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                }
+            }
             BatteryOptimizationSetting()
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))

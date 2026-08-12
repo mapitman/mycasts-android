@@ -148,6 +148,7 @@ class FeedUpdateEngine @Inject constructor(
         // change something else on this feed meanwhile (e.g. playback speed via the player) --
         // writing back a Feed built from the stale snapshot would silently clobber that edit.
         val currentFeed = feedRepository.getFeed(feed.id) ?: feed
+        val settings = settingsDataStore.settings.first()
         // Backfills a title left blank at subscribe time -- e.g. an OPML outline with no title/text
         // attribute (issue #219) -- from the feed's own <title> once it's actually fetched.
         val title = if (currentFeed.title.isNullOrBlank() && parsed.title.isNotBlank()) parsed.title else currentFeed.title
@@ -162,12 +163,21 @@ class FeedUpdateEngine @Inject constructor(
         if (isFirstFetch && hasPodcastEpisode && !currentFeed.autoQueueEnabled) {
             updatedFeed = updatedFeed.copy(autoQueueEnabled = true, autoQueueMaxCount = NEW_PODCAST_AUTO_QUEUE_CAP)
         }
+        // Global default for a new feed's own auto-download toggle (issue #98), mirroring the
+        // auto-queue default above -- a per-feed, one-time default, not a master switch, so it
+        // never touches a feed that's already been through its first fetch. Also carries over the
+        // global max-downloads-to-keep default, the same way Feed Properties' own auto-download
+        // toggle pairs with its own max-count chips, rather than leaving maxDownloadsToKeep at
+        // whatever Feed's own class default happens to be.
+        if (isFirstFetch && hasPodcastEpisode && !currentFeed.autoDownloadEnabled && settings.autoDownloadNewFeedsByDefault) {
+            updatedFeed = updatedFeed.copy(autoDownloadEnabled = true, maxDownloadsToKeep = settings.autoDownloadNewFeedsMaxCount)
+        }
         feedRepository.updateFeed(updatedFeed)
         // Self-heals any lingering duplicate episodes from the since-fixed concurrent-refresh race
         // (issue #70 follow-up) before trimming, so a feed already contaminated by it recovers on
         // its own next refresh.
         feedRepository.deduplicateItems(feed.id)
-        val defaultItemsToKeep = settingsDataStore.settings.first().maxItemsPerFeed
+        val defaultItemsToKeep = settings.maxItemsPerFeed
         // Protects this refresh's own new items from same-refresh eviction when the enforcer is
         // guaranteed to process them right after (issue #83) -- see trimToItemsToKeep's doc.
         val protectedNewItemIds = if (updatedFeed.autoDownloadEnabled || updatedFeed.autoQueueEnabled) {
