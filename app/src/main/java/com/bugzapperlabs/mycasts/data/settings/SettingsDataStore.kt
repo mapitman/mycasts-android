@@ -44,6 +44,13 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
                 ?: AppSettings().notificationPermissionPromptShown,
             podcastIndexApiKey = prefs[Keys.PODCAST_INDEX_API_KEY],
             podcastIndexApiSecret = prefs[Keys.PODCAST_INDEX_API_SECRET],
+            autoDownloadNewFeedsByDefault = prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT]
+                ?: AppSettings().autoDownloadNewFeedsByDefault,
+            autoDownloadNewFeedsMaxCount = when (val stored = prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT]) {
+                null -> AppSettings().autoDownloadNewFeedsMaxCount
+                UNLIMITED_MAX_DOWNLOADS_SENTINEL -> null
+                else -> stored
+            },
         )
     }
 
@@ -147,6 +154,14 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         }
     }
 
+    suspend fun setAutoDownloadNewFeedsByDefault(value: Boolean) {
+        dataStore.edit { it[Keys.AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT] = value }
+    }
+
+    suspend fun setAutoDownloadNewFeedsMaxCount(value: Int?) {
+        dataStore.edit { it[Keys.AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT] = value ?: UNLIMITED_MAX_DOWNLOADS_SENTINEL }
+    }
+
     // The string literals below are the on-disk DataStore key names, not the Kotlin API (issue
     // #11 renamed AppSettings/SettingsDataStore's article-flavored fields/functions to
     // episode/item wording) -- changing a literal here would silently reset that existing user's
@@ -174,5 +189,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         val NOTIFICATION_PERMISSION_PROMPT_SHOWN = booleanPreferencesKey("notification_permission_prompt_shown")
         val PODCAST_INDEX_API_KEY = stringPreferencesKey("podcast_index_api_key")
         val PODCAST_INDEX_API_SECRET = stringPreferencesKey("podcast_index_api_secret")
+        val AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT = booleanPreferencesKey("auto_download_new_feeds_by_default")
+        val AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT = intPreferencesKey("auto_download_new_feeds_max_count")
     }
 }

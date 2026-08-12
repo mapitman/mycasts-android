@@ -124,6 +124,8 @@
     <string name="settings_download_on_cellular">Download on cellular</string>
     <string name="settings_allow_streaming">Allow streaming</string>
     <string name="settings_auto_delete_finished_downloads">Auto-delete downloads once played</string>
+    <string name="settings_auto_download_new_feeds">Auto-download new subscriptions by default</string>
+    <string name="settings_auto_download_max_count">Max downloaded episodes to keep by default</string>
     <string name="settings_battery_optimization_heading">Background battery usage</string>
     <string name="settings_battery_optimization_description">For reliable podcast auto-advance and downloads when the screen is off, allow MyCasts to run without battery restrictions.</string>
     <string name="settings_battery_optimization_granted">Unrestricted</string>

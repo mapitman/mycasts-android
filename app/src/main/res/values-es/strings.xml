@@ -120,6 +120,8 @@
     <string name="settings_download_on_cellular">Descargar con datos móviles</string>
     <string name="settings_allow_streaming">Permitir streaming</string>
     <string name="settings_auto_delete_finished_downloads">Eliminar descargas automáticamente tras reproducirlas</string>
+    <string name="settings_auto_download_new_feeds">Descargar automáticamente las nuevas suscripciones de forma predeterminada</string>
+    <string name="settings_auto_download_max_count">Máximo de episodios descargados a conservar de forma predeterminada</string>
     <string name="settings_battery_optimization_heading">Uso de batería en segundo plano</string>
     <string name="settings_battery_optimization_description">Para que el avance automático de podcasts y las descargas funcionen de forma fiable con la pantalla apagada, permite que MyCasts funcione sin restricciones de batería.</string>
     <string name="settings_battery_optimization_granted">Sin restricciones</string>
