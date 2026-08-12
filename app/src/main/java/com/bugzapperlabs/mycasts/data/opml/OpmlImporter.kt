@@ -5,6 +5,7 @@ import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedDao
+import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -65,10 +66,13 @@ class OpmlImporter @Inject constructor(
             feed to newFeed.copy(id = feedDao.insert(newFeed))
         }
 
-        val concurrency = settingsDataStore.settings.first().feedRefreshConcurrency.coerceAtLeast(1)
-        val semaphore = Semaphore(concurrency)
+        // Resolved once for the whole batch, not per feed (issue #106) -- see FeedUpdateEngine.updateFeeds'
+        // matching comment for why: concurrent per-feed reads of this same cold Flow<AppSettings>
+        // reproducibly hung indefinitely on a large multi-feed import.
+        val settings = settingsDataStore.settings.first()
+        val semaphore = Semaphore(settings.feedRefreshConcurrency.coerceAtLeast(1))
         val imported = inserted.map { (feed, feedRow) ->
-            async { semaphore.withPermit { validateAndPersist(feed, feedRow) } }
+            async { semaphore.withPermit { validateAndPersist(feed, feedRow, settings) } }
         }.awaitAll()
 
         OpmlImportResult(
@@ -88,7 +92,7 @@ class OpmlImporter @Inject constructor(
      * constraint violation from two different OPML URLs resolving to the same feed after
      * redirects (not caught by the upfront [seenUrls] dedup, which only sees the original URLs).
      */
-    private suspend fun validateAndPersist(feed: OpmlFeed, feedRow: Feed): Boolean = try {
+    private suspend fun validateAndPersist(feed: OpmlFeed, feedRow: Feed, settings: AppSettings): Boolean = try {
         val result = feedFetcher.fetchFeed(feed.xmlUrl)
         if (result !is FeedFetchResult.Success) {
             feedDao.delete(feedRow)
@@ -106,7 +110,7 @@ class OpmlImporter @Inject constructor(
                 title = result.feed.title.ifBlank { feed.title },
             )
             feedDao.update(withResolvedUrl)
-            feedUpdateEngine.persistFetchedFeed(withResolvedUrl, result.feed)
+            feedUpdateEngine.persistFetchedFeed(withResolvedUrl, result.feed, settings)
             true
         }
     } catch (e: CancellationException) {

@@ -3,6 +3,7 @@ package com.bugzapperlabs.mycasts.data.feed
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -36,7 +37,7 @@ class FeedUpdateEngine @Inject constructor(
 
         return when (val result = feedFetcher.fetchFeed(feedUrl)) {
             is FeedFetchResult.Failure -> FeedUpdateResult.Failure(result.message)
-            is FeedFetchResult.Success -> persistSafely(feed, result.feed)
+            is FeedFetchResult.Success -> persistSafely(feed, result.feed, settingsDataStore.settings.first())
         }
     }
 
@@ -51,24 +52,42 @@ class FeedUpdateEngine @Inject constructor(
         feeds: List<Feed>,
         onFeedComplete: suspend (completedCount: Int, totalCount: Int) -> Unit = { _, _ -> },
     ): List<FeedUpdateResult> = coroutineScope {
-        val concurrency = settingsDataStore.settings.first().feedRefreshConcurrency.coerceAtLeast(1)
-        val semaphore = Semaphore(concurrency)
+        // Resolved once for the whole batch, not per feed (issue #106): every concurrent feed in
+        // this batch used to call settingsDataStore.settings.first() itself from inside persist(),
+        // piling up concurrent readers of the same cold Flow<AppSettings> right as a large feed's
+        // whole item-insert loop finished -- reproducibly hanging indefinitely on the largest feed
+        // in a many-feed OPML import, with every coroutine dispatcher thread sitting idle.
+        val settings = settingsDataStore.settings.first()
+        val semaphore = Semaphore(settings.feedRefreshConcurrency.coerceAtLeast(1))
         val completedCount = AtomicInteger(0)
         feeds.map { feed ->
             async {
-                val result = semaphore.withPermit { updateFeed(feed) }
+                val result = semaphore.withPermit { updateFeedWithSettings(feed, settings) }
                 onFeedComplete(completedCount.incrementAndGet(), feeds.size)
                 result
             }
         }.awaitAll()
     }
 
+    private suspend fun updateFeedWithSettings(feed: Feed, settings: AppSettings): FeedUpdateResult {
+        val feedUrl = feed.feedUrl
+        if (feedUrl.isNullOrBlank()) return FeedUpdateResult.Failure("Feed has no URL")
+
+        return when (val result = feedFetcher.fetchFeed(feedUrl)) {
+            is FeedFetchResult.Failure -> FeedUpdateResult.Failure(result.message)
+            is FeedFetchResult.Success -> persistSafely(feed, result.feed, settings)
+        }
+    }
+
     /**
      * Applies an already-fetched [parsed] feed to [feed], skipping a redundant re-fetch. Used by
      * [com.bugzapperlabs.mycasts.data.opml.OpmlImporter], which must fetch each candidate feed once already
-     * to validate it before subscribing (issue #231).
+     * to validate it before subscribing (issue #231) -- [settings] is likewise resolved once by
+     * the importer for its whole batch rather than per feed here, for the same reason as
+     * [updateFeeds] above.
      */
-    suspend fun persistFetchedFeed(feed: Feed, parsed: ParsedFeed): FeedUpdateResult = persistSafely(feed, parsed)
+    suspend fun persistFetchedFeed(feed: Feed, parsed: ParsedFeed, settings: AppSettings): FeedUpdateResult =
+        persistSafely(feed, parsed, settings)
 
     /**
      * [persist] runs concurrently across many feeds -- both here via [updateFeeds] and in
@@ -84,8 +103,8 @@ class FeedUpdateEngine @Inject constructor(
      * [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorker] is also refreshing that feed -- which
      * otherwise duplicates episodes and lets the itemsToKeep trim fall badly behind.
      */
-    private suspend fun persistSafely(feed: Feed, parsed: ParsedFeed): FeedUpdateResult = try {
-        feedRefreshLocks.withLock(feed.id) { persist(feed, parsed) }
+    private suspend fun persistSafely(feed: Feed, parsed: ParsedFeed, settings: AppSettings): FeedUpdateResult = try {
+        feedRefreshLocks.withLock(feed.id) { persist(feed, parsed, settings) }
     } catch (e: CancellationException) {
         // Genuine cancellation (e.g. the caller's own scope was cancelled) must keep propagating
         // -- only *other* feeds' failures should be contained, not this one's real cancellation.
@@ -94,12 +113,13 @@ class FeedUpdateEngine @Inject constructor(
         FeedUpdateResult.Failure(e.message ?: "Failed to save feed")
     }
 
-    private suspend fun persist(feed: Feed, parsed: ParsedFeed): FeedUpdateResult {
+    private suspend fun persist(feed: Feed, parsed: ParsedFeed, settings: AppSettings): FeedUpdateResult {
         // A feed's first-ever successful fetch is the only time it's safe to change auto-queue
         // defaults without risking overwriting a value the user has since set themselves via Feed
         // Properties (issue #137) -- lastGet is only ever null before that first fetch completes.
         val isFirstFetch = feed.lastGet == null
         val newItemIds = mutableListOf<String>()
+        val newItems = mutableListOf<FeedItem>()
         var hasPodcastEpisode = false
 
         parsed.items.forEach { parsedItem ->
@@ -136,11 +156,20 @@ class FeedUpdateEngine @Inject constructor(
                 chaptersUrl = parsedItem.chaptersUrl,
             )
             if (existing == null) {
-                feedRepository.insertItems(listOf(entity))
+                newItems += entity
                 newItemIds += id
             } else {
                 feedRepository.updateItem(entity)
             }
+        }
+        // Batched into a single bulk insert rather than one insertItems call per new item (issue
+        // #106): a feed publishing thousands of episodes at once (e.g. a first-time import of a
+        // large back catalog) otherwise opens and commits one Room transaction per item,
+        // serialized against every other feed refreshing concurrently through Room's single
+        // writer -- reproducibly hanging indefinitely partway through the largest feed in a
+        // many-feed import. Mirrors how other feed-sync apps batch new-episode inserts.
+        if (newItems.isNotEmpty()) {
+            feedRepository.insertItems(newItems)
         }
 
         // Re-fetched right before the write rather than reusing the [feed] snapshot passed in at
@@ -148,7 +177,6 @@ class FeedUpdateEngine @Inject constructor(
         // change something else on this feed meanwhile (e.g. playback speed via the player) --
         // writing back a Feed built from the stale snapshot would silently clobber that edit.
         val currentFeed = feedRepository.getFeed(feed.id) ?: feed
-        val settings = settingsDataStore.settings.first()
         // Backfills a title left blank at subscribe time -- e.g. an OPML outline with no title/text
         // attribute (issue #219) -- from the feed's own <title> once it's actually fetched.
         val title = if (currentFeed.title.isNullOrBlank() && parsed.title.isNotBlank()) parsed.title else currentFeed.title
