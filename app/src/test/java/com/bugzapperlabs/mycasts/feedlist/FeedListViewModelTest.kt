@@ -79,13 +79,14 @@ class FeedListViewModelTest {
             settingsDataStore = settingsDataStore,
         )
         val feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
+        val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository)
         return FeedListViewModel(
             feedRepository = repository,
             feedUpdateEngine = feedUpdateEngine,
-            autoQueueAndDownloadEnforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository),
+            autoQueueAndDownloadEnforcer = enforcer,
             feedRefreshState = feedRefreshState,
             opmlImportCoordinator = OpmlImportCoordinator(
-                OpmlImporter(db.feedDao(), FeedFetcher(OkHttpClient()), feedUpdateEngine, settingsDataStore),
+                OpmlImporter(db.feedDao(), FeedFetcher(OkHttpClient()), feedUpdateEngine, settingsDataStore, enforcer),
                 context,
             ),
             settingsDataStore = settingsDataStore,

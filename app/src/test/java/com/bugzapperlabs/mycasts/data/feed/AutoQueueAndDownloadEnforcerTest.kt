@@ -170,4 +170,39 @@ class AutoQueueAndDownloadEnforcerTest {
         assertEquals(1, queue.size)
         assertEquals(feedId, queue.single().item.feedId)
     }
+
+    @Test
+    fun apply_moreNewEpisodesThanCap_onlyQueuesNewestByPublishDate() = runTest {
+        // issue #102's queue-side sibling bug: the old behavior added every one of newItemIds to
+        // the queue (in whatever order FeedUpdateEngine happened to encounter them -- typically
+        // newest-first for a real RSS feed) and only trimmed back down to autoQueueMaxCount
+        // afterward, by oldest *addedAt* (insertion order). For a newest-first newItemIds order,
+        // that evicted by insertion order rather than publish date -- keeping the *oldest*
+        // episode and discarding the newest, backwards from what a listener would want, on top of
+        // writing (and immediately deleting) rows for every candidate. newItemIds is passed here
+        // in newest-first order (matching a typical RSS document) specifically to catch that.
+        val feedId = feedRepository.subscribe(
+            Feed(title = "A Podcast", autoQueueEnabled = true, autoQueueMaxCount = 1, autoQueuePosition = AutoQueuePosition.BOTTOM),
+        )
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(id = "ep-old", feedId = feedId, itemGuid = "ep-old", enclosureUrl = "https://example.com/old.mp3", enclosureType = "audio/mpeg", publishDate = 1L),
+                FeedItem(id = "ep-mid", feedId = feedId, itemGuid = "ep-mid", enclosureUrl = "https://example.com/mid.mp3", enclosureType = "audio/mpeg", publishDate = 2L),
+                FeedItem(id = "ep-new", feedId = feedId, itemGuid = "ep-new", enclosureUrl = "https://example.com/new.mp3", enclosureType = "audio/mpeg", publishDate = 3L),
+            ),
+        )
+
+        enforcer.apply(
+            listOf(
+                FeedUpdateResult.Success(
+                    feedId = feedId,
+                    newItemIds = listOf("ep-new", "ep-mid", "ep-old"),
+                    evictedItemIds = emptyList(),
+                ),
+            ),
+        )
+
+        val queue = queueRepository.observeQueue().first()
+        assertEquals(listOf("ep-new"), queue.map { it.item.id })
+    }
 }

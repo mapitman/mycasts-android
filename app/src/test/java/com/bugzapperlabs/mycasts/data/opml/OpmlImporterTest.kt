@@ -5,12 +5,16 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadScheduling
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -43,6 +47,7 @@ class OpmlImporterTest {
     private lateinit var db: AppDatabase
     private lateinit var importer: OpmlImporter
     private lateinit var settingsDataStore: SettingsDataStore
+    private lateinit var queueRepository: QueueRepository
 
     private fun rssXml(title: String) = """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -50,6 +55,25 @@ class OpmlImporterTest {
           <title>$title</title>
           <link>https://example.com</link>
           <description>desc</description>
+        </channel></rss>
+    """.trimIndent()
+
+    /** Includes an audio enclosure so FeedUpdateEngine.persist() sees hasPodcastEpisode=true and
+     *  applies its first-fetch auto-queue default (issue #137). */
+    private fun rssXmlWithEpisode(title: String) = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel>
+          <title>$title</title>
+          <link>https://example.com</link>
+          <description>desc</description>
+          <item>
+            <title>Episode 1</title>
+            <link>https://example.com/1</link>
+            <guid>guid-1</guid>
+            <description>Body</description>
+            <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+            <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1" />
+          </item>
         </channel></rss>
     """.trimIndent()
 
@@ -76,7 +100,17 @@ class OpmlImporterTest {
         val feedFetcher = FeedFetcher(httpClient)
         val repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
         val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
-        importer = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore)
+        val downloadRepository = EnclosureDownloadRepository(
+            feedRepository = repository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
+                override fun cancelDownload(itemId: String) {}
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        queueRepository = QueueRepository(db.queueDao())
+        val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository)
+        importer = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer)
     }
 
     @After
@@ -99,6 +133,22 @@ class OpmlImporterTest {
         assertEquals(1, result.importedCount)
         val feeds = db.feedDao().observeAll().first()
         assertEquals(listOf("Ars Technica"), feeds.map { it.title })
+    }
+
+    @Test
+    fun import_newPodcastSubscription_autoQueuesItsFirstFetchEpisodes() = runTest {
+        // issue #101: FeedUpdateEngine.persist() already defaults a new podcast feed to
+        // autoQueueEnabled=true on its first fetch (issue #137), but nothing actually queued the
+        // episodes from *that* fetch unless the caller separately ran
+        // AutoQueueAndDownloadEnforcer.apply() afterward -- which OpmlImporter never did.
+        dispatchByPath("/feed" to MockResponse().setResponseCode(200).setBody(rssXmlWithEpisode("A Podcast")))
+        val document = OpmlDocument(
+            folders = listOf(OpmlFolder("Tech", listOf(OpmlFeed("A Podcast", server.url("/feed").toString())))),
+        )
+
+        importer.import(document)
+
+        assertEquals(1, queueRepository.observeQueue().first().size)
     }
 
     @Test

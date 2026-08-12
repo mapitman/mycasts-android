@@ -39,17 +39,27 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
             }
 
             if (feed.autoQueueEnabled) {
-                success.newItemIds.forEach { itemId ->
-                    val item = feedRepository.getItem(itemId) ?: return@forEach
-                    if (item.isPodcastEpisode) {
-                        // issue #166: user chooses per-feed whether new episodes land at the top
-                        // or bottom of Next Up.
-                        when (feed.autoQueuePosition) {
-                            AutoQueuePosition.TOP -> queueRepository.addToFront(itemId, autoQueued = true)
-                            AutoQueuePosition.BOTTOM -> queueRepository.addToEnd(itemId, autoQueued = true)
-                        }
+                val podcastEpisodes = success.newItemIds.mapNotNull { feedRepository.getItem(it) }.filter { it.isPodcastEpisode }
+                // Caps what actually gets *added* to autoQueueMaxCount, rather than adding every
+                // new episode and trimming back down afterward via enforceFeedCap (issue #102's
+                // queue-side sibling bug) -- a feed's first fetch can bring in hundreds/thousands
+                // of "new" episodes at once (e.g. via OPML import), and each addToFront/addToEnd
+                // call is a real DB write, so adding all of them just to immediately delete most
+                // back out is both slow and leaves Next Up wildly over-cap for as long as that
+                // takes. Newest-by-publishDate wins when there are more candidates than room.
+                val toQueue = feed.autoQueueMaxCount?.let { cap ->
+                    podcastEpisodes.sortedByDescending { it.publishDate ?: 0L }.take(cap)
+                } ?: podcastEpisodes
+                toQueue.forEach { item ->
+                    // issue #166: user chooses per-feed whether new episodes land at the top or
+                    // bottom of Next Up.
+                    when (feed.autoQueuePosition) {
+                        AutoQueuePosition.TOP -> queueRepository.addToFront(item.id, autoQueued = true)
+                        AutoQueuePosition.BOTTOM -> queueRepository.addToEnd(item.id, autoQueued = true)
                     }
                 }
+                // Still enforced afterward as a safety net -- e.g. the feed already had queued
+                // episodes from a previous refresh before autoQueueMaxCount was lowered.
                 feed.autoQueueMaxCount?.let { queueRepository.enforceFeedCap(feed.id, it) }
             }
         }

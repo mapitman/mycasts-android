@@ -25,6 +25,25 @@ class EnclosureDownloadRepository @Inject constructor(
         )
     }
 
+    /**
+     * Marks [itemId]'s download complete and immediately re-checks its feed's max-downloads cap
+     * (issue #102) -- called from [com.bugzapperlabs.mycasts.download.EnclosureDownloadWorker]
+     * instead of setting [FeedItem.downloadedFilePath] directly. A whole batch of a feed's new
+     * episodes can be enqueued for auto-download at once (see
+     * [com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer.apply]), before any of them
+     * have actually finished -- [enforceFeedDownloadCap] only counts already-completed downloads,
+     * so calling it right after enqueueing sees nothing to trim yet. Re-checking here, as each
+     * download actually lands, catches up once completions start arriving instead of leaving every
+     * enqueued download to finish regardless of [com.bugzapperlabs.mycasts.data.local.Feed.maxDownloadsToKeep].
+     */
+    suspend fun completeDownload(itemId: String, filePath: String) {
+        feedRepository.setDownloadedFilePath(itemId, filePath)
+        val item = feedRepository.getItem(itemId) ?: return
+        if (!item.autoDownloaded) return
+        val cap = feedRepository.getFeed(item.feedId)?.maxDownloadsToKeep ?: return
+        enforceFeedDownloadCap(item.feedId, cap)
+    }
+
     suspend fun deleteDownload(item: FeedItem) {
         downloadScheduling.cancelDownload(item.id)
         item.downloadedFilePath?.let { File(it).delete() }
