@@ -5,6 +5,7 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -122,7 +123,26 @@ class FeedUpdateEngine @Inject constructor(
         val newItems = mutableListOf<FeedItem>()
         var hasPodcastEpisode = false
 
-        parsed.items.forEach { parsedItem ->
+        // Caps how many parsed items actually get built into rows and inserted, rather than
+        // inserting everything and relying on a later trim (issue #110) -- trimToItemsToKeep
+        // skips entirely on a first fetch when the feed auto-queues/auto-downloads (issue #83,
+        // still true below for a *subsequent* refresh's oversized new-item batch), so a large
+        // back catalog's entire raw item count used to stick around until the feed's second
+        // refresh. Sorted newest-published-first (nulls last) first -- parsed.items is in
+        // whatever order the feed's own XML happens to list them in, not necessarily newest-first
+        // (FeedParser does no sorting of its own).
+        val itemsToProcess = if (isFirstFetch) {
+            val itemsToKeep = feedRepository.getFeed(feed.id)?.itemsToKeep ?: settings.maxItemsPerFeed
+            if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) {
+                parsed.items
+            } else {
+                parsed.items.sortedByDescending { it.publishDate ?: Instant.MIN }.take(itemsToKeep)
+            }
+        } else {
+            parsed.items
+        }
+
+        itemsToProcess.forEach { parsedItem ->
             val itemGuid = parsedItem.itemGuid.ifBlank { parsedItem.url }
             if (itemGuid.isBlank()) return@forEach
 
