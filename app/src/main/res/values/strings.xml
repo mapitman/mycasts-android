@@ -110,6 +110,7 @@
     <string name="settings_section_actions">Actions</string>
     <string name="settings_section_about">About</string>
     <string name="settings_show_images">Show images</string>
+    <string name="settings_use_device_theme_colors">Use device theme colors</string>
     <string name="settings_default_to_all_items">Default to all items</string>
     <string name="settings_notify_on_new_items">Notify on new items</string>
     <string name="settings_update_interval">Update interval: %1$d min</string>

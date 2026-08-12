@@ -51,6 +51,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
                 UNLIMITED_MAX_DOWNLOADS_SENTINEL -> null
                 else -> stored
             },
+            useDeviceThemeColors = prefs[Keys.USE_DEVICE_THEME_COLORS] ?: AppSettings().useDeviceThemeColors,
         )
     }
 
@@ -162,6 +163,10 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT] = value ?: UNLIMITED_MAX_DOWNLOADS_SENTINEL }
     }
 
+    suspend fun setUseDeviceThemeColors(value: Boolean) {
+        dataStore.edit { it[Keys.USE_DEVICE_THEME_COLORS] = value }
+    }
+
     // The string literals below are the on-disk DataStore key names, not the Kotlin API (issue
     // #11 renamed AppSettings/SettingsDataStore's article-flavored fields/functions to
     // episode/item wording) -- changing a literal here would silently reset that existing user's
@@ -191,5 +196,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         val PODCAST_INDEX_API_SECRET = stringPreferencesKey("podcast_index_api_secret")
         val AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT = booleanPreferencesKey("auto_download_new_feeds_by_default")
         val AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT = intPreferencesKey("auto_download_new_feeds_max_count")
+        val USE_DEVICE_THEME_COLORS = booleanPreferencesKey("use_device_theme_colors")
     }
 }
