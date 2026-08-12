@@ -60,6 +60,10 @@ data class AppSettings(
      *  screen's "Notify on new items" toggle can still re-request it as a secondary path if the
      *  user changes their mind after granting it from system Settings. */
     val notificationPermissionPromptShown: Boolean = false,
+    /** Whether the one-time first-launch "add starter feeds?" prompt (issue #108) has already been
+     *  shown -- shown at most once regardless of the user's choice, and never re-shown just because
+     *  the feed list is empty again later (e.g. after Settings' "Remove all feeds"). */
+    val addDefaultFeedsPromptShown: Boolean = false,
     /** Free API credentials for live podcast search via podcastindex.org (issue #93), registered
      *  by the user themselves -- there's no ToS-compliant way to bundle a single shared key in an
      *  open-source app. Search silently falls back to the offline directory when either is unset,

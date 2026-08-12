@@ -36,6 +36,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -69,7 +70,21 @@ class FeedListViewModelTest {
     private lateinit var context: android.content.Context
     private lateinit var viewModel: FeedListViewModel
 
-    private fun newViewModel(feedRefreshState: FeedRefreshState): FeedListViewModel {
+    // OpmlImportCoordinator runs on its own real (non-viewModelScope) scope, so every one created
+    // by newViewModel(WithCoordinator) below needs cancelForTest() explicitly in tearDown --
+    // viewModelStore's own clearAndJoin() only reaches viewModelScope coroutines, not this
+    // separate one.
+    private val coordinators = mutableListOf<OpmlImportCoordinator>()
+
+    private fun newViewModel(
+        feedRefreshState: FeedRefreshState,
+        feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient()),
+    ): FeedListViewModel = newViewModelWithCoordinator(feedRefreshState, feedFetcher).first
+
+    private fun newViewModelWithCoordinator(
+        feedRefreshState: FeedRefreshState,
+        feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient()),
+    ): Pair<FeedListViewModel, OpmlImportCoordinator> {
         val downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
             downloadScheduling = object : DownloadScheduling {
@@ -78,20 +93,23 @@ class FeedListViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        val feedUpdateEngine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
+        val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
         val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository)
-        return FeedListViewModel(
+        val coordinator = OpmlImportCoordinator(
+            OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer),
+            context,
+        )
+        coordinators += coordinator
+        val viewModel = FeedListViewModel(
             feedRepository = repository,
             feedUpdateEngine = feedUpdateEngine,
             autoQueueAndDownloadEnforcer = enforcer,
             feedRefreshState = feedRefreshState,
-            opmlImportCoordinator = OpmlImportCoordinator(
-                OpmlImporter(db.feedDao(), FeedFetcher(OkHttpClient()), feedUpdateEngine, settingsDataStore, enforcer),
-                context,
-            ),
+            opmlImportCoordinator = coordinator,
             settingsDataStore = settingsDataStore,
             context = context,
         )
+        return viewModel to coordinator
     }
 
     @Before
@@ -114,7 +132,10 @@ class FeedListViewModelTest {
     fun tearDown() {
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
         // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
-        runTest(testDispatcher) { viewModelStore.clearAndJoin() }
+        runTest(testDispatcher) {
+            viewModelStore.clearAndJoin()
+            coordinators.forEach { it.cancelForTest() }
+        }
         db.close()
         Dispatchers.resetMain()
     }
@@ -334,5 +355,84 @@ class FeedListViewModelTest {
         val state = viewModel.uiState.first { it.feeds.isNotEmpty() }
 
         assertEquals(listOf(feedId), state.feeds.map { it.feed.id })
+    }
+
+    @Test
+    fun showAddDefaultFeedsPrompt_trueOnFreshEmptyDatabase() = runTest(testDispatcher) {
+        // A bare .first() on a WhileSubscribed StateFlow can return its seed default (false) before
+        // the underlying combine has actually run once -- waited on the real true value instead,
+        // same reason other tests in this file predicate their `first{}` calls rather than trusting
+        // an immediate read.
+        assertTrue(viewModel.showAddDefaultFeedsPrompt.first { it })
+    }
+
+    @Test
+    fun showAddDefaultFeedsPrompt_falseOnceAlreadyShown() = runTest(testDispatcher) {
+        settingsDataStore.setAddDefaultFeedsPromptShown(true)
+
+        assertFalse(viewModel.showAddDefaultFeedsPrompt.first { !it })
+    }
+
+    @Test
+    fun showAddDefaultFeedsPrompt_falseOnceFeedsExist() = runTest(testDispatcher) {
+        repository.subscribe(Feed(title = "A Feed"))
+
+        assertFalse(viewModel.showAddDefaultFeedsPrompt.first { !it })
+    }
+
+    @Test
+    fun dismissAddDefaultFeedsPrompt_marksShownWithoutImportingAnything() = runTest(testDispatcher) {
+        viewModel.dismissAddDefaultFeedsPrompt()
+
+        assertTrue(settingsDataStore.settings.first { it.addDefaultFeedsPromptShown }.addDefaultFeedsPromptShown)
+        assertFalse(viewModel.showAddDefaultFeedsPrompt.first { !it })
+        assertTrue(repository.observeAllFeeds().first().isEmpty())
+    }
+
+    @Test
+    fun acceptAddDefaultFeedsPrompt_marksShownAndImportsTheBundledFeeds() = runTest(testDispatcher) {
+        // default_feeds.opml lists real external hosts (issue #231 validates each by actually
+        // fetching it), so every outgoing request is rewritten to this local server regardless of
+        // its original host, and answered with a generic valid RSS body -- same rewrite trick as
+        // SettingsViewModelTest.addDefaultFeeds_importsBundledOpml.
+        val server = MockWebServer()
+        server.start()
+        try {
+            val rssXml = """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <rss version="2.0"><channel>
+                  <title>A Feed</title>
+                  <link>https://example.com</link>
+                  <description>desc</description>
+                </channel></rss>
+            """.trimIndent()
+            repeat(7) { server.enqueue(MockResponse().setResponseCode(200).setBody(rssXml)) }
+            val httpClient = OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    val original = chain.request()
+                    val rewritten = original.url.newBuilder()
+                        .scheme(server.url("/").scheme)
+                        .host(server.hostName)
+                        .port(server.port)
+                        .build()
+                    chain.proceed(original.newBuilder().url(rewritten).build())
+                }
+                .build()
+            val (freshViewModel, coordinator) = newViewModelWithCoordinator(FeedRefreshState(), feedFetcher = FeedFetcher(httpClient))
+            viewModelStore.put("acceptPrompt", freshViewModel)
+
+            freshViewModel.acceptAddDefaultFeedsPrompt()
+
+            val feeds = db.feedDao().observeAll().first { it.size == 7 }
+            assertEquals(7, feeds.size)
+            assertTrue(settingsDataStore.settings.first().addDefaultFeedsPromptShown)
+            // Reaching feeds.size == 7 only guarantees the last item write landed, not that the
+            // coordinator's own coroutine has finished entirely (it still sets _progress/_result
+            // afterward) -- cancelled and joined here, before shutting the server down below, so
+            // nothing is left mid-flight against it (same reasoning as cancelForTest's own doc).
+            coordinator.cancelForTest()
+        } finally {
+            server.shutdown()
+        }
     }
 }

@@ -51,6 +51,8 @@
     <!-- Feed list -->
     <string name="feed_list_no_feeds_yet">Aún no hay fuentes</string>
     <string name="feed_list_empty_hint">Toca + para añadir tu primera fuente o importar un archivo OPML</string>
+    <string name="feed_list_add_default_feeds_prompt_title">¿Añadir fuentes iniciales?</string>
+    <string name="feed_list_add_default_feeds_prompt_message">Empieza rápido con una selección de podcasts populares. Puedes añadir o quitar fuentes en cualquier momento.</string>
     <string name="feed_list_total_unread">%1$d sin leer</string>
     <string name="feed_list_section_unread">%1$d sin leer</string>
     <string name="feed_list_section_unplayed">%1$d sin reproducir</string>

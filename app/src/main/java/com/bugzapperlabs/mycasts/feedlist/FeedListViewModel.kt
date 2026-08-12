@@ -12,6 +12,7 @@ import com.bugzapperlabs.mycasts.data.feed.FeedUpdateResult
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.opml.ImportProgress
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
+import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
@@ -48,7 +49,7 @@ class FeedListViewModel @Inject constructor(
     private val autoQueueAndDownloadEnforcer: AutoQueueAndDownloadEnforcer,
     private val feedRefreshState: FeedRefreshState,
     private val opmlImportCoordinator: OpmlImportCoordinator,
-    settingsDataStore: SettingsDataStore,
+    private val settingsDataStore: SettingsDataStore,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     // Shared app-wide signal (issue #152), not ViewModel-local -- a scheduled background refresh
@@ -70,6 +71,33 @@ class FeedListViewModel @Inject constructor(
 
     fun consumeOpmlImportResult() {
         opmlImportCoordinator.consumeResult()
+    }
+
+    // Gates on: no feeds yet, never shown before, and not already mid-import (issue #271's
+    // coordinator can still be running an OPML-file import when this screen first loads empty).
+    val showAddDefaultFeedsPrompt: StateFlow<Boolean> = combine(
+        feedRepository.observeAllFeeds(),
+        settingsDataStore.settings,
+        opmlImportCoordinator.progress,
+    ) { feeds, settings, progress ->
+        feeds.isEmpty() && !settings.addDefaultFeedsPromptShown && progress == null
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun acceptAddDefaultFeedsPrompt() {
+        viewModelScope.launch {
+            settingsDataStore.setAddDefaultFeedsPromptShown(true)
+            // Same parse-then-import sequence as SettingsViewModel.addDefaultFeeds().
+            val document = try {
+                context.assets.open("default_feeds.opml").use { OpmlParser.parse(it) }
+            } catch (_: Exception) {
+                null
+            }
+            if (document != null) opmlImportCoordinator.startImport(document)
+        }
+    }
+
+    fun dismissAddDefaultFeedsPrompt() {
+        viewModelScope.launch { settingsDataStore.setAddDefaultFeedsPromptShown(true) }
     }
 
     // Holds the last snapshot taken while NOT refreshing (issue #152): a refresh inserts/evicts

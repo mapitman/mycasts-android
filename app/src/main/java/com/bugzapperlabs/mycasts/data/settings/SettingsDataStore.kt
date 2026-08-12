@@ -42,6 +42,8 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
                 ?: AppSettings().batteryOptimizationPromptShown,
             notificationPermissionPromptShown = prefs[Keys.NOTIFICATION_PERMISSION_PROMPT_SHOWN]
                 ?: AppSettings().notificationPermissionPromptShown,
+            addDefaultFeedsPromptShown = prefs[Keys.ADD_DEFAULT_FEEDS_PROMPT_SHOWN]
+                ?: AppSettings().addDefaultFeedsPromptShown,
             podcastIndexApiKey = prefs[Keys.PODCAST_INDEX_API_KEY],
             podcastIndexApiSecret = prefs[Keys.PODCAST_INDEX_API_SECRET],
             autoDownloadNewFeedsByDefault = prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT]
@@ -143,6 +145,10 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.NOTIFICATION_PERMISSION_PROMPT_SHOWN] = shown }
     }
 
+    suspend fun setAddDefaultFeedsPromptShown(shown: Boolean) {
+        dataStore.edit { it[Keys.ADD_DEFAULT_FEEDS_PROMPT_SHOWN] = shown }
+    }
+
     suspend fun setPodcastIndexApiKey(key: String?) {
         dataStore.edit {
             if (key.isNullOrBlank()) it.remove(Keys.PODCAST_INDEX_API_KEY) else it[Keys.PODCAST_INDEX_API_KEY] = key
@@ -192,6 +198,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         val LAST_PLAYING_ITEM_ID = stringPreferencesKey("last_playing_item_id")
         val BATTERY_OPTIMIZATION_PROMPT_SHOWN = booleanPreferencesKey("battery_optimization_prompt_shown")
         val NOTIFICATION_PERMISSION_PROMPT_SHOWN = booleanPreferencesKey("notification_permission_prompt_shown")
+        val ADD_DEFAULT_FEEDS_PROMPT_SHOWN = booleanPreferencesKey("add_default_feeds_prompt_shown")
         val PODCAST_INDEX_API_KEY = stringPreferencesKey("podcast_index_api_key")
         val PODCAST_INDEX_API_SECRET = stringPreferencesKey("podcast_index_api_secret")
         val AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT = booleanPreferencesKey("auto_download_new_feeds_by_default")

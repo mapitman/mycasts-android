@@ -55,6 +55,8 @@
     <!-- Feed list -->
     <string name="feed_list_no_feeds_yet">No feeds yet</string>
     <string name="feed_list_empty_hint">Tap + to add your first feed or import an OPML file</string>
+    <string name="feed_list_add_default_feeds_prompt_title">Add starter feeds?</string>
+    <string name="feed_list_add_default_feeds_prompt_message">Get started quickly with a curated set of popular podcasts. You can add or remove feeds anytime.</string>
     <string name="feed_list_total_unread">%1$d unread</string>
     <string name="feed_list_section_unread">%1$d Unread</string>
     <string name="feed_list_section_unplayed">%1$d Unplayed</string>
