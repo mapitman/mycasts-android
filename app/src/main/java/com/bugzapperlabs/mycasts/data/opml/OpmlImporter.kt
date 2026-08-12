@@ -1,8 +1,10 @@
 package com.bugzapperlabs.mycasts.data.opml
 
+import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetchResult
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
+import com.bugzapperlabs.mycasts.data.feed.FeedUpdateResult
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedDao
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
@@ -39,12 +41,23 @@ data class OpmlImportResult(
  * ([FeedUpdateEngine.updateFeeds]), so a large OPML file doesn't hammer the network with
  * unbounded parallel requests -- but the up-front inserts above are not gated by that concurrency
  * limit, since they don't touch the network.
+ *
+ * [AutoQueueAndDownloadEnforcer.apply] is run once, on the whole batch of successful persists,
+ * once all of them finish (issue #101) -- without this, a feed that came back with
+ * `autoDownloadEnabled`/`autoQueueEnabled` set (either the existing auto-queue-on-first-fetch
+ * default, issue #137, or the newer global auto-download default, issue #98) never actually gets
+ * its first batch of episodes queued/downloaded: the enforcer is what does that, and every other
+ * caller ([com.bugzapperlabs.mycasts.feedlist.FeedListViewModel.refresh],
+ * [com.bugzapperlabs.mycasts.episodelist.EpisodeListViewModel.refresh],
+ * [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorker]) already calls it right after their own
+ * [FeedUpdateEngine] work -- this one just hadn't been wired up the same way.
  */
 class OpmlImporter @Inject constructor(
     private val feedDao: FeedDao,
     private val feedFetcher: FeedFetcher,
     private val feedUpdateEngine: FeedUpdateEngine,
     private val settingsDataStore: SettingsDataStore,
+    private val autoQueueAndDownloadEnforcer: AutoQueueAndDownloadEnforcer,
 ) {
     suspend fun import(document: OpmlDocument): OpmlImportResult = coroutineScope {
         val seenUrls = mutableSetOf<String>()
@@ -71,10 +84,12 @@ class OpmlImporter @Inject constructor(
             async { semaphore.withPermit { validateAndPersist(feed, feedRow) } }
         }.awaitAll()
 
+        autoQueueAndDownloadEnforcer.apply(imported.filterNotNull())
+
         OpmlImportResult(
-            importedCount = imported.count { it },
+            importedCount = imported.count { it != null },
             alreadySubscribedCount = alreadySubscribedCount,
-            invalidCount = imported.count { !it },
+            invalidCount = imported.count { it == null },
         )
     }
 
@@ -88,11 +103,11 @@ class OpmlImporter @Inject constructor(
      * constraint violation from two different OPML URLs resolving to the same feed after
      * redirects (not caught by the upfront [seenUrls] dedup, which only sees the original URLs).
      */
-    private suspend fun validateAndPersist(feed: OpmlFeed, feedRow: Feed): Boolean = try {
+    private suspend fun validateAndPersist(feed: OpmlFeed, feedRow: Feed): FeedUpdateResult? = try {
         val result = feedFetcher.fetchFeed(feed.xmlUrl)
         if (result !is FeedFetchResult.Success) {
             feedDao.delete(feedRow)
-            false
+            null
         } else {
             // xmlUrl can redirect to a different final URL (e.g. http -> https) -- saved here
             // rather than left as the original xmlUrl, same as the pre-#50 insert-after-fetch
@@ -107,12 +122,11 @@ class OpmlImporter @Inject constructor(
             )
             feedDao.update(withResolvedUrl)
             feedUpdateEngine.persistFetchedFeed(withResolvedUrl, result.feed)
-            true
         }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
         feedDao.delete(feedRow)
-        false
+        null
     }
 }

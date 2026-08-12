@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.TrackedViewModelStore
+import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
@@ -15,8 +16,11 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.opml.OpmlExporter
 import com.bugzapperlabs.mycasts.data.opml.OpmlImporter
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadScheduling
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -148,13 +152,22 @@ class SettingsViewModelTest {
             .build()
         val feedFetcher = FeedFetcher(httpClient)
         val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
+        val downloadRepository = EnclosureDownloadRepository(
+            feedRepository = repository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
+                override fun cancelDownload(itemId: String) {}
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, QueueRepository(db.queueDao()))
         // Real WorkManager deadlocked when touched from Robolectric-hosted ViewModel tests (see
         // the scheduled-refresh PR description), so SettingsViewModel depends on the
         // FeedRefreshScheduling interface and this test uses a no-op fake instead.
         viewModel = SettingsViewModel(
             settingsDataStore = settingsDataStore,
             feedRepository = repository,
-            opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore),
+            opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer),
             opmlExporter = OpmlExporter(db.feedDao()),
             feedRefreshScheduler = object : FeedRefreshScheduling {
                 override fun schedule(intervalMinutes: Long) {}

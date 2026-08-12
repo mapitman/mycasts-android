@@ -223,4 +223,51 @@ class EnclosureDownloadRepositoryTest {
 
         files.forEach { assertTrue(it.exists()) }
     }
+
+    @Test
+    fun completeDownload_reEnforcesCapAsEachAutoDownloadLands() = runTest {
+        // issue #102: a whole batch of a feed's new episodes gets enqueued for auto-download at
+        // once (AutoQueueAndDownloadEnforcer.apply()), before any of them have actually finished
+        // -- enforceFeedDownloadCap() only counts already-completed downloads, so calling it right
+        // after enqueueing sees nothing to trim. completeDownload() re-checks the cap as each
+        // download actually lands, so it catches up instead of leaving every enqueued download to
+        // finish regardless of maxDownloadsToKeep.
+        val feedId = repository.subscribe(Feed(title = "A Podcast", maxDownloadsToKeep = 1))
+        val items = (1..3).map { i ->
+            FeedItem(
+                id = "ep-$i",
+                feedId = feedId,
+                itemGuid = "ep-$i",
+                enclosureUrl = "https://example.com/$i.mp3",
+                enclosureType = "audio/mpeg",
+                publishDate = i.toLong(),
+            )
+        }
+        repository.insertItems(items)
+        items.forEach { repository.setAutoDownloaded(it.id, true) }
+        val files = items.associate { it.id to tempFolder.newFile("${it.id}.mp3") }
+
+        // All three "complete" in publish-date order, simulating downloads landing one at a time
+        // while others are still enqueued/in-flight.
+        items.forEach { downloadRepository.completeDownload(it.id, files.getValue(it.id).absolutePath) }
+
+        // Only the newest (publishDate 3) survives -- each earlier one is evicted as soon as a
+        // newer one completes and pushes it over the cap of 1.
+        assertFalse(files.getValue("ep-1").exists())
+        assertFalse(files.getValue("ep-2").exists())
+        assertTrue(files.getValue("ep-3").exists())
+    }
+
+    @Test
+    fun completeDownload_notAutoDownloaded_setsPathWithoutEnforcingCap() = runTest {
+        // A manual download shouldn't trigger the auto-download cap at all -- mirrors
+        // enforceFeedDownloadCap_neverEvictsManuallyDownloadedEpisode's own exemption.
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val file = tempFolder.newFile("manual.mp3")
+
+        downloadRepository.completeDownload("item-1", file.absolutePath)
+
+        assertTrue(file.exists())
+        assertEquals(file.absolutePath, repository.getItem("item-1")?.downloadedFilePath)
+    }
 }

@@ -40,6 +40,7 @@ class EnclosureDownloadWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val feedRepository: FeedRepository,
+    private val downloadRepository: EnclosureDownloadRepository,
     private val httpClient: OkHttpClient,
 ) : CoroutineWorker(context, params) {
 
@@ -90,7 +91,7 @@ class EnclosureDownloadWorker @AssistedInject constructor(
             return@withContext Result.retry()
         }
 
-        feedRepository.setDownloadedFilePath(itemId, file.absolutePath)
+        downloadRepository.completeDownload(itemId, file.absolutePath)
         Result.success()
     }
 
