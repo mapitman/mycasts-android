@@ -139,6 +139,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.reset() }
     }
 
+    /** Raw OPML XML text for the caller to copy to the clipboard (issue #92). */
+    suspend fun exportOpmlText(): String = opmlExporter.export()
+
     /** Writes the OPML export to a cache file for the caller to share via [android.content.Intent.ACTION_SEND]. */
     suspend fun exportOpmlToFile(): File {
         val opml = opmlExporter.export()

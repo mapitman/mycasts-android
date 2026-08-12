@@ -49,10 +49,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
@@ -177,7 +179,7 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_actions))
-            ActionsSection(viewModel)
+            ActionsSection(viewModel, snackbarHostState)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_about))
@@ -429,11 +431,13 @@ private fun FontSizeRow(label: String, selected: FontSize, onSelect: (FontSize) 
 }
 
 @Composable
-private fun ActionsSection(viewModel: SettingsViewModel) {
+private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: SnackbarHostState) {
     var confirmAction by remember { mutableStateOf<ConfirmableAction?>(null) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
     val exportFeedsChooserTitle = stringResource(R.string.settings_export_feeds_chooser_title)
+    val opmlCopiedMessage = stringResource(R.string.settings_opml_copied_to_clipboard)
 
     // Storage Access Framework: the system picker itself grants write access to whatever
     // destination the user chooses (Downloads, Drive, etc.), so this needs no storage permission
@@ -465,6 +469,18 @@ private fun ActionsSection(viewModel: SettingsViewModel) {
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         ) {
             Text(stringResource(R.string.settings_save_opml_to_file))
+        }
+        OutlinedButton(
+            onClick = {
+                coroutineScope.launch {
+                    val opml = viewModel.exportOpmlText()
+                    clipboardManager.setText(AnnotatedString(opml))
+                    snackbarHostState.showSnackbar(opmlCopiedMessage)
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        ) {
+            Text(stringResource(R.string.settings_copy_opml_to_clipboard))
         }
         OutlinedButton(onClick = { confirmAction = ConfirmableAction.ClearPodcasts }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Text(stringResource(R.string.settings_clear_podcasts))
