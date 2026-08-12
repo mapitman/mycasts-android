@@ -71,6 +71,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -430,17 +431,6 @@ private fun PodcastPlayerControls(
                 )
             }
         }
-        if (hasChapters) {
-            val chapterIndex = playbackState.currentChapterIndex
-            val chapterTitle = playbackState.currentChapter?.title
-            Text(
-                text = stringResource(R.string.reader_chapter_label, chapterIndex + 1, playbackState.chapters.size)
-                    .let { if (chapterTitle != null) "$it: $chapterTitle" else it },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-        }
         Slider(
             value = positionMs.toFloat(),
             onValueChange = { onSeek(it.toLong()) },
@@ -457,6 +447,23 @@ private fun PodcastPlayerControls(
         ) {
             Text(formatDuration(positionMs), style = MaterialTheme.typography.bodySmall)
             Text(formatDuration((durationMs - positionMs).coerceAtLeast(0L)), style = MaterialTheme.typography.bodySmall)
+        }
+        // Moved to its own prominent, centered row above the transport buttons rather than small
+        // text right before the slider (issue #94, same fix as MiniPlayerBar) -- reads as a focal
+        // point of the player instead of crowded metadata.
+        if (hasChapters) {
+            val chapterIndex = playbackState.currentChapterIndex
+            val chapterTitle = playbackState.currentChapter?.title
+            Text(
+                text = stringResource(R.string.reader_chapter_label, chapterIndex + 1, playbackState.chapters.size)
+                    .let { if (chapterTitle != null) "$it: $chapterTitle" else it },
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
