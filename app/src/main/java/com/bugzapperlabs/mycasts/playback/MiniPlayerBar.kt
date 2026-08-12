@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -197,16 +198,21 @@ fun MiniPlayerBar(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    if (hasChapters) {
-                        Text(
-                            text = chapterLabel(playbackState),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
                 }
+            }
+            // Moved to its own prominent, centered row above the transport buttons rather than
+            // packed in small text alongside the title/feed name up top (issue #94) -- reads as a
+            // focal point of the expanded player instead of crowded metadata.
+            if (hasChapters) {
+                Text(
+                    text = chapterLabel(playbackState),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                )
             }
             // Same control layout as ExpandedPlayerBar/the reader's inline player (issue #194):
             // main row is always just rewind/play/forward/stop, chapter nav flanks the speed
