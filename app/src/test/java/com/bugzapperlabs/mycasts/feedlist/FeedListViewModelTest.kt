@@ -70,10 +70,21 @@ class FeedListViewModelTest {
     private lateinit var context: android.content.Context
     private lateinit var viewModel: FeedListViewModel
 
+    // OpmlImportCoordinator runs on its own real (non-viewModelScope) scope, so every one created
+    // by newViewModel(WithCoordinator) below needs cancelForTest() explicitly in tearDown --
+    // viewModelStore's own clearAndJoin() only reaches viewModelScope coroutines, not this
+    // separate one.
+    private val coordinators = mutableListOf<OpmlImportCoordinator>()
+
     private fun newViewModel(
         feedRefreshState: FeedRefreshState,
         feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient()),
-    ): FeedListViewModel {
+    ): FeedListViewModel = newViewModelWithCoordinator(feedRefreshState, feedFetcher).first
+
+    private fun newViewModelWithCoordinator(
+        feedRefreshState: FeedRefreshState,
+        feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient()),
+    ): Pair<FeedListViewModel, OpmlImportCoordinator> {
         val downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
             downloadScheduling = object : DownloadScheduling {
@@ -84,18 +95,21 @@ class FeedListViewModelTest {
         )
         val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
         val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository)
-        return FeedListViewModel(
+        val coordinator = OpmlImportCoordinator(
+            OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer),
+            context,
+        )
+        coordinators += coordinator
+        val viewModel = FeedListViewModel(
             feedRepository = repository,
             feedUpdateEngine = feedUpdateEngine,
             autoQueueAndDownloadEnforcer = enforcer,
             feedRefreshState = feedRefreshState,
-            opmlImportCoordinator = OpmlImportCoordinator(
-                OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer),
-                context,
-            ),
+            opmlImportCoordinator = coordinator,
             settingsDataStore = settingsDataStore,
             context = context,
         )
+        return viewModel to coordinator
     }
 
     @Before
@@ -118,7 +132,10 @@ class FeedListViewModelTest {
     fun tearDown() {
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
         // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
-        runTest(testDispatcher) { viewModelStore.clearAndJoin() }
+        runTest(testDispatcher) {
+            viewModelStore.clearAndJoin()
+            coordinators.forEach { it.cancelForTest() }
+        }
         db.close()
         Dispatchers.resetMain()
     }
@@ -401,7 +418,7 @@ class FeedListViewModelTest {
                     chain.proceed(original.newBuilder().url(rewritten).build())
                 }
                 .build()
-            val freshViewModel = newViewModel(FeedRefreshState(), feedFetcher = FeedFetcher(httpClient))
+            val (freshViewModel, coordinator) = newViewModelWithCoordinator(FeedRefreshState(), feedFetcher = FeedFetcher(httpClient))
             viewModelStore.put("acceptPrompt", freshViewModel)
 
             freshViewModel.acceptAddDefaultFeedsPrompt()
@@ -409,6 +426,11 @@ class FeedListViewModelTest {
             val feeds = db.feedDao().observeAll().first { it.size == 7 }
             assertEquals(7, feeds.size)
             assertTrue(settingsDataStore.settings.first().addDefaultFeedsPromptShown)
+            // Reaching feeds.size == 7 only guarantees the last item write landed, not that the
+            // coordinator's own coroutine has finished entirely (it still sets _progress/_result
+            // afterward) -- cancelled and joined here, before shutting the server down below, so
+            // nothing is left mid-flight against it (same reasoning as cancelForTest's own doc).
+            coordinator.cancelForTest()
         } finally {
             server.shutdown()
         }
