@@ -2,13 +2,16 @@ package com.bugzapperlabs.mycasts.playback
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -83,7 +86,7 @@ fun MiniPlayerBar(
         color = MaterialTheme.colorScheme.inverseOnSurface,
         shadowElevation = 6.dp,
     ) {
-        Box {
+        Box(modifier = Modifier.fillMaxSize()) {
             // Blurred cover art as a backdrop. The scrim fades from mostly-transparent at the top
             // to the bar's own solid surface color at the bottom -- rather than a flat dim -- so
             // the art visually merges into the plain-colored Next Up list below it, instead of
@@ -104,7 +107,14 @@ fun MiniPlayerBar(
                     ),
                 )
             }
-            Column(modifier = if (applyNavigationBarsPadding) Modifier.navigationBarsPadding() else Modifier) {
+            Column(
+                // statusBarsPadding here (issue #130) because this content can now reach the very
+                // top of the screen once expanded, where it would otherwise render under the status
+                // bar icons.
+                modifier = Modifier.fillMaxSize().statusBarsPadding()
+                    .then(if (applyNavigationBarsPadding) Modifier.navigationBarsPadding() else Modifier),
+                verticalArrangement = Arrangement.Center,
+            ) {
                 Column(
                     // Tapping the artwork/title/feed area (issue #96) opens this episode's own
                     // details page -- the rest of the player (slider/transport/speed/volume) below
