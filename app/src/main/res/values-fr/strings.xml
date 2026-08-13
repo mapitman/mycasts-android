@@ -67,6 +67,10 @@
     <string name="article_list_no_episodes">Aucun épisode</string>
     <string name="article_list_no_unplayed_episodes">Aucun épisode non écouté</string>
 
+    <!-- Now Playing -->
+    <string name="now_playing_title">Lecture en cours</string>
+    <string name="cd_open_now_playing">Lecture en cours</string>
+
     <!-- Next Up queue -->
     <string name="queue_title">À suivre</string>
     <string name="queue_empty">Aucun élément en file d\'attente</string>

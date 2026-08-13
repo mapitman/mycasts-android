@@ -2,9 +2,6 @@ package com.bugzapperlabs.mycasts.episodedetails
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -25,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
@@ -33,22 +29,18 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,7 +63,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.fromHtml
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,20 +74,15 @@ import com.bugzapperlabs.mycasts.episodelist.EpisodeDateFormatter
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.settings.scaleFactor
-import com.bugzapperlabs.mycasts.playback.PLAYER_ARTWORK_KEY
 import com.bugzapperlabs.mycasts.playback.PlaybackUiState
 import com.bugzapperlabs.mycasts.ui.components.ReaderText
-import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EpisodeDetailsScreen(
-    sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope,
     modifier: Modifier = Modifier,
     viewModel: EpisodeDetailsViewModel = hiltViewModel(),
     onBack: () -> Unit = {},
-    onCurrentItemChange: (String?) -> Unit = {},
     onQueueClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -128,11 +114,6 @@ fun EpisodeDetailsScreen(
     var zoomedImageUrl by remember { mutableStateOf<String?>(null) }
 
     val currentItem = uiState.items.getOrNull(pagerState.currentPage)
-
-    // Lets MainActivity hide the mini-player only while the on-screen page is the episode that's
-    // actually playing (issue #97) -- HorizontalPager swipes don't renavigate, so the nav route's
-    // itemId argument stays fixed at whichever episode was first opened and can't be used for this.
-    LaunchedEffect(currentItem?.id) { onCurrentItemChange(currentItem?.id) }
 
     Scaffold(
         modifier = modifier,
@@ -198,18 +179,9 @@ fun EpisodeDetailsScreen(
                     playbackState = playbackState,
                     feedImageUrl = uiState.feedImageUrl,
                     onTogglePlayPause = { viewModel.togglePlayPause(uiState.items[page]) },
-                    onSeek = viewModel::seekTo,
                     isPendingDownload = uiState.items[page].id in pendingDownloadItemIds,
                     onDownload = { viewModel.downloadEnclosure(uiState.items[page]) },
                     onDelete = { viewModel.deleteDownload(uiState.items[page]) },
-                    onSpeedChange = viewModel::setPlaybackSpeed,
-                    onVolumeBoostChange = viewModel::setVolumeBoost,
-                    onSkipBackward = viewModel::skipBackward,
-                    onSkipForward = viewModel::skipForward,
-                    onNextChapter = viewModel::nextChapter,
-                    onPreviousChapter = viewModel::previousChapter,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope,
                 )
             }
             // Moved off the top bar (issue #68): with a long feed title and up to four action
@@ -235,7 +207,6 @@ fun EpisodeDetailsScreen(
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun EpisodePage(
     item: FeedItem,
@@ -244,18 +215,9 @@ private fun EpisodePage(
     playbackState: PlaybackUiState,
     feedImageUrl: String?,
     onTogglePlayPause: () -> Unit,
-    onSeek: (Long) -> Unit,
     isPendingDownload: Boolean,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
-    onSpeedChange: (Float) -> Unit,
-    onVolumeBoostChange: (Int) -> Unit,
-    onSkipBackward: () -> Unit,
-    onSkipForward: () -> Unit,
-    onNextChapter: () -> Unit,
-    onPreviousChapter: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope,
 ) {
     val coverImageUrl = (item.imageUrl ?: feedImageUrl).takeIf { item.isPodcastEpisode }
     val scrollState = rememberScrollState()
@@ -280,24 +242,11 @@ private fun EpisodePage(
         }
         Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
             if (coverImageUrl != null) {
-                // Only the page that's actually playing takes part in the artwork shared element
-                // (issue #112) -- other pages in the pager show the same episode/feed artwork
-                // without it, since a key can only belong to one on-screen element at a time.
-                val heroModifier = if (item.id == playbackState.currentItemId) {
-                    with(sharedTransitionScope) {
-                        Modifier.sharedElement(
-                            rememberSharedContentState(key = PLAYER_ARTWORK_KEY),
-                            animatedVisibilityScope = animatedVisibilityScope,
-                        )
-                    }
-                } else {
-                    Modifier
-                }
                 AsyncImage(
                     model = coverImageUrl,
                     contentDescription = null,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth().height(heroHeight).then(heroModifier),
+                    modifier = Modifier.fillMaxWidth().height(heroHeight),
                 )
             }
             Text(
@@ -312,26 +261,17 @@ private fun EpisodePage(
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
             if (item.isPodcastEpisode) {
-                PodcastPlayerControls(
-                    isCurrentItem = playbackState.currentItemId == item.id,
+                EpisodePlayRow(
+                    isPlaying = playbackState.currentItemId == item.id && playbackState.isPlaying,
+                    isBuffering = playbackState.currentItemId == item.id && playbackState.isBuffering,
                     isPlayed = item.isRead,
-                    playbackState = playbackState,
-                    savedPositionMs = item.enclosurePosition?.let { (it * 1000).toLong() },
-                    savedDurationMs = item.enclosureDurationMs,
                     downloadedFilePath = item.downloadedFilePath,
                     downloadedBytes = item.downloadedBytes,
                     enclosureLength = item.enclosureLength,
                     isPendingDownload = isPendingDownload,
                     onTogglePlayPause = onTogglePlayPause,
-                    onSeek = onSeek,
                     onDownload = onDownload,
                     onDelete = onDelete,
-                    onSpeedChange = onSpeedChange,
-                    onVolumeBoostChange = onVolumeBoostChange,
-                    onSkipBackward = onSkipBackward,
-                    onSkipForward = onSkipForward,
-                    onNextChapter = onNextChapter,
-                    onPreviousChapter = onPreviousChapter,
                 )
             }
             val imageUrl = item.imageUrl
@@ -363,66 +303,44 @@ private fun EpisodePage(
     }
 }
 
+/**
+ * Replaces the episode details page's old full in-page transport UI (issue #96) -- just a Play
+ * button plus the download/delete action. Tapping Play queues this episode at the top of Next Up
+ * and starts it immediately ([EpisodeDetailsViewModel.togglePlayPause] already does exactly that
+ * via [com.bugzapperlabs.mycasts.playback.PlaybackController.play] when it isn't already the
+ * current episode); once playing, the same button toggles pause/resume, and the full transport
+ * controls (seek, chapters, speed, volume boost) live in the dedicated Now Playing screen instead.
+ */
 @Composable
-private fun PodcastPlayerControls(
-    isCurrentItem: Boolean,
+private fun EpisodePlayRow(
+    isPlaying: Boolean,
+    isBuffering: Boolean,
     isPlayed: Boolean,
-    playbackState: PlaybackUiState,
-    savedPositionMs: Long?,
-    savedDurationMs: Long?,
     downloadedFilePath: String?,
     downloadedBytes: Long?,
     enclosureLength: Long?,
     isPendingDownload: Boolean,
     onTogglePlayPause: () -> Unit,
-    onSeek: (Long) -> Unit,
     onDownload: () -> Unit,
     onDelete: () -> Unit,
-    onSpeedChange: (Float) -> Unit,
-    onVolumeBoostChange: (Int) -> Unit,
-    onSkipBackward: () -> Unit,
-    onSkipForward: () -> Unit,
-    onNextChapter: () -> Unit,
-    onPreviousChapter: () -> Unit,
 ) {
-    // While actively loaded *and* the player has a real duration, show the live player position.
-    // Otherwise -- not yet played this session, still buffering, or the mini-player was dismissed
-    // (issue #75) -- fall back to the saved resume position/duration (itunes:duration, where the
-    // feed provides it) so progress doesn't visually reset to 0:00. If duration truly isn't known
-    // (feed has no itunes:duration and playback hasn't buffered in), stay at 0 rather than
-    // overflowing the slider's fallback range with a positionMs the duration can't yet bound.
-    val hasLiveDuration = isCurrentItem && playbackState.durationMs > 0
-    val durationMs = when {
-        hasLiveDuration -> playbackState.durationMs
-        savedDurationMs != null && savedDurationMs > 0 -> savedDurationMs
-        else -> 0L
-    }
-    val positionMs = when {
-        hasLiveDuration -> playbackState.positionMs
-        durationMs > 0 -> (savedPositionMs ?: 0L).coerceIn(0L, durationMs)
-        else -> 0L
-    }
-    val isPlaying = isCurrentItem && playbackState.isPlaying
     val isDownloaded = downloadedFilePath != null
     // isPendingDownload (issue #84) bridges the gap between tapping download and real progress
     // existing to react to -- downloadedBytes is only persisted once the worker has actually
     // written a chunk, which can lag noticeably behind the tap (WorkManager scheduling, network
     // constraints), during which the button used to show no feedback at all.
     val isDownloading = !isDownloaded && (downloadedBytes != null || isPendingDownload)
-    // issue #95: chapter nav only makes sense while this episode is the one actually loaded, since
-    // playbackState.chapters/currentChapter reflect whatever's currently playing, not this item.
-    val hasChapters = isCurrentItem && playbackState.chapters.isNotEmpty()
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         // The episode list already shows played episodes greyed out (issue #89) -- this is the
         // explicit "you've listened to this" signal, shown where it's actually being read (#107).
         if (isPlayed) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
                 Icon(
                     Icons.Filled.CheckCircle,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp).padding(end = 4.dp),
+                    modifier = Modifier.padding(end = 4.dp),
                 )
                 Text(
                     text = stringResource(R.string.played_label),
@@ -431,71 +349,18 @@ private fun PodcastPlayerControls(
                 )
             }
         }
-        Slider(
-            value = positionMs.toFloat(),
-            onValueChange = { onSeek(it.toLong()) },
-            valueRange = 0f..durationMs.coerceAtLeast(1L).toFloat(),
-            enabled = isCurrentItem,
-            // A full-width Slider drag starting near either screen edge otherwise gets
-            // intercepted as system back/forward-edge gesture navigation instead of moving the
-            // slider (issue #114, same fix as issue #302's Settings/Feed Properties sliders).
-            modifier = Modifier.excludeFromSystemGestures(),
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-        ) {
-            Text(formatDuration(positionMs), style = MaterialTheme.typography.bodySmall)
-            Text(formatDuration((durationMs - positionMs).coerceAtLeast(0L)), style = MaterialTheme.typography.bodySmall)
-        }
-        // Moved to its own prominent, centered row above the transport buttons rather than small
-        // text right before the slider (issue #94, same fix as MiniPlayerBar) -- reads as a focal
-        // point of the player instead of crowded metadata.
-        if (hasChapters) {
-            val chapterIndex = playbackState.currentChapterIndex
-            val chapterTitle = playbackState.currentChapter?.title
-            Text(
-                text = stringResource(R.string.reader_chapter_label, chapterIndex + 1, playbackState.chapters.size)
-                    .let { if (chapterTitle != null) "$it: $chapterTitle" else it },
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // No stock Material icon for an exact 15s glyph (only 5/10/30) -- the plain circular
-            // Replay arrow (mirrored for forward) reads as "skip" without implying a wrong duration.
-            IconButton(onClick = onSkipBackward, enabled = isCurrentItem, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
-                Icon(
-                    Icons.Filled.Replay,
-                    contentDescription = stringResource(R.string.cd_rewind),
-                    modifier = Modifier.size(TRANSPORT_ICON_SIZE),
-                )
-            }
-            IconButton(onClick = onTogglePlayPause, modifier = Modifier.size(PLAY_BUTTON_SIZE)) {
-                if (isCurrentItem && playbackState.isBuffering) {
-                    CircularProgressIndicator(modifier = Modifier.size(TRANSPORT_ICON_SIZE), strokeWidth = 3.dp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = onTogglePlayPause, modifier = Modifier.weight(1f)) {
+                if (isBuffering) {
+                    CircularProgressIndicator(modifier = Modifier.padding(end = 8.dp).height(18.dp), strokeWidth = 2.dp)
                 } else {
                     Icon(
                         if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = stringResource(if (isPlaying) R.string.cd_pause else R.string.cd_play),
-                        modifier = Modifier.size(PLAY_ICON_SIZE),
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
                     )
                 }
-            }
-            IconButton(onClick = onSkipForward, enabled = isCurrentItem, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
-                Icon(
-                    Icons.Filled.Replay,
-                    contentDescription = stringResource(R.string.cd_forward),
-                    modifier = Modifier.size(TRANSPORT_ICON_SIZE).graphicsLayer(scaleX = -1f),
-                )
+                Text(stringResource(if (isPlaying) R.string.cd_pause else R.string.cd_play))
             }
             when {
                 isDownloading -> {
@@ -507,7 +372,7 @@ private fun PodcastPlayerControls(
                     } else {
                         null
                     }
-                    Box(modifier = Modifier.padding(8.dp)) {
+                    Box(modifier = Modifier.padding(12.dp)) {
                         // Tertiary (issue #95) as the podcast/enclosure accent, matching the
                         // download-status icon in the episode list.
                         if (progress != null) {
@@ -537,80 +402,6 @@ private fun PodcastPlayerControls(
                 }
             }
         }
-        // Chapter nav flanks the speed selector on its own row (issue #185/#186) -- keeps the main
-        // transport row to just 3-4 buttons so it never overflows screen width.
-        if (isCurrentItem) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (hasChapters) {
-                    IconButton(onClick = onPreviousChapter) {
-                        Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.cd_previous_chapter))
-                    }
-                }
-                TextButton(onClick = {
-                    val currentIndex = PLAYBACK_SPEEDS.indexOfFirst { it >= playbackState.speed }.coerceAtLeast(0)
-                    onSpeedChange(PLAYBACK_SPEEDS[(currentIndex + 1) % PLAYBACK_SPEEDS.size])
-                }) {
-                    Text(formatSpeed(playbackState.speed))
-                }
-                // issue #202: cycles the same discrete levels as Feed Properties, so the value
-                // stays consistent whichever surface changed it last.
-                TextButton(onClick = {
-                    val currentIndex = VOLUME_BOOST_LEVELS.indexOf(playbackState.volumeBoostMillibels).let {
-                        if (it < 0) 0 else it
-                    }
-                    onVolumeBoostChange(VOLUME_BOOST_LEVELS[(currentIndex + 1) % VOLUME_BOOST_LEVELS.size])
-                }) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.VolumeUp,
-                        contentDescription = stringResource(R.string.cd_volume_boost),
-                        modifier = Modifier.size(18.dp),
-                    )
-                    if (playbackState.volumeBoostMillibels > 0) {
-                        Text(
-                            text = "+${playbackState.volumeBoostMillibels / 100}dB",
-                            modifier = Modifier.padding(start = 4.dp),
-                        )
-                    }
-                }
-                if (hasChapters) {
-                    IconButton(onClick = onNextChapter) {
-                        Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.cd_next_chapter))
-                    }
-                }
-            }
-        }
-    }
-}
-
-private val PLAYBACK_SPEEDS = listOf(1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
-
-/** Millibel gain levels cycled by the player's volume boost button (issue #202) -- matches the
- *  Off/Low/Medium/High levels offered in Feed Properties. */
-private val VOLUME_BOOST_LEVELS = listOf(0, 600, 1200, 1800)
-
-/** issue #186: bigger than the default 48dp/24dp IconButton so transport controls stay easy to
- *  hit at a glance (e.g. while driving), with play/pause sized up further as the primary action. */
-private val TRANSPORT_BUTTON_SIZE = 64.dp
-private val TRANSPORT_ICON_SIZE = 40.dp
-private val PLAY_BUTTON_SIZE = 88.dp
-private val PLAY_ICON_SIZE = 56.dp
-
-private fun formatSpeed(speed: Float): String =
-    "${"%.2f".format(speed).trimEnd('0').trimEnd('.')}x"
-
-private fun formatDuration(millis: Long): String {
-    val totalSeconds = millis / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
     }
 }
 

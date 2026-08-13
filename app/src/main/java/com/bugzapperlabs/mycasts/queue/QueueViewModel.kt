@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -28,6 +29,13 @@ class QueueViewModel @Inject constructor(
 ) : ViewModel() {
     val queue: StateFlow<List<QueuedEpisode>> = queueRepository.observeQueue()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The currently-playing episode's id (issue #96), so a queue row for it -- e.g. one still
+     *  mid-flight through [ReorderableQueueList]'s own optimistic state right after [playNow] --
+     *  can be highlighted instead of just disabling its long-press. */
+    val currentItemId: StateFlow<String?> = playbackController.uiState
+        .map { it.currentItemId }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _removedEpisode = MutableStateFlow<RemovedQueueEpisode?>(null)
 

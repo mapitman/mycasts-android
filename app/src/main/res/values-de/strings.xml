@@ -67,6 +67,10 @@
     <string name="article_list_no_episodes">Keine Episoden</string>
     <string name="article_list_no_unplayed_episodes">Keine ungespielten Episoden</string>
 
+    <!-- Now Playing -->
+    <string name="now_playing_title">Läuft gerade</string>
+    <string name="cd_open_now_playing">Läuft gerade</string>
+
     <!-- Next Up queue -->
     <string name="queue_title">Als Nächstes</string>
     <string name="queue_empty">Nichts in der Warteschlange</string>

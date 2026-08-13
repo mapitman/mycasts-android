@@ -11,15 +11,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -55,9 +51,6 @@ fun FeedListScreen(
     viewModel: FeedListViewModel = hiltViewModel(),
     onFeedClick: (Long) -> Unit = {},
     onAddFeedClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
-    onQueueClick: () -> Unit = {},
-    onDownloadsClick: () -> Unit = {},
     onFeedLongClick: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -102,17 +95,6 @@ fun FeedListScreen(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
-                actions = {
-                    IconButton(onClick = onQueueClick) {
-                        Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = stringResource(R.string.cd_open_queue))
-                    }
-                    IconButton(onClick = onDownloadsClick) {
-                        Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_open_downloads))
-                    }
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
-                    }
-                },
             )
         },
         floatingActionButton = {
