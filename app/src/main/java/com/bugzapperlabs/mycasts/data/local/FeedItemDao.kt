@@ -73,9 +73,6 @@ interface FeedItemDao {
     @Query("SELECT feedId, COUNT(*) as count FROM feed_items WHERE isRead = 0 GROUP BY feedId")
     fun observeUnreadCountsByFeed(): Flow<List<FeedUnreadCount>>
 
-    @Query("UPDATE feed_items SET enclosurePosition = NULL WHERE enclosurePosition IS NOT NULL")
-    suspend fun clearAllEnclosurePositions()
-
     @Query("UPDATE feed_items SET downloadedBytes = :bytes WHERE id = :id")
     suspend fun setDownloadedBytes(id: String, bytes: Long?)
 

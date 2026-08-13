@@ -6,6 +6,7 @@
     <string name="action_confirm">Confirm</string>
     <string name="action_delete">Delete</string>
     <string name="action_save">Save</string>
+    <string name="action_done">Done</string>
 
     <!-- Delete confirmation dialog (issue #288), shared by the Item List, Feed River, and
          Downloads screens -->
@@ -61,7 +62,6 @@
     <string name="feed_list_section_unread">%1$d Unread</string>
     <string name="feed_list_section_unplayed">%1$d Unplayed</string>
     <string name="feed_list_refresh_error">Couldn\'t refresh: check your connection</string>
-    <string name="feed_list_podcasts_tab">Podcasts</string>
     <string name="feed_list_feeds_tab">Feeds</string>
 
     <!-- Article list -->
@@ -117,22 +117,19 @@
     <string name="settings_section_about">About</string>
     <string name="settings_show_images">Show images</string>
     <string name="settings_use_device_theme_colors">Use device theme colors</string>
-    <string name="settings_default_to_all_items">Default to all items</string>
+    <string name="settings_default_to_all_items">Open episode lists on All</string>
     <string name="settings_notify_on_new_items">Notify on new items</string>
     <string name="settings_update_interval">Update interval: %1$d min</string>
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
-    <string name="settings_max_items_per_feed">Max items per feed: %1$d</string>
-    <string name="settings_max_items_per_feed_unlimited">Max items per feed: All</string>
-    <string name="settings_feed_refresh_concurrency">Feeds refreshed at once: %1$d</string>
-    <string name="settings_episode_details_font_size">Reader font size</string>
-    <string name="settings_episode_list_font_size">List font size</string>
-    <string name="settings_feed_list_font_size">Feed list font size</string>
+    <string name="settings_max_items_per_feed">Episodes to keep per podcast: %1$d</string>
+    <string name="settings_max_items_per_feed_unlimited">Episodes to keep per podcast: All</string>
+    <string name="settings_font_size">Font size</string>
     <string name="settings_download_on_battery">Download on battery</string>
     <string name="settings_download_on_cellular">Download on cellular</string>
     <string name="settings_allow_streaming">Allow streaming</string>
     <string name="settings_auto_delete_finished_downloads">Auto-delete downloads once played</string>
     <string name="settings_auto_download_new_feeds">Auto-download new subscriptions</string>
-    <string name="settings_auto_download_max_count">Max downloaded episodes to keep by default</string>
+    <string name="settings_auto_download_max_count">Downloads to keep per podcast</string>
     <string name="settings_battery_optimization_heading">Background battery usage</string>
     <string name="settings_battery_optimization_description">For reliable podcast auto-advance and downloads when the screen is off, allow MyCasts to run without battery restrictions.</string>
     <string name="settings_battery_optimization_granted">Unrestricted</string>
@@ -141,27 +138,25 @@
     <string name="battery_optimization_prompt_message">For podcasts to reliably auto-advance to the next episode with the screen off, allow MyCasts to run without battery restrictions. You can change this later in Settings.</string>
     <string name="battery_optimization_prompt_allow">Allow</string>
     <string name="settings_section_podcast_search">Podcast Search</string>
+    <string name="settings_podcast_search_row_title">Podcast Search API Key</string>
+    <string name="settings_podcast_search_configured">Configured</string>
+    <string name="settings_podcast_search_not_set">Not set</string>
     <string name="settings_podcast_search_description">Enter a free podcastindex.org API key/secret to search live podcasts when adding a feed. Left blank, search falls back to the offline feed directory.</string>
     <string name="settings_podcast_search_get_key_button">Get a free API key</string>
     <string name="settings_podcast_search_api_key_label">API key</string>
     <string name="settings_podcast_search_api_secret_label">API secret</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_description">A podcast client.</string>
-    <string name="settings_export_opml">Export OPML</string>
+    <string name="settings_export_podcasts">Export Podcasts</string>
+    <string name="settings_export_share">Share</string>
     <string name="settings_save_opml_to_file">Save OPML to file</string>
     <string name="settings_copy_opml_to_clipboard">Copy OPML to clipboard</string>
     <string name="settings_opml_copied_to_clipboard">OPML copied to clipboard</string>
     <string name="settings_export_feeds_chooser_title">Export feeds</string>
-    <string name="settings_clear_podcasts">Clear podcasts</string>
-    <string name="settings_add_default_feeds">Add default feeds</string>
-    <string name="settings_remove_all_feeds">Remove all feeds</string>
+    <string name="settings_add_default_feeds">Add starter podcasts</string>
     <string name="settings_reset_settings">Reset settings</string>
-    <string name="settings_confirm_clear_podcasts_title">Clear podcasts?</string>
-    <string name="settings_confirm_clear_podcasts_message">This clears saved playback positions for downloaded episodes.</string>
-    <string name="settings_confirm_add_default_feeds_title">Add default feeds?</string>
-    <string name="settings_confirm_add_default_feeds_message">This adds the bundled starter feeds to your subscriptions.</string>
-    <string name="settings_confirm_remove_all_feeds_title">Remove all feeds?</string>
-    <string name="settings_confirm_remove_all_feeds_message">This permanently deletes every subscribed feed and its content.</string>
+    <string name="settings_confirm_add_default_feeds_title">Add starter podcasts?</string>
+    <string name="settings_confirm_add_default_feeds_message">This adds the bundled starter podcasts to your subscriptions.</string>
     <string name="settings_confirm_reset_title">Reset settings?</string>
     <string name="settings_confirm_reset_message">This restores all settings to their defaults. Feeds are not affected.</string>
     <string name="settings_confirm_apply_auto_download_title">Apply to existing podcasts too?</string>

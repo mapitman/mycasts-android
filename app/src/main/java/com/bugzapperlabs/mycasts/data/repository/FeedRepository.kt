@@ -77,9 +77,6 @@ class FeedRepository @Inject constructor(
      *  subscription, not just ones added going forward. */
     suspend fun setAutoDownloadEnabledForAllFeeds(enabled: Boolean) = feedDao.setAutoDownloadEnabledForAllFeeds(enabled)
 
-    /** Clears saved podcast resume positions. Does not touch downloaded files/state (see [com.bugzapperlabs.mycasts.download.DownloadManager]). */
-    suspend fun clearAllEnclosurePositions() = feedItemDao.clearAllEnclosurePositions()
-
     suspend fun setDownloadedBytes(itemId: String, bytes: Long?) = feedItemDao.setDownloadedBytes(itemId, bytes)
 
     suspend fun setDownloadedFilePath(itemId: String, path: String?) = feedItemDao.setDownloadedFilePath(itemId, path)

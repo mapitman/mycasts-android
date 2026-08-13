@@ -71,7 +71,7 @@ class EpisodeDetailsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     val episodeDetailsFontSize: StateFlow<FontSize> = settingsDataStore.settings
-        .map { it.episodeDetailsFontSize }
+        .map { it.fontSize }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
 
     /** Item IDs whose download was just requested but hasn't shown real progress yet (issue #84) --

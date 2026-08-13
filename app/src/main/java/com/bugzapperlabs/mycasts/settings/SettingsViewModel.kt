@@ -81,16 +81,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setFeedRefreshConcurrency(count) }
     }
 
-    fun setEpisodeDetailsFontSize(size: FontSize) {
-        viewModelScope.launch { settingsDataStore.setEpisodeDetailsFontSize(size) }
-    }
-
-    fun setEpisodeListFontSize(size: FontSize) {
-        viewModelScope.launch { settingsDataStore.setEpisodeListFontSize(size) }
-    }
-
-    fun setFeedListFontSize(size: FontSize) {
-        viewModelScope.launch { settingsDataStore.setFeedListFontSize(size) }
+    fun setFontSize(size: FontSize) {
+        viewModelScope.launch { settingsDataStore.setFontSize(size) }
     }
 
     fun setAllowPodcastDownloadOnBattery(value: Boolean) {
@@ -139,10 +131,6 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setPodcastIndexApiSecret(secret) }
     }
 
-    fun clearPodcasts() {
-        viewModelScope.launch { feedRepository.clearAllEnclosurePositions() }
-    }
-
     fun addDefaultFeeds() {
         viewModelScope.launch {
             val document = try {
@@ -156,10 +144,6 @@ class SettingsViewModel @Inject constructor(
                 opmlImportCoordinator.startImport(document)
             }
         }
-    }
-
-    fun removeAllFeeds() {
-        viewModelScope.launch { feedRepository.removeAllFeeds() }
     }
 
     fun resetSettings() {

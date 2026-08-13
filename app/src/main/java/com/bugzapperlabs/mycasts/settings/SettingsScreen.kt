@@ -10,6 +10,7 @@ import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -146,21 +147,10 @@ fun SettingsScreen(
                 },
             )
             MaxItemsPerFeedSetting(settings, viewModel)
-            FeedRefreshConcurrencySetting(settings, viewModel)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_fonts))
-            FontSizeRow(
-                stringResource(R.string.settings_episode_details_font_size),
-                settings.episodeDetailsFontSize,
-                viewModel::setEpisodeDetailsFontSize,
-            )
-            FontSizeRow(
-                stringResource(R.string.settings_episode_list_font_size),
-                settings.episodeListFontSize,
-                viewModel::setEpisodeListFontSize,
-            )
-            FontSizeRow(stringResource(R.string.settings_feed_list_font_size), settings.feedListFontSize, viewModel::setFeedListFontSize)
+            FontSizeRow(stringResource(R.string.settings_font_size), settings.fontSize, viewModel::setFontSize)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_podcasts))
@@ -345,22 +335,6 @@ private fun MaxItemsPerFeedSetting(settings: AppSettings, viewModel: SettingsVie
     }
 }
 
-@Composable
-private fun FeedRefreshConcurrencySetting(settings: AppSettings, viewModel: SettingsViewModel) {
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(
-            stringResource(R.string.settings_feed_refresh_concurrency, settings.feedRefreshConcurrency),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Slider(
-            value = settings.feedRefreshConcurrency.toFloat(),
-            onValueChange = { viewModel.setFeedRefreshConcurrency(it.toInt()) },
-            valueRange = 1f..10f,
-            steps = 8,
-        )
-    }
-}
-
 /**
  * Nudges the user toward exempting the app from Doze battery optimization (issue #273): even
  * with a wake lock held across the STATE_ENDED-to-next-episode gap (issues #179, #241), Doze can
@@ -421,63 +395,87 @@ private fun BatteryOptimizationSetting() {
 
 /** Free API credentials for live podcast search via podcastindex.org (issue #93) -- search
  *  silently falls back to the offline directory when either field is blank, see
- *  [com.bugzapperlabs.mycasts.data.directory.PodcastSearchService]. Local text-field state tracks
- *  whether the user has actually edited it: until they do, it keeps re-syncing from [settings]
- *  (a [SharingStarted.WhileSubscribed] StateFlow can briefly show the empty default here on
- *  re-navigation, before the real persisted value finishes loading from DataStore -- syncing only
- *  pre-edit means that catches up instead of leaving the field stuck on the stale default). Once
- *  the user types, local edits win outright so a DataStore write round trip doesn't fight typing. */
+ *  [com.bugzapperlabs.mycasts.data.directory.PodcastSearchService]. Both fields live behind a
+ *  popup now (issue #119), reached via a summary row showing whether they're already set, rather
+ *  than two always-visible text fields taking up permanent space on the main screen. */
 @Composable
 private fun PodcastSearchSetting(settings: AppSettings, viewModel: SettingsViewModel) {
+    var showDialog by remember { mutableStateOf(false) }
+    val isConfigured = !settings.podcastIndexApiKey.isNullOrBlank() && !settings.podcastIndexApiSecret.isNullOrBlank()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showDialog = true }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.settings_podcast_search_row_title), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(
+                    if (isConfigured) R.string.settings_podcast_search_configured else R.string.settings_podcast_search_not_set,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+
+    if (showDialog) {
+        PodcastSearchDialog(settings, viewModel, onDismiss = { showDialog = false })
+    }
+}
+
+@Composable
+private fun PodcastSearchDialog(settings: AppSettings, viewModel: SettingsViewModel, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var apiKey by remember { mutableStateOf(settings.podcastIndexApiKey.orEmpty()) }
     var apiSecret by remember { mutableStateOf(settings.podcastIndexApiSecret.orEmpty()) }
-    var apiKeyEdited by remember { mutableStateOf(false) }
-    var apiSecretEdited by remember { mutableStateOf(false) }
 
-    LaunchedEffect(settings.podcastIndexApiKey) {
-        if (!apiKeyEdited) apiKey = settings.podcastIndexApiKey.orEmpty()
-    }
-    LaunchedEffect(settings.podcastIndexApiSecret) {
-        if (!apiSecretEdited) apiSecret = settings.podcastIndexApiSecret.orEmpty()
-    }
-
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(
-            stringResource(R.string.settings_podcast_search_description),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-        OutlinedButton(
-            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://podcastindex.org/signup"))) },
-            modifier = Modifier.padding(bottom = 8.dp),
-        ) {
-            Text(stringResource(R.string.settings_podcast_search_get_key_button))
-        }
-        OutlinedTextField(
-            value = apiKey,
-            onValueChange = {
-                apiKey = it
-                apiKeyEdited = true
-                viewModel.setPodcastIndexApiKey(it)
-            },
-            label = { Text(stringResource(R.string.settings_podcast_search_api_key_label)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        )
-        OutlinedTextField(
-            value = apiSecret,
-            onValueChange = {
-                apiSecret = it
-                apiSecretEdited = true
-                viewModel.setPodcastIndexApiSecret(it)
-            },
-            label = { Text(stringResource(R.string.settings_podcast_search_api_secret_label)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-        )
-    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_podcast_search_row_title)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.settings_podcast_search_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                OutlinedButton(
+                    onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://podcastindex.org/signup"))) },
+                    modifier = Modifier.padding(bottom = 8.dp),
+                ) {
+                    Text(stringResource(R.string.settings_podcast_search_get_key_button))
+                }
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = {
+                        apiKey = it
+                        viewModel.setPodcastIndexApiKey(it)
+                    },
+                    label = { Text(stringResource(R.string.settings_podcast_search_api_key_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+                OutlinedTextField(
+                    value = apiSecret,
+                    onValueChange = {
+                        apiSecret = it
+                        viewModel.setPodcastIndexApiSecret(it)
+                    },
+                    label = { Text(stringResource(R.string.settings_podcast_search_api_secret_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) }
+        },
+    )
 }
 
 @Composable
@@ -500,57 +498,14 @@ private fun FontSizeRow(label: String, selected: FontSize, onSelect: (FontSize) 
 @Composable
 private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: SnackbarHostState) {
     var confirmAction by remember { mutableStateOf<ConfirmableAction?>(null) }
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    val clipboardManager = LocalClipboardManager.current
-    val exportFeedsChooserTitle = stringResource(R.string.settings_export_feeds_chooser_title)
-    val opmlCopiedMessage = stringResource(R.string.settings_opml_copied_to_clipboard)
-
-    // Storage Access Framework: the system picker itself grants write access to whatever
-    // destination the user chooses (Downloads, Drive, etc.), so this needs no storage permission
-    // (issue #151), unlike writing directly to shared storage.
-    val saveOpmlLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/x-opml")) { uri ->
-        if (uri != null) coroutineScope.launch { viewModel.writeOpmlTo(uri) }
-    }
+    var showExportDialog by remember { mutableStateOf(false) }
 
     Column {
         OutlinedButton(
-            onClick = {
-                coroutineScope.launch {
-                    val file = viewModel.exportOpmlToFile()
-                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/x-opml"
-                        putExtra(Intent.EXTRA_STREAM, uri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    context.startActivity(Intent.createChooser(intent, exportFeedsChooserTitle))
-                }
-            },
+            onClick = { showExportDialog = true },
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         ) {
-            Text(stringResource(R.string.settings_export_opml))
-        }
-        OutlinedButton(
-            onClick = { saveOpmlLauncher.launch("mycasts-export.opml") },
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        ) {
-            Text(stringResource(R.string.settings_save_opml_to_file))
-        }
-        OutlinedButton(
-            onClick = {
-                coroutineScope.launch {
-                    val opml = viewModel.exportOpmlText()
-                    clipboardManager.setText(AnnotatedString(opml))
-                    snackbarHostState.showSnackbar(opmlCopiedMessage)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        ) {
-            Text(stringResource(R.string.settings_copy_opml_to_clipboard))
-        }
-        OutlinedButton(onClick = { confirmAction = ConfirmableAction.ClearPodcasts }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-            Text(stringResource(R.string.settings_clear_podcasts))
+            Text(stringResource(R.string.settings_export_podcasts))
         }
         val addDefaultFeedsProgress by viewModel.addDefaultFeedsProgress.collectAsState()
         OutlinedButton(
@@ -569,12 +524,13 @@ private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: Snac
                 )
             }
         }
-        Button(onClick = { confirmAction = ConfirmableAction.RemoveAllFeeds }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-            Text(stringResource(R.string.settings_remove_all_feeds))
-        }
         Button(onClick = { confirmAction = ConfirmableAction.Reset }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Text(stringResource(R.string.settings_reset_settings))
         }
+    }
+
+    if (showExportDialog) {
+        ExportPodcastsDialog(viewModel, snackbarHostState, onDismiss = { showExportDialog = false })
     }
 
     confirmAction?.let { action ->
@@ -585,9 +541,7 @@ private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: Snac
             confirmButton = {
                 TextButton(onClick = {
                     when (action) {
-                        ConfirmableAction.ClearPodcasts -> viewModel.clearPodcasts()
                         ConfirmableAction.AddDefaultFeeds -> viewModel.addDefaultFeeds()
-                        ConfirmableAction.RemoveAllFeeds -> viewModel.removeAllFeeds()
                         ConfirmableAction.Reset -> viewModel.resetSettings()
                     }
                     confirmAction = null
@@ -602,9 +556,77 @@ private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: Snac
     }
 }
 
+/** The three OPML export destinations (share sheet/save to file/copy to clipboard) behind one
+ *  popup (issue #119), rather than three permanently-visible buttons. */
+@Composable
+private fun ExportPodcastsDialog(viewModel: SettingsViewModel, snackbarHostState: SnackbarHostState, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val clipboardManager = LocalClipboardManager.current
+    val exportFeedsChooserTitle = stringResource(R.string.settings_export_feeds_chooser_title)
+    val opmlCopiedMessage = stringResource(R.string.settings_opml_copied_to_clipboard)
+
+    // Storage Access Framework: the system picker itself grants write access to whatever
+    // destination the user chooses (Downloads, Drive, etc.), so this needs no storage permission
+    // (issue #151), unlike writing directly to shared storage.
+    val saveOpmlLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/x-opml")) { uri ->
+        if (uri != null) coroutineScope.launch { viewModel.writeOpmlTo(uri) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_export_podcasts)) },
+        text = {
+            Column {
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            val file = viewModel.exportOpmlToFile()
+                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/x-opml"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(intent, exportFeedsChooserTitle))
+                        }
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    Text(stringResource(R.string.settings_export_share))
+                }
+                OutlinedButton(
+                    onClick = {
+                        saveOpmlLauncher.launch("mycasts-export.opml")
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    Text(stringResource(R.string.settings_save_opml_to_file))
+                }
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            val opml = viewModel.exportOpmlText()
+                            clipboardManager.setText(AnnotatedString(opml))
+                            snackbarHostState.showSnackbar(opmlCopiedMessage)
+                        }
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    Text(stringResource(R.string.settings_copy_opml_to_clipboard))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+}
+
 private enum class ConfirmableAction(@StringRes val titleRes: Int, @StringRes val messageRes: Int) {
-    ClearPodcasts(R.string.settings_confirm_clear_podcasts_title, R.string.settings_confirm_clear_podcasts_message),
     AddDefaultFeeds(R.string.settings_confirm_add_default_feeds_title, R.string.settings_confirm_add_default_feeds_message),
-    RemoveAllFeeds(R.string.settings_confirm_remove_all_feeds_title, R.string.settings_confirm_remove_all_feeds_message),
     Reset(R.string.settings_confirm_reset_title, R.string.settings_confirm_reset_message),
 }
