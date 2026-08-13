@@ -144,8 +144,9 @@ fun QueueScreen(
                 // fillMaxHeight here (issue #130) so the sheet is measured at the scaffold's full
                 // height rather than just wrapping the strip + player's own content -- otherwise
                 // BottomSheetScaffold's Expanded anchor (layoutHeight - sheetHeight) lands short of
-                // the top instead of reaching it. MiniPlayerBar below takes the weight(1f) leftover
-                // once the strip's fixed height is subtracted, so it's the one that stretches.
+                // the top instead of reaching it. MiniPlayerBar below is given that same full
+                // height directly (issue #129), not a Column-with-weight leftover -- see its own
+                // comment further down for why.
                 BoxWithConstraints(modifier = Modifier.fillMaxHeight()) {
                     // How far the sheet is between peeked and expanded, 0f..1f (issue #129) --
                     // driven by the sheet's live drag offset rather than the discrete before/after
