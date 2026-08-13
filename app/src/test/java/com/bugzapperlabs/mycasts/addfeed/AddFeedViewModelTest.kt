@@ -72,6 +72,28 @@ class AddFeedViewModelTest {
             <guid>item-1</guid>
             <description>body</description>
             <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+            <enclosure url="https://example.com/item-1.mp3" type="audio/mpeg" length="123" />
+          </item>
+        </channel></rss>
+    """.trimIndent()
+
+    // issue #122: no audio enclosure -- a plain article/news feed, which the app no longer
+    // accepts as a new subscription. The image enclosure mirrors real-world feeds like Windows
+    // Central/Sky News (see FeedItem.isPodcastEpisode's doc comment), which set <enclosure> for a
+    // featured image rather than audio.
+    private val articleRssXml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel>
+          <title>An Article Feed</title>
+          <link>https://example.com</link>
+          <description>desc</description>
+          <item>
+            <title>An Article</title>
+            <link>https://example.com/article-1</link>
+            <guid>article-1</guid>
+            <description>body</description>
+            <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+            <enclosure url="https://example.com/article-1.jpg" type="image/jpeg" length="123" />
           </item>
         </channel></rss>
     """.trimIndent()
@@ -153,6 +175,17 @@ class AddFeedViewModelTest {
 
         assertTrue(state is AddFeedUiState.Error)
         assertEquals(0, server.requestCount)
+    }
+
+    @Test
+    fun addFeedByUrl_notAPodcast_showsErrorAndDoesNotSubscribe() = runTest(testDispatcher) {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(articleRssXml))
+
+        viewModel.addFeedByUrl(server.url("/article-feed.xml").toString())
+        val state = awaitTerminalState()
+
+        assertTrue("expected Error but got $state", state is AddFeedUiState.Error)
+        assertEquals(0, db.feedDao().observeAll().first().size)
     }
 
     @Test

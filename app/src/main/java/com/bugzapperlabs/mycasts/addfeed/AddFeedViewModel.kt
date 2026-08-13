@@ -11,6 +11,7 @@ import com.bugzapperlabs.mycasts.data.directory.PodcastSearchResult
 import com.bugzapperlabs.mycasts.data.feed.FeedFetchResult
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
+import com.bugzapperlabs.mycasts.data.feed.hasPodcastEpisode
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.opml.OpmlDocument
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
@@ -106,6 +107,12 @@ class AddFeedViewModel @Inject constructor(
         when (val result = feedFetcher.fetchFeed(url)) {
             is FeedFetchResult.Failure -> _uiState.value = AddFeedUiState.Error(result.message)
             is FeedFetchResult.Success -> {
+                // issue #122: the app only supports podcasts (audio episodes) going forward -- a
+                // feed with no audio enclosures at all is a plain article/news feed.
+                if (!result.feed.hasPodcastEpisode) {
+                    _uiState.value = AddFeedUiState.Error(context.getString(R.string.add_feed_not_a_podcast_error))
+                    return
+                }
                 val feedId = feedRepository.subscribe(
                     Feed(
                         title = result.feed.title,

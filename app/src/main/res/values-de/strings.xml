@@ -171,6 +171,7 @@
     <string name="add_feed_import_from_text_button">Aus eingefügtem OPML importieren</string>
     <string name="add_feed_enter_opml_text_error">OPML-Inhalt zum Importieren einfügen</string>
     <string name="add_feed_enter_url_error">Geben Sie eine Feed- oder Website-URL ein</string>
+    <string name="add_feed_not_a_podcast_error">Das sieht nicht nach einem Podcast aus – keine Audio-Episoden gefunden.</string>
     <string name="add_feed_added_message">%1$s hinzugefügt</string>
     <string name="add_feed_enter_opml_url_error">Geben Sie eine OPML-URL ein</string>
     <string name="add_feed_could_not_load_opml">OPML konnte nicht von %1$s geladen werden</string>

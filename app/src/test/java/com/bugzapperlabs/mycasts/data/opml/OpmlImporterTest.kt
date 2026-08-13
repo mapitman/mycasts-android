@@ -49,18 +49,10 @@ class OpmlImporterTest {
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var queueRepository: QueueRepository
 
+    /** Includes an audio enclosure (issue #122: OpmlImporter now rejects feeds with no audio
+     *  episodes as not-a-podcast) so this is podcast-valid by default -- most tests here just need
+     *  a feed that imports successfully, not specific item content. */
     private fun rssXml(title: String) = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <rss version="2.0"><channel>
-          <title>$title</title>
-          <link>https://example.com</link>
-          <description>desc</description>
-        </channel></rss>
-    """.trimIndent()
-
-    /** Includes an audio enclosure so FeedUpdateEngine.persist() sees hasPodcastEpisode=true and
-     *  applies its first-fetch auto-queue default (issue #137). */
-    private fun rssXmlWithEpisode(title: String) = """
         <?xml version="1.0" encoding="UTF-8"?>
         <rss version="2.0"><channel>
           <title>$title</title>
@@ -73,6 +65,27 @@ class OpmlImporterTest {
             <description>Body</description>
             <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
             <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1" />
+          </item>
+        </channel></rss>
+    """.trimIndent()
+
+    /** No audio enclosure -- a plain article/news feed, which OpmlImporter no longer imports
+     *  (issue #122). The image enclosure mirrors real-world feeds like Windows Central/Sky News
+     *  (see FeedItem.isPodcastEpisode's doc comment), which set <enclosure> for a featured image
+     *  rather than audio. */
+    private fun articleRssXml(title: String) = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0"><channel>
+          <title>$title</title>
+          <link>https://example.com</link>
+          <description>desc</description>
+          <item>
+            <title>An Article</title>
+            <link>https://example.com/1</link>
+            <guid>guid-1</guid>
+            <description>Body</description>
+            <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+            <enclosure url="https://example.com/cover.jpg" type="image/jpeg" length="1" />
           </item>
         </channel></rss>
     """.trimIndent()
@@ -141,7 +154,7 @@ class OpmlImporterTest {
         // autoQueueEnabled=true on its first fetch (issue #137), but nothing actually queued the
         // episodes from *that* fetch unless the caller separately ran
         // AutoQueueAndDownloadEnforcer.apply() afterward -- which OpmlImporter never did.
-        dispatchByPath("/feed" to MockResponse().setResponseCode(200).setBody(rssXmlWithEpisode("A Podcast")))
+        dispatchByPath("/feed" to MockResponse().setResponseCode(200).setBody(rssXml("A Podcast")))
         val document = OpmlDocument(
             folders = listOf(OpmlFolder("Tech", listOf(OpmlFeed("A Podcast", server.url("/feed").toString())))),
         )
@@ -290,6 +303,35 @@ class OpmlImporterTest {
     }
 
     @Test
+    fun import_skipsNonPodcastFeedsAndReportsCount() = runTest {
+        // issue #122: a feed with no audio enclosures (a plain article/news feed) is treated the
+        // same as an invalid/unreachable one -- excluded from the import, its provisional row
+        // deleted, and counted in invalidCount.
+        dispatchByPath(
+            "/good" to MockResponse().setResponseCode(200).setBody(rssXml("Good Feed")),
+            "/article" to MockResponse().setResponseCode(200).setBody(articleRssXml("An Article Feed")),
+        )
+        val document = OpmlDocument(
+            folders = listOf(
+                OpmlFolder(
+                    "Tech",
+                    listOf(
+                        OpmlFeed("Good", server.url("/good").toString()),
+                        OpmlFeed("Article", server.url("/article").toString()),
+                    ),
+                ),
+            ),
+        )
+
+        val result = importer.import(document)
+
+        assertEquals(1, result.importedCount)
+        assertEquals(1, result.invalidCount)
+        val feeds = db.feedDao().observeAll().first()
+        assertEquals(listOf("Good Feed"), feeds.map { it.title })
+    }
+
+    @Test
     fun import_oneFeedThrowingUnexpectedly_doesNotCorruptConcurrentSiblingsTrim() = runTest {
         // issue #269: one candidate feed's *uncaught* exception (as opposed to a graceful
         // FeedFetchResult.Failure) used to cancel the whole `coroutineScope`, interrupting every
@@ -300,7 +342,8 @@ class OpmlImporterTest {
         settingsDataStore.setFeedRefreshConcurrency(2)
         val goodItems = (1..10).joinToString(separator = "") { i ->
             "<item><title>Item $i</title><link>https://example.com/$i</link><guid>guid-$i</guid>" +
-                "<description>Body $i</description><pubDate>Mon, 0${(i % 9) + 1} Jun 2013 11:05:30 GMT</pubDate></item>"
+                "<description>Body $i</description><pubDate>Mon, 0${(i % 9) + 1} Jun 2013 11:05:30 GMT</pubDate>" +
+                "<enclosure url=\"https://example.com/$i.mp3\" type=\"audio/mpeg\" length=\"1\" /></item>"
         }
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
@@ -390,6 +433,7 @@ class OpmlImporterTest {
                     <title>First</title>
                     <link>https://example.com/1</link>
                     <guid>guid-1</guid>
+                    <enclosure url="https://example.com/1.mp3" type="audio/mpeg" length="1" />
                   </item>
                 </channel></rss>
                 """.trimIndent(),
