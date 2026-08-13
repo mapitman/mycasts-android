@@ -84,6 +84,9 @@ fun SettingsScreen(
     val addDefaultFeedsMessage by viewModel.addDefaultFeedsMessage.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    // issue #117: prompted right when the toggle is switched on, not routed through
+    // ActionsSection's button-triggered ConfirmableAction pattern below.
+    var showApplyAutoDownloadPrompt by remember { mutableStateOf(false) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { /* If denied, the setting stays on but no notification will be shown until granted. */ }
@@ -180,7 +183,10 @@ fun SettingsScreen(
             SwitchRow(
                 stringResource(R.string.settings_auto_download_new_feeds),
                 settings.autoDownloadNewFeedsByDefault,
-                viewModel::setAutoDownloadNewFeedsByDefault,
+                onCheckedChange = { enabled ->
+                    viewModel.setAutoDownloadNewFeedsByDefault(enabled)
+                    if (enabled) showApplyAutoDownloadPrompt = true
+                },
             )
             if (settings.autoDownloadNewFeedsByDefault) {
                 Text(
@@ -234,6 +240,27 @@ fun SettingsScreen(
                 modifier = Modifier.padding(bottom = 24.dp),
             )
         }
+    }
+
+    if (showApplyAutoDownloadPrompt) {
+        AlertDialog(
+            onDismissRequest = { showApplyAutoDownloadPrompt = false },
+            title = { Text(stringResource(R.string.settings_confirm_apply_auto_download_title)) },
+            text = { Text(stringResource(R.string.settings_confirm_apply_auto_download_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.enableAutoDownloadForExistingFeeds()
+                    showApplyAutoDownloadPrompt = false
+                }) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApplyAutoDownloadPrompt = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
     }
 }
 
