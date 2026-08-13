@@ -10,7 +10,16 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "feeds",
-    indices = [Index("userTitle"), Index("title")],
+    // feedUrl is unique (issue #140): without a DB-level constraint, a re-subscribe (search, a
+    // URL redirect not caught by the pre-insert check, a second OPML import) could silently
+    // create a second Feed row for the same podcast, splitting its episodes across two feedIds --
+    // a queued episode belonging to the "other" row played fine from Next Up (which joins across
+    // all feeds) but was invisible on that podcast's own episode list screen (scoped to one
+    // feedId), and could send a tapped Next Up episode to a completely different one when
+    // EpisodeDetailsViewModel's by-id lookup within its own feed's items came up empty. NULLs
+    // (feedUrl unset) are exempt from SQLite's uniqueness check, same as any nullable unique
+    // column, so this doesn't constrain feeds that somehow have no URL.
+    indices = [Index("userTitle"), Index("title"), Index("feedUrl", unique = true)],
 )
 data class Feed(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

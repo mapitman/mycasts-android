@@ -40,6 +40,33 @@ class FeedRepositoryTest {
     }
 
     @Test
+    fun subscribe_sameFeedUrlTwice_returnsTheExistingFeedIdWithoutCreatingADuplicate() = runTest {
+        // issue #140: a re-subscribe (search result, manual URL entry, OPML re-import) used to
+        // insert an unconditional second Feed row for a feedUrl already subscribed, silently
+        // splitting that podcast's episodes across two feedIds -- a queued episode under the
+        // "other" row played fine from Next Up but was invisible on the podcast's own episode list.
+        val firstId = repository.subscribe(Feed(title = "A Feed", feedUrl = "https://example.com/feed"))
+
+        val secondId = repository.subscribe(Feed(title = "A Feed (again)", feedUrl = "https://example.com/feed"))
+
+        assertEquals(firstId, secondId)
+        assertEquals(1, repository.observeAllFeeds().first().size)
+        // The existing feed's own settings/title must survive untouched, not get silently
+        // overwritten by whatever blank Feed the caller built for the "new" subscription attempt.
+        assertEquals("A Feed", repository.getFeed(firstId)?.title)
+    }
+
+    @Test
+    fun subscribe_distinctFeedUrls_createsSeparateFeeds() = runTest {
+        val firstId = repository.subscribe(Feed(title = "Feed A", feedUrl = "https://example.com/a"))
+
+        val secondId = repository.subscribe(Feed(title = "Feed B", feedUrl = "https://example.com/b"))
+
+        assertTrue(firstId != secondId)
+        assertEquals(2, repository.observeAllFeeds().first().size)
+    }
+
+    @Test
     fun unsubscribe_removesFeedAndCascadesItems() = runTest {
         val feed = Feed(title = "A Feed")
         val feedId = repository.subscribe(feed)

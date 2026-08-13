@@ -156,6 +156,18 @@ class EpisodeDetailsViewModelTest {
     }
 
     @Test
+    fun uiState_requestedItemNotInThisFeedsItems_flagsNotFoundInsteadOfSubstitutingAnotherEpisode() = runTest(testDispatcher) {
+        // issue #140: a requested item id that isn't among this feed's own items (e.g. it actually
+        // belongs to a different feedId, as a duplicate Feed row for the same podcast used to
+        // cause) must not silently fall back to showing whatever episode happens to be first.
+        val viewModel = createViewModel("item-from-a-different-feed")
+
+        val state = viewModel.uiState.first { it.items.isNotEmpty() }
+
+        assertTrue(state.initialItemNotFound)
+    }
+
+    @Test
     fun uiState_includesFeedTitle() = runTest(testDispatcher) {
         val viewModel = createViewModel("item-1")
 

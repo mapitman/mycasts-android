@@ -105,8 +105,8 @@ class FeedUpdateEngineTest {
         db.close()
     }
 
-    private suspend fun subscribeFeed(itemsToKeep: Int? = null): Feed {
-        val url = server.url("/feed.xml").toString()
+    private suspend fun subscribeFeed(itemsToKeep: Int? = null, path: String = "/feed.xml"): Feed {
+        val url = server.url(path).toString()
         val feedId = repository.subscribe(Feed(title = "Test Feed", feedUrl = url, itemsToKeep = itemsToKeep))
         return repository.getFeed(feedId)!!
     }
@@ -650,8 +650,10 @@ class FeedUpdateEngineTest {
 
     @Test
     fun updateFeeds_updatesMultipleFeedsConcurrentlyAndReturnsAllResults() = runTest {
-        val feedA = subscribeFeed()
-        val feedB = subscribeFeed()
+        // Distinct paths (issue #140): subscribe() now dedupes by feedUrl, so two feeds in the
+        // same test need different URLs, same as any two genuinely different podcasts would have.
+        val feedA = subscribeFeed(path = "/feed-a.xml")
+        val feedB = subscribeFeed(path = "/feed-b.xml")
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("a-1" to "A1")))
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("b-1" to "B1")))
 
@@ -667,8 +669,9 @@ class FeedUpdateEngineTest {
      *  exactly once per feed with a running count that reaches the total. */
     @Test
     fun updateFeeds_invokesOnFeedCompleteOncePerFeedWithRunningCount() = runTest {
-        val feedA = subscribeFeed()
-        val feedB = subscribeFeed()
+        // Distinct paths (issue #140): see updateFeeds_updatesMultipleFeedsConcurrentlyAndReturnsAllResults.
+        val feedA = subscribeFeed(path = "/feed-a.xml")
+        val feedB = subscribeFeed(path = "/feed-b.xml")
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("a-1" to "A1")))
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("b-1" to "B1")))
         val callCount = AtomicInteger(0)
@@ -691,8 +694,9 @@ class FeedUpdateEngineTest {
     @Test
     fun updateFeeds_respectsConfiguredConcurrencyLimit() = runTest {
         settingsDataStore.setFeedRefreshConcurrency(1)
-        val feedA = subscribeFeed()
-        val feedB = subscribeFeed()
+        // Distinct paths (issue #140): see updateFeeds_updatesMultipleFeedsConcurrentlyAndReturnsAllResults.
+        val feedA = subscribeFeed(path = "/feed-a.xml")
+        val feedB = subscribeFeed(path = "/feed-b.xml")
         val activeRequests = AtomicInteger(0)
         val maxObservedConcurrency = AtomicInteger(0)
         server.dispatcher = object : Dispatcher() {

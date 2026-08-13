@@ -93,6 +93,10 @@ class OpmlImporter @Inject constructor(
         val settings = settingsDataStore.settings.first()
         val semaphore = Semaphore(settings.feedRefreshConcurrency.coerceAtLeast(1))
         val completedCount = AtomicInteger(0)
+        // Counts a candidate turned away by validateAndPersist's post-fetch collision check
+        // (issue #140) separately from a genuinely invalid/unreachable one, so the result totals
+        // stay meaningful even though both end up as a null entry in [imported] below.
+        val resolvedUrlCollisionCount = AtomicInteger(0)
         // Unlike FeedUpdateEngine.updateFeeds (whose caller already knows the total up front and
         // reports 0/total itself before starting), the candidate count here isn't known to callers
         // until after the already-subscribed/duplicate filtering above -- reported once immediately
@@ -100,7 +104,9 @@ class OpmlImporter @Inject constructor(
         onFeedComplete(0, inserted.size)
         val imported = inserted.map { (feed, feedRow) ->
             async {
-                val result = semaphore.withPermit { validateAndPersist(feed, feedRow, settings) }
+                val result = semaphore.withPermit {
+                    validateAndPersist(feed, feedRow, settings, resolvedUrlCollisionCount)
+                }
                 onFeedComplete(completedCount.incrementAndGet(), inserted.size)
                 result
             }
@@ -110,8 +116,8 @@ class OpmlImporter @Inject constructor(
 
         OpmlImportResult(
             importedCount = imported.count { it != null },
-            alreadySubscribedCount = alreadySubscribedCount,
-            invalidCount = imported.count { it == null },
+            alreadySubscribedCount = alreadySubscribedCount + resolvedUrlCollisionCount.get(),
+            invalidCount = imported.count { it == null } - resolvedUrlCollisionCount.get(),
         )
     }
 
@@ -121,11 +127,18 @@ class OpmlImporter @Inject constructor(
      * (structured concurrency), interrupting whichever feed a sibling happened to be
      * fetching/persisting mid-operation. Catching broadly here -- on top of
      * [FeedUpdateEngine]'s own [FeedUpdateEngine.persistFetchedFeed] guard -- keeps this one
-     * feed's failure from corrupting unrelated feeds in the same import batch, e.g. a DB
-     * constraint violation from two different OPML URLs resolving to the same feed after
-     * redirects (not caught by the upfront [seenUrls] dedup, which only sees the original URLs).
+     * feed's failure from corrupting unrelated feeds in the same import batch, including the
+     * `feeds.feedUrl` unique-index violation the explicit check below is meant to head off
+     * proactively in the common case (issue #140) -- this catch-all stays as a safety net for the
+     * rare true TOCTOU race between two concurrent candidates' checks, since [feedDao]'s
+     * findByFeedUrl-then-insert/update here isn't wrapped in a single transaction.
      */
-    private suspend fun validateAndPersist(feed: OpmlFeed, feedRow: Feed, settings: AppSettings): FeedUpdateResult? = try {
+    private suspend fun validateAndPersist(
+        feed: OpmlFeed,
+        feedRow: Feed,
+        settings: AppSettings,
+        resolvedUrlCollisionCount: AtomicInteger,
+    ): FeedUpdateResult? = try {
         val result = feedFetcher.fetchFeed(feed.xmlUrl)
         // issue #122: a plain article/news feed (no audio enclosures) is treated the same as an
         // unreachable/invalid one here -- excluded from the import and counted in invalidCount,
@@ -134,19 +147,32 @@ class OpmlImporter @Inject constructor(
             feedDao.delete(feedRow)
             null
         } else {
-            // xmlUrl can redirect to a different final URL (e.g. http -> https) -- saved here
-            // rather than left as the original xmlUrl, same as the pre-#50 insert-after-fetch
-            // behavior that stored result.resolvedUrl directly. Title is also resolved explicitly
-            // here (fetched channel title wins over the OPML outline's, unless the fetch left it
-            // blank) rather than relying on FeedUpdateEngine's own title-backfill, which favors
-            // whatever title a feed already has -- the OPML outline title in this case -- and would
-            // otherwise reverse this importer's pre-#50 title preference.
-            val withResolvedUrl = feedRow.copy(
-                feedUrl = result.resolvedUrl,
-                title = result.feed.title.ifBlank { feed.title },
-            )
-            feedDao.update(withResolvedUrl)
-            feedUpdateEngine.persistFetchedFeed(withResolvedUrl, result.feed, settings)
+            // xmlUrl can redirect to a different final URL (e.g. http -> https, or an HTML page
+            // whose discovered feed link differs from what led here) -- the upfront [seenUrls]/
+            // findByFeedUrl checks above only ever saw each candidate's original xmlUrl, so two
+            // different OPML entries (or one entry and an already-subscribed feed) can still
+            // collide here once resolved (issue #140/#228). Checked explicitly rather than left to
+            // the feedUrl unique index below to reject the coming update, so a collision here is
+            // reported as "already subscribed" rather than a misleading "invalid feed".
+            val resolvedUrl = result.resolvedUrl
+            val collidesWithAnotherFeed = feedDao.findByFeedUrl(resolvedUrl)?.let { it.id != feedRow.id } == true
+            if (collidesWithAnotherFeed) {
+                feedDao.delete(feedRow)
+                resolvedUrlCollisionCount.incrementAndGet()
+                null
+            } else {
+                // Title is also resolved explicitly here (fetched channel title wins over the OPML
+                // outline's, unless the fetch left it blank) rather than relying on
+                // FeedUpdateEngine's own title-backfill, which favors whatever title a feed already
+                // has -- the OPML outline title in this case -- and would otherwise reverse this
+                // importer's pre-#50 title preference.
+                val withResolvedUrl = feedRow.copy(
+                    feedUrl = resolvedUrl,
+                    title = result.feed.title.ifBlank { feed.title },
+                )
+                feedDao.update(withResolvedUrl)
+                feedUpdateEngine.persistFetchedFeed(withResolvedUrl, result.feed, settings)
+            }
         }
     } catch (e: CancellationException) {
         throw e
