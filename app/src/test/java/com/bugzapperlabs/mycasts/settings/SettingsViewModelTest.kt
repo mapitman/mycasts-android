@@ -106,12 +106,22 @@ class SettingsViewModelTest {
     // behind the #54/#60 flakiness this prevents.
     private val viewModelStore = TrackedViewModelStore()
 
+    // Includes an audio enclosure (issue #122: OpmlImporter now rejects feeds with no audio
+    // episodes as not-a-podcast) so this is podcast-valid.
     private val defaultFeedsRssXml = """
         <?xml version="1.0" encoding="UTF-8"?>
         <rss version="2.0"><channel>
           <title>A Feed</title>
           <link>https://example.com</link>
           <description>desc</description>
+          <item>
+            <title>Episode 1</title>
+            <link>https://example.com/1</link>
+            <guid>guid-1</guid>
+            <description>Body</description>
+            <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+            <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1" />
+          </item>
         </channel></rss>
     """.trimIndent()
 

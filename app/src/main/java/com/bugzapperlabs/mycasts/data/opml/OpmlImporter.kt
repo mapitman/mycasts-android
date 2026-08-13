@@ -5,6 +5,7 @@ import com.bugzapperlabs.mycasts.data.feed.FeedFetchResult
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateResult
+import com.bugzapperlabs.mycasts.data.feed.hasPodcastEpisode
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedDao
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
@@ -126,7 +127,10 @@ class OpmlImporter @Inject constructor(
      */
     private suspend fun validateAndPersist(feed: OpmlFeed, feedRow: Feed, settings: AppSettings): FeedUpdateResult? = try {
         val result = feedFetcher.fetchFeed(feed.xmlUrl)
-        if (result !is FeedFetchResult.Success) {
+        // issue #122: a plain article/news feed (no audio enclosures) is treated the same as an
+        // unreachable/invalid one here -- excluded from the import and counted in invalidCount,
+        // rather than added as a new kind of "partially imported" result.
+        if (result !is FeedFetchResult.Success || !result.feed.hasPodcastEpisode) {
             feedDao.delete(feedRow)
             null
         } else {

@@ -30,3 +30,10 @@ data class ParsedFeed(
     val imageUrl: String?,
     val items: List<ParsedFeedItem>,
 )
+
+/** Whether any of this feed's items look like playable podcast episodes -- same audio-MIME-type
+ *  signal as [com.bugzapperlabs.mycasts.data.local.isPodcastEpisode], checked before subscribing
+ *  rather than after (issue #122): a feed with no audio enclosures at all is a plain article/news
+ *  feed, which the app no longer accepts as a new subscription. */
+val ParsedFeed.hasPodcastEpisode: Boolean
+    get() = items.any { it.enclosure?.type?.startsWith("audio/", ignoreCase = true) == true }

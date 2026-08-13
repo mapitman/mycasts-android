@@ -175,6 +175,7 @@
     <string name="add_feed_import_from_text_button">Import from pasted OPML</string>
     <string name="add_feed_enter_opml_text_error">Paste OPML content to import</string>
     <string name="add_feed_enter_url_error">Enter a feed or site URL</string>
+    <string name="add_feed_not_a_podcast_error">This doesn\'t look like a podcast — no audio episodes were found.</string>
     <string name="add_feed_added_message">Added %1$s</string>
     <string name="add_feed_enter_opml_url_error">Enter an OPML URL</string>
     <string name="add_feed_could_not_load_opml">Could not load OPML from %1$s</string>

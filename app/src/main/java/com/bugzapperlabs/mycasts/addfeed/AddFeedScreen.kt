@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -82,7 +83,12 @@ fun AddFeedScreen(
     }
 
     LaunchedEffect(uiState) {
-        if (uiState is AddFeedUiState.Success) onDone()
+        val state = uiState
+        if (state is AddFeedUiState.Success) onDone()
+        // A Snackbar, not an inline Text lower in the scrollable form (issue #122) -- the form is
+        // tall enough that an error for a single-URL add (e.g. "not a podcast") could land off the
+        // bottom of the screen, invisible unless the user happened to already be scrolled down.
+        if (state is AddFeedUiState.Error) snackbarHostState.showSnackbar(state.message)
     }
 
     // Add/import work runs in AddFeedViewModel's own scope, cleared the moment this screen leaves
@@ -107,7 +113,11 @@ fun AddFeedScreen(
     }
 
     Scaffold(
-        modifier = modifier,
+        // Without this, the Snackbar below rendered behind the on-screen keyboard whenever an
+        // error came back while a text field still had focus (e.g. right after tapping "Add
+        // Feed") -- this screen is edge-to-edge, so IME insets need to be handled explicitly
+        // rather than relying on the system to resize/pan the window for it.
+        modifier = modifier.imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         topBar = {
             TopAppBar(
@@ -231,14 +241,6 @@ fun AddFeedScreen(
                 Text(stringResource(R.string.add_feed_import_from_text_button))
             }
 
-            when (val state = uiState) {
-                is AddFeedUiState.Error -> Text(
-                    text = state.message,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 16.dp),
-                )
-                else -> Unit
-            }
         }
         // A busy overlay at the top of the screen (issue #267) rather than a spinner buried at
         // the bottom of the scrollable form, which was easy to miss without scrolling down.
