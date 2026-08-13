@@ -366,7 +366,7 @@ class FeedUpdateEngineTest {
         // enforcer's later feedRepository.getItem(itemId) lookup silently found nothing and
         // skipped auto-download entirely for those episodes, with no error or trace of it happening.
         //
-        // issue #136 then bounded that same-refresh exemption to itemsToKeep itself
+        // issue #134 then bounded that same-refresh exemption to itemsToKeep itself
         // (newest-by-publishDate) rather than exempting every new item unconditionally -- a feed
         // that (for whatever reason, e.g. a crash-interrupted earlier attempt) saw more "new"
         // items in one non-first refresh than itemsToKeep allows used to sit stuck over-cap until
@@ -405,6 +405,45 @@ class FeedUpdateEngineTest {
         assertEquals(1, success.evictedItemIds.size)
         val stored = repository.observeItems(feed.id).first()
         assertEquals(listOf("guid-2"), stored.map { it.itemGuid })
+    }
+
+    @Test
+    fun updateFeed_subsequentRefreshWithManyNewerItems_stillEvictsPreExistingOlderItemsDownToCap() = runTest {
+        // Reproduces a real-world report: a feed already holding itemsToKeep's worth of older
+        // items (from an earlier, unrelated fetch) gets refreshed, and this refresh's RSS returns
+        // a batch of newer items that don't match any existing guid. The newer batch is correctly
+        // capped by protectedNewItemIds (per the test above), but that alone doesn't prove the
+        // *pre-existing older* items -- which aren't part of this refresh's newItemIds at all --
+        // actually get evicted back down to the cap rather than lingering indefinitely just
+        // because they predate this refresh.
+        val feed = subscribeFeed(itemsToKeep = 2)
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("old-1", "Old One", "Mon, 01 Jan 2024 00:00:00 GMT"),
+                    Triple("old-2", "Old Two", "Tue, 02 Jan 2024 00:00:00 GMT"),
+                ),
+            ),
+        )
+        engine.updateFeed(feed)
+        val refreshedFeed = repository.getFeed(feed.id)!!.copy(autoQueueEnabled = true)
+        repository.updateFeed(refreshedFeed)
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("new-1", "New One", "Wed, 01 Jan 2025 00:00:00 GMT"),
+                    Triple("new-2", "New Two", "Thu, 02 Jan 2025 00:00:00 GMT"),
+                    Triple("new-3", "New Three", "Fri, 03 Jan 2025 00:00:00 GMT"),
+                ),
+            ),
+        )
+
+        val result = engine.updateFeed(refreshedFeed)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        val stored = repository.observeItems(feed.id).first()
+        assertEquals("stored=${stored.map { it.itemGuid }}", 2, stored.size)
+        assertEquals(setOf("new-2", "new-3"), stored.map { it.itemGuid }.toSet())
     }
 
     @Test

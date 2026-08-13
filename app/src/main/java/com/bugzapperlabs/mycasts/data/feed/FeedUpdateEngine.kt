@@ -230,7 +230,7 @@ class FeedUpdateEngine @Inject constructor(
         // Protects this refresh's own new items from same-refresh eviction when the enforcer is
         // guaranteed to process them right after (issue #83) -- see trimToItemsToKeep's doc.
         // Capped to itemsToKeepForFeed itself (newest-by-publishDate), rather than exempting
-        // every new item unconditionally (issue #136): a non-first refresh bringing in more
+        // every new item unconditionally (issue #134): a non-first refresh bringing in more
         // "new" episodes than the cap allows -- e.g. one that had been crash-interrupted
         // mid-persist on an earlier attempt, so a retry no longer saw it as a first fetch and
         // skipped the first-fetch cap on itemsToProcess above -- used to leave the feed stuck
