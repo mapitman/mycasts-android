@@ -36,12 +36,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import coil.compose.AsyncImage
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
@@ -58,7 +60,8 @@ private val PLAY_ICON_SIZE = 56.dp
  * speed/volume-boost, everything [PlaybackController] exposes. Used as the expanded content of the
  * Next Up screen's player sheet (`QueueScreen`), revealed by dragging [NowPlayingMiniStrip] (that
  * sheet's peeked content) up -- [androidx.compose.material3.BottomSheetScaffold] handles the
- * expand/collapse drag natively, so this is just plain layout, no shared-element choreography.
+ * expand/collapse drag itself, but [expansionProgress] drives a grow-in of the artwork/title (issue
+ * #129) so that reveal reads as the mini strip's content expanding into place rather than a hard cut.
  */
 @Composable
 fun MiniPlayerBar(
@@ -75,6 +78,13 @@ fun MiniPlayerBar(
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
     applyNavigationBarsPadding: Boolean = true,
+    // How far the sheet is between peeked and fully expanded, 0f..1f (issue #129), read fresh each
+    // draw rather than passed as a plain Float -- this composable has a Slider, artwork, and
+    // several icon rows, so taking a Float that changes every drag pixel as a parameter would force
+    // all of that to fully recompose every frame instead of just redrawing the two graphicsLayers
+    // that actually use it. `{ 1f }` (the default) covers every other caller/preview that doesn't
+    // animate; QueueScreen passes a remember'd reader of the sheet's live drag progress.
+    expansionProgress: () -> Float = { 1f },
 ) {
     val hasChapters = playbackState.chapters.isNotEmpty()
     Surface(
@@ -116,157 +126,182 @@ fun MiniPlayerBar(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Column(
-                    // Tapping the artwork/title/feed area (issue #96) opens this episode's own
-                    // details page -- the rest of the player (slider/transport/speed/volume) below
-                    // keeps its own gestures, so only this header block is a tap target for it.
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenEpisode)
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                    // Descends and grows into its resting position as one unit -- artwork, title,
+                    // and every control below -- rather than popping in at full size (issue #129).
+                    // This wrapper is sized to its own content (not fillMaxSize like its parent
+                    // above), which matters: an earlier attempt put this same graphicsLayer on that
+                    // fillMaxSize parent instead, so transformOrigin/scale/translate all pivoted
+                    // around a box spanning nearly the whole sheet with this content merely centered
+                    // inside it -- scaling around a point far from what's actually visible produced
+                    // a large, jumbled displacement instead of a clean grow. Anchoring to this
+                    // tightly-wrapped Column instead means the transform pivots on the content
+                    // itself. Negative translationY at progress 0 starts it up near where the mini
+                    // strip sits above, animating down to 0 (natural position) as the sheet expands.
+                    modifier = Modifier.graphicsLayer {
+                        val progress = expansionProgress()
+                        val scale = lerp(0.4f, 1f, progress)
+                        scaleX = scale
+                        scaleY = scale
+                        translationY = lerp(-160.dp.toPx(), 0f, progress)
+                        alpha = progress
+                        transformOrigin = TransformOrigin(0.5f, 0f)
+                    },
                 ) {
-                    if (playbackState.artworkUrl != null) {
-                        AsyncImage(
-                            model = playbackState.artworkUrl,
-                            contentDescription = null,
-                            modifier = Modifier.size(220.dp).clip(RoundedCornerShape(12.dp)),
-                        )
-                    }
-                    Text(
-                        text = playbackState.title.orEmpty(),
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 16.dp),
-                    )
-                    if (playbackState.feedTitle != null) {
+                    Column(
+                        // Tapping the artwork/title/feed area (issue #96) opens this episode's own
+                        // details page -- the rest of the player (slider/transport/speed/volume) below
+                        // keeps its own gestures, so only this header block is a tap target for it.
+                        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenEpisode)
+                            .padding(horizontal = 24.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        if (playbackState.artworkUrl != null) {
+                            AsyncImage(
+                                model = playbackState.artworkUrl,
+                                contentDescription = null,
+                                modifier = Modifier.size(280.dp).clip(RoundedCornerShape(12.dp)),
+                            )
+                        }
                         Text(
-                            text = playbackState.feedTitle,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = playbackState.title.orEmpty(),
+                            style = MaterialTheme.typography.titleMedium,
                             textAlign = TextAlign.Center,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(top = 2.dp),
+                            modifier = Modifier.padding(top = 16.dp),
                         )
-                    }
-                }
-                // issue #93: seeks directly from onValueChange rather than buffering a separate
-                // "currently dragging" position, same as EpisodeDetailsScreen's in-page Slider --
-                // trusts PlaybackController's own position ticker to echo the seek back fast enough
-                // that the thumb doesn't visibly fight the finger.
-                Slider(
-                    value = playbackState.positionMs.toFloat(),
-                    onValueChange = { onSeek(it.toLong()) },
-                    valueRange = 0f..playbackState.durationMs.coerceAtLeast(1L).toFloat(),
-                    // A full-width Slider drag starting near either screen edge otherwise gets
-                    // intercepted as system back/forward-edge gesture navigation instead of moving
-                    // the slider (issue #114, same fix as issue #302's Settings/Feed Properties sliders).
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).excludeFromSystemGestures(),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 2.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
-                ) {
-                    Text(formatDuration(playbackState.positionMs), style = MaterialTheme.typography.labelSmall)
-                    Text(
-                        formatDuration((playbackState.durationMs - playbackState.positionMs).coerceAtLeast(0L)),
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
-                // Moved to its own prominent, centered row above the transport buttons rather than
-                // packed in small text alongside the title/feed name up top (issue #94) -- reads as a
-                // focal point of the expanded player instead of crowded metadata.
-                if (hasChapters) {
-                    Text(
-                        text = chapterLabel(playbackState),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                    )
-                }
-                // Same control layout as ExpandedPlayerBar/the reader's inline player (issue #194):
-                // main row is always just rewind/play/forward/stop, chapter nav flanks the speed
-                // selector on its own row below.
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IconButton(onClick = onSkipBackward, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
-                        Icon(
-                            Icons.Filled.Replay,
-                            contentDescription = stringResource(R.string.cd_rewind),
-                            modifier = Modifier.size(TRANSPORT_ICON_SIZE),
-                        )
-                    }
-                    IconButton(onClick = onTogglePlayPause, modifier = Modifier.size(PLAY_BUTTON_SIZE)) {
-                        if (playbackState.isBuffering) {
-                            CircularProgressIndicator(modifier = Modifier.size(TRANSPORT_ICON_SIZE), strokeWidth = 3.dp)
-                        } else {
-                            Icon(
-                                if (playbackState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = stringResource(if (playbackState.isPlaying) R.string.cd_pause else R.string.cd_play),
-                                modifier = Modifier.size(PLAY_ICON_SIZE),
-                            )
-                        }
-                    }
-                    IconButton(onClick = onSkipForward, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
-                        Icon(
-                            Icons.Filled.Replay,
-                            contentDescription = stringResource(R.string.cd_forward),
-                            modifier = Modifier.size(TRANSPORT_ICON_SIZE).graphicsLayer(scaleX = -1f),
-                        )
-                    }
-                    IconButton(onClick = onStop, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
-                        Icon(
-                            Icons.Filled.Close,
-                            contentDescription = stringResource(R.string.cd_stop_playback),
-                            modifier = Modifier.size(TRANSPORT_ICON_SIZE),
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (hasChapters) {
-                        IconButton(onClick = onPreviousChapter) {
-                            Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.cd_previous_chapter))
-                        }
-                    }
-                    TextButton(onClick = {
-                        val currentIndex = PLAYBACK_SPEEDS.indexOfFirst { it >= playbackState.speed }.coerceAtLeast(0)
-                        onSpeedChange(PLAYBACK_SPEEDS[(currentIndex + 1) % PLAYBACK_SPEEDS.size])
-                    }) {
-                        Text(formatSpeed(playbackState.speed))
-                    }
-                    // issue #202: cycles the same discrete levels as Feed Properties, so the value
-                    // stays consistent whichever surface changed it last.
-                    TextButton(onClick = {
-                        val currentIndex = VOLUME_BOOST_LEVELS.indexOf(playbackState.volumeBoostMillibels).let {
-                            if (it < 0) 0 else it
-                        }
-                        onVolumeBoostChange(VOLUME_BOOST_LEVELS[(currentIndex + 1) % VOLUME_BOOST_LEVELS.size])
-                    }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = stringResource(R.string.cd_volume_boost),
-                            modifier = Modifier.size(18.dp),
-                        )
-                        if (playbackState.volumeBoostMillibels > 0) {
+                        if (playbackState.feedTitle != null) {
                             Text(
-                                text = "+${playbackState.volumeBoostMillibels / 100}dB",
-                                modifier = Modifier.padding(start = 4.dp),
+                                text = playbackState.feedTitle,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(top = 2.dp),
                             )
                         }
                     }
-                    if (hasChapters) {
-                        IconButton(onClick = onNextChapter) {
-                            Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.cd_next_chapter))
+                    Column {
+                        // issue #93: seeks directly from onValueChange rather than buffering a separate
+                        // "currently dragging" position, same as EpisodeDetailsScreen's in-page Slider --
+                        // trusts PlaybackController's own position ticker to echo the seek back fast enough
+                        // that the thumb doesn't visibly fight the finger.
+                        Slider(
+                            value = playbackState.positionMs.toFloat(),
+                            onValueChange = { onSeek(it.toLong()) },
+                            valueRange = 0f..playbackState.durationMs.coerceAtLeast(1L).toFloat(),
+                            // A full-width Slider drag starting near either screen edge otherwise gets
+                            // intercepted as system back/forward-edge gesture navigation instead of moving
+                            // the slider (issue #114, same fix as issue #302's Settings/Feed Properties sliders).
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).excludeFromSystemGestures(),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 2.dp),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                        ) {
+                            Text(formatDuration(playbackState.positionMs), style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                formatDuration((playbackState.durationMs - playbackState.positionMs).coerceAtLeast(0L)),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                        // Moved to its own prominent, centered row above the transport buttons rather than
+                        // packed in small text alongside the title/feed name up top (issue #94) -- reads as a
+                        // focal point of the expanded player instead of crowded metadata.
+                        if (hasChapters) {
+                            Text(
+                                text = chapterLabel(playbackState),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                            )
+                        }
+                        // Same control layout as ExpandedPlayerBar/the reader's inline player (issue #194):
+                        // main row is always just rewind/play/forward/stop, chapter nav flanks the speed
+                        // selector on its own row below.
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            IconButton(onClick = onSkipBackward, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
+                                Icon(
+                                    Icons.Filled.Replay,
+                                    contentDescription = stringResource(R.string.cd_rewind),
+                                    modifier = Modifier.size(TRANSPORT_ICON_SIZE),
+                                )
+                            }
+                            IconButton(onClick = onTogglePlayPause, modifier = Modifier.size(PLAY_BUTTON_SIZE)) {
+                                if (playbackState.isBuffering) {
+                                    CircularProgressIndicator(modifier = Modifier.size(TRANSPORT_ICON_SIZE), strokeWidth = 3.dp)
+                                } else {
+                                    Icon(
+                                        if (playbackState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                        contentDescription = stringResource(if (playbackState.isPlaying) R.string.cd_pause else R.string.cd_play),
+                                        modifier = Modifier.size(PLAY_ICON_SIZE),
+                                    )
+                                }
+                            }
+                            IconButton(onClick = onSkipForward, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
+                                Icon(
+                                    Icons.Filled.Replay,
+                                    contentDescription = stringResource(R.string.cd_forward),
+                                    modifier = Modifier.size(TRANSPORT_ICON_SIZE).graphicsLayer(scaleX = -1f),
+                                )
+                            }
+                            IconButton(onClick = onStop, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.cd_stop_playback),
+                                    modifier = Modifier.size(TRANSPORT_ICON_SIZE),
+                                )
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (hasChapters) {
+                                IconButton(onClick = onPreviousChapter) {
+                                    Icon(Icons.Filled.SkipPrevious, contentDescription = stringResource(R.string.cd_previous_chapter))
+                                }
+                            }
+                            TextButton(onClick = {
+                                val currentIndex = PLAYBACK_SPEEDS.indexOfFirst { it >= playbackState.speed }.coerceAtLeast(0)
+                                onSpeedChange(PLAYBACK_SPEEDS[(currentIndex + 1) % PLAYBACK_SPEEDS.size])
+                            }) {
+                                Text(formatSpeed(playbackState.speed))
+                            }
+                            // issue #202: cycles the same discrete levels as Feed Properties, so the value
+                            // stays consistent whichever surface changed it last.
+                            TextButton(onClick = {
+                                val currentIndex = VOLUME_BOOST_LEVELS.indexOf(playbackState.volumeBoostMillibels).let {
+                                    if (it < 0) 0 else it
+                                }
+                                onVolumeBoostChange(VOLUME_BOOST_LEVELS[(currentIndex + 1) % VOLUME_BOOST_LEVELS.size])
+                            }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.VolumeUp,
+                                    contentDescription = stringResource(R.string.cd_volume_boost),
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                if (playbackState.volumeBoostMillibels > 0) {
+                                    Text(
+                                        text = "+${playbackState.volumeBoostMillibels / 100}dB",
+                                        modifier = Modifier.padding(start = 4.dp),
+                                    )
+                                }
+                            }
+                            if (hasChapters) {
+                                IconButton(onClick = onNextChapter) {
+                                    Icon(Icons.Filled.SkipNext, contentDescription = stringResource(R.string.cd_next_chapter))
+                                }
+                            }
                         }
                     }
                 }

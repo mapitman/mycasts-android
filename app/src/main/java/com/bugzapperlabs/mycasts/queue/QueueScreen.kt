@@ -2,9 +2,11 @@ package com.bugzapperlabs.mycasts.queue
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,9 +36,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp as lerpFloat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
@@ -141,33 +146,93 @@ fun QueueScreen(
                 // BottomSheetScaffold's Expanded anchor (layoutHeight - sheetHeight) lands short of
                 // the top instead of reaching it. MiniPlayerBar below takes the weight(1f) leftover
                 // once the strip's fixed height is subtracted, so it's the one that stretches.
-                Column(modifier = Modifier.fillMaxHeight()) {
-                    NowPlayingMiniStrip(
-                        playbackState = playbackState,
-                        onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
-                        onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
-                        onSkipBackward = miniPlayerViewModel::skipBackward,
-                        onSkipForward = miniPlayerViewModel::skipForward,
-                        // Not the screen's true bottom edge -- the bottom nav bar below reserves
-                        // this padding itself.
-                        applyNavigationBarsPadding = false,
-                        showControls = !isExpanded,
-                    )
-                    MiniPlayerBar(
-                        playbackState = playbackState,
-                        onOpenEpisode = onOpenCurrentEpisode,
-                        onSeek = miniPlayerViewModel::seekTo,
-                        onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
-                        onSkipBackward = miniPlayerViewModel::skipBackward,
-                        onSkipForward = miniPlayerViewModel::skipForward,
-                        onNextChapter = miniPlayerViewModel::nextChapter,
-                        onPreviousChapter = miniPlayerViewModel::previousChapter,
-                        onSpeedChange = miniPlayerViewModel::setSpeed,
-                        onVolumeBoostChange = miniPlayerViewModel::setVolumeBoost,
-                        onStop = miniPlayerViewModel::stop,
-                        applyNavigationBarsPadding = false,
-                        modifier = Modifier.weight(1f),
-                    )
+                BoxWithConstraints(modifier = Modifier.fillMaxHeight()) {
+                    // How far the sheet is between peeked and expanded, 0f..1f (issue #129) --
+                    // driven by the sheet's live drag offset rather than the discrete before/after
+                    // SheetValue, so MiniPlayerBar's header can grow into place in step with the
+                    // user's finger instead of popping in once the drag settles. Anchors match
+                    // BottomSheetScaffold's own (peeked at layoutHeight - peekHeightPx, expanded at
+                    // 0f now that issue #130 makes the sheet fill the full height) -- requireOffset()
+                    // throws before the first measurement pass, hence the fallback to fully collapsed.
+                    val density = LocalDensity.current
+                    val peekHeightPx = with(density) { PLAYER_PEEK_HEIGHT.toPx() }
+                    val collapsedOffsetPx = with(density) { maxHeight.toPx() } - peekHeightPx
+                    // A stable (remember'd) reader, not a plain Float, so MiniPlayerBar below can
+                    // read the live value from inside its own graphicsLayer draw phase without
+                    // taking `expansionProgress` as a changing parameter -- a changing Float would
+                    // force that whole (large: Slider, artwork, several icon rows) subtree to fully
+                    // recompose on every drag pixel, which visibly lagged behind the finger and
+                    // never looked like it finished catching up.
+                    val readExpansionProgress = remember(scaffoldState, collapsedOffsetPx) {
+                        {
+                            val currentOffsetPx = runCatching { scaffoldState.bottomSheetState.requireOffset() }
+                                .getOrDefault(collapsedOffsetPx)
+                            if (collapsedOffsetPx > 0f) {
+                                (1f - currentOffsetPx / collapsedOffsetPx).coerceIn(0f, 1f)
+                            } else {
+                                1f
+                            }
+                        }
+                    }
+                    // The strip's own fade-away still needs a plain per-frame Float since
+                    // graphicsLayer alone can't gate whether it intercepts touches/a11y once fully
+                    // transparent -- NowPlayingMiniStrip is small enough for that recompose cost.
+                    val expansionProgress = readExpansionProgress()
+                    // A Box, not a Column, overlaying MiniPlayerBar under the strip (issue #129) --
+                    // stacking them in a Column with MiniPlayerBar taking the weight(1f) leftover
+                    // made it appear by *scrolling into view* as the sheet's own drag offset
+                    // decreased (BottomSheetScaffold reveals a tall sheetContent from the top as it
+                    // expands), a second animation fighting the scale/translate/alpha below and
+                    // reading as a squish rather than one clean slide. Giving MiniPlayerBar
+                    // fillMaxSize instead makes it present at full size/position from the first
+                    // frame, so expansionProgress is the *only* thing animating its reveal.
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        MiniPlayerBar(
+                            playbackState = playbackState,
+                            onOpenEpisode = onOpenCurrentEpisode,
+                            onSeek = miniPlayerViewModel::seekTo,
+                            onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
+                            onSkipBackward = miniPlayerViewModel::skipBackward,
+                            onSkipForward = miniPlayerViewModel::skipForward,
+                            onNextChapter = miniPlayerViewModel::nextChapter,
+                            onPreviousChapter = miniPlayerViewModel::previousChapter,
+                            onSpeedChange = miniPlayerViewModel::setSpeed,
+                            onVolumeBoostChange = miniPlayerViewModel::setVolumeBoost,
+                            onStop = miniPlayerViewModel::stop,
+                            applyNavigationBarsPadding = false,
+                            expansionProgress = readExpansionProgress,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        // Not rendered at all once fully expanded (rather than just alpha 0), since
+                        // it sits on top of MiniPlayerBar in this Box and, invisible or not, would
+                        // otherwise keep intercepting taps meant for the header beneath it.
+                        if (expansionProgress < 1f) {
+                            NowPlayingMiniStrip(
+                                playbackState = playbackState,
+                                onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
+                                onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
+                                onSkipBackward = miniPlayerViewModel::skipBackward,
+                                onSkipForward = miniPlayerViewModel::skipForward,
+                                // Not the screen's true bottom edge -- the bottom nav bar below
+                                // reserves this padding itself.
+                                applyNavigationBarsPadding = false,
+                                showControls = !isExpanded,
+                                // Slides down, shrinks, and fades away as the sheet expands (issue
+                                // #129), reading as this bar dissolving down into the bigger player
+                                // growing to meet it beneath.
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .fillMaxWidth()
+                                    .graphicsLayer {
+                                        translationY = lerpFloat(0f, peekHeightPx * 0.6f, expansionProgress)
+                                        val scale = lerpFloat(1f, 0.8f, expansionProgress)
+                                        scaleX = scale
+                                        scaleY = scale
+                                        alpha = 1f - expansionProgress
+                                    },
+                            )
+                        }
+                    }
                 }
             }
         },
