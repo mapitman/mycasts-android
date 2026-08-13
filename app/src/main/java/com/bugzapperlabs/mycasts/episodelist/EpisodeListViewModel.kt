@@ -197,7 +197,7 @@ class EpisodeListViewModel @Inject constructor(
     }
 
     val episodeListFontSize: StateFlow<FontSize> = settingsDataStore.settings
-        .map { it.episodeListFontSize }
+        .map { it.fontSize }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
 
     fun setShowUnreadOnly(unreadOnly: Boolean) {

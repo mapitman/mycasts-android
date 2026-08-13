@@ -15,12 +15,8 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
     val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             updateIntervalMinutes = prefs[Keys.UPDATE_INTERVAL_MINUTES] ?: AppSettings().updateIntervalMinutes,
-            episodeListFontSize = prefs[Keys.LIST_FONT_SIZE]?.let { FontSize.entries[it] }
-                ?: AppSettings().episodeListFontSize,
-            feedListFontSize = prefs[Keys.FEED_LIST_FONT_SIZE]?.let { FontSize.entries[it] }
-                ?: AppSettings().feedListFontSize,
-            episodeDetailsFontSize = prefs[Keys.ARTICLE_FONT_SIZE]?.let { FontSize.entries[it] }
-                ?: AppSettings().episodeDetailsFontSize,
+            fontSize = prefs[Keys.FONT_SIZE]?.let { FontSize.entries[it] }
+                ?: AppSettings().fontSize,
             enableImageDisplay = prefs[Keys.ENABLE_IMAGE_DISPLAY] ?: AppSettings().enableImageDisplay,
             maxItemsPerFeed = prefs[Keys.MAX_ARTICLES] ?: AppSettings().maxItemsPerFeed,
             feedRefreshConcurrency = prefs[Keys.FEED_REFRESH_CONCURRENCY] ?: AppSettings().feedRefreshConcurrency,
@@ -61,16 +57,8 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.UPDATE_INTERVAL_MINUTES] = minutes }
     }
 
-    suspend fun setEpisodeListFontSize(size: FontSize) {
-        dataStore.edit { it[Keys.LIST_FONT_SIZE] = size.ordinal }
-    }
-
-    suspend fun setFeedListFontSize(size: FontSize) {
-        dataStore.edit { it[Keys.FEED_LIST_FONT_SIZE] = size.ordinal }
-    }
-
-    suspend fun setEpisodeDetailsFontSize(size: FontSize) {
-        dataStore.edit { it[Keys.ARTICLE_FONT_SIZE] = size.ordinal }
+    suspend fun setFontSize(size: FontSize) {
+        dataStore.edit { it[Keys.FONT_SIZE] = size.ordinal }
     }
 
     suspend fun setEnableImageDisplay(enabled: Boolean) {
@@ -180,9 +168,11 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
     // Kotlin identifier pointing at it.
     private object Keys {
         val UPDATE_INTERVAL_MINUTES = longPreferencesKey("update_interval_minutes")
-        val LIST_FONT_SIZE = intPreferencesKey("list_font_size")
-        val FEED_LIST_FONT_SIZE = intPreferencesKey("feed_list_font_size")
-        val ARTICLE_FONT_SIZE = intPreferencesKey("article_font_size")
+        // issue #119: a fresh key, not a reuse of the three it replaced (list_font_size/
+        // feed_list_font_size/article_font_size) -- those stay as unread dead keys on an existing
+        // install rather than being repurposed, since this is a new (merged) setting, not a rename
+        // of one of the old three.
+        val FONT_SIZE = intPreferencesKey("font_size")
         val ENABLE_IMAGE_DISPLAY = booleanPreferencesKey("enable_image_display")
         val MAX_ARTICLES = intPreferencesKey("max_articles")
         val FEED_REFRESH_CONCURRENCY = intPreferencesKey("feed_refresh_concurrency")

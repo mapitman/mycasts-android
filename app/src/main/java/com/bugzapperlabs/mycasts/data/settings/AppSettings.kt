@@ -29,9 +29,10 @@ const val UNLIMITED_MAX_DOWNLOADS_SENTINEL = 0
  */
 data class AppSettings(
     val updateIntervalMinutes: Long = 30,
-    val episodeListFontSize: FontSize = FontSize.NORMAL,
-    val feedListFontSize: FontSize = FontSize.LARGE,
-    val episodeDetailsFontSize: FontSize = FontSize.NORMAL,
+    /** Text size across episode details, episode lists, and the podcast list (issue #119) -- a
+     *  single setting rather than three independent ones per screen, which mostly just meant
+     *  setting each to the same value anyway. */
+    val fontSize: FontSize = FontSize.NORMAL,
     val enableImageDisplay: Boolean = true,
     val maxItemsPerFeed: Int = 20,
     /** How many feeds FeedUpdateEngine refreshes at once (issue #177), trading refresh speed

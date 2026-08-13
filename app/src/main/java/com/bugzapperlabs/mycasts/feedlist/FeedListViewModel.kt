@@ -173,8 +173,8 @@ class FeedListViewModel @Inject constructor(
     )
 
     val feedListFontSize: StateFlow<FontSize> = settingsDataStore.settings
-        .map { it.feedListFontSize }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.LARGE)
+        .map { it.fontSize }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
 
     fun refresh() {
         viewModelScope.launch {

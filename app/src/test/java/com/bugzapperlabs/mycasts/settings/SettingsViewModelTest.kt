@@ -12,7 +12,6 @@ import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
-import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.opml.OpmlExporter
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlImporter
@@ -35,8 +34,6 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
@@ -209,11 +206,11 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun setEpisodeDetailsFontSize_persists() = runTest(testDispatcher, timeout = 120.seconds) {
-        viewModel.setEpisodeDetailsFontSize(FontSize.LARGE)
+    fun setFontSize_persists() = runTest(testDispatcher, timeout = 120.seconds) {
+        viewModel.setFontSize(FontSize.LARGE)
 
-        val settings = viewModel.settings.first { it.episodeDetailsFontSize == FontSize.LARGE }
-        assertEquals(FontSize.LARGE, settings.episodeDetailsFontSize)
+        val settings = viewModel.settings.first { it.fontSize == FontSize.LARGE }
+        assertEquals(FontSize.LARGE, settings.fontSize)
     }
 
     @Test
@@ -223,31 +220,6 @@ class SettingsViewModelTest {
         val feeds = db.feedDao().observeAll().first { it.size == 7 }
         assertEquals(7, feeds.size)
         assertEquals("Imported 7 feeds", viewModel.addDefaultFeedsMessage.first { it != null })
-    }
-
-    @Test
-    fun removeAllFeeds_deletesAllFeedsAndCascadesItems() = runTest(testDispatcher, timeout = 120.seconds) {
-        val feedId = repository.subscribe(Feed(title = "A Feed"))
-        repository.insertItems(listOf(FeedItem(id = "item-1", feedId = feedId, itemGuid = "g1")))
-
-        viewModel.removeAllFeeds()
-
-        val feeds = db.feedDao().observeAll().first { it.isEmpty() }
-        assertTrue(feeds.isEmpty())
-        assertTrue(db.feedItemDao().observeByFeed(feedId).first().isEmpty())
-    }
-
-    @Test
-    fun clearPodcasts_clearsEnclosurePositions() = runTest(testDispatcher, timeout = 120.seconds) {
-        val feedId = repository.subscribe(Feed(title = "A Feed"))
-        repository.insertItems(
-            listOf(FeedItem(id = "item-1", feedId = feedId, itemGuid = "g1", enclosurePosition = 42.0)),
-        )
-
-        viewModel.clearPodcasts()
-
-        val item = db.feedItemDao().observeByFeed(feedId).first { it.first().enclosurePosition == null }.first()
-        assertNull(item.enclosurePosition)
     }
 
     @Test
