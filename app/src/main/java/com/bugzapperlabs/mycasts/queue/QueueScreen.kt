@@ -3,6 +3,7 @@ package com.bugzapperlabs.mycasts.queue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -135,7 +136,12 @@ fun QueueScreen(
                 // open (issue #96) -- keeping this row's rewind/play/forward too would just be the
                 // same three buttons twice on screen at once.
                 val isExpanded = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
-                Column {
+                // fillMaxHeight here (issue #130) so the sheet is measured at the scaffold's full
+                // height rather than just wrapping the strip + player's own content -- otherwise
+                // BottomSheetScaffold's Expanded anchor (layoutHeight - sheetHeight) lands short of
+                // the top instead of reaching it. MiniPlayerBar below takes the weight(1f) leftover
+                // once the strip's fixed height is subtracted, so it's the one that stretches.
+                Column(modifier = Modifier.fillMaxHeight()) {
                     NowPlayingMiniStrip(
                         playbackState = playbackState,
                         onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
@@ -160,6 +166,7 @@ fun QueueScreen(
                         onVolumeBoostChange = miniPlayerViewModel::setVolumeBoost,
                         onStop = miniPlayerViewModel::stop,
                         applyNavigationBarsPadding = false,
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
