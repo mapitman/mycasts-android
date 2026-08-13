@@ -143,3 +143,38 @@ val MIGRATION_12_13 = object : Migration(12, 13) {
         db.execSQL("ALTER TABLE feed_items ADD COLUMN autoDownloaded INTEGER NOT NULL DEFAULT 0")
     }
 }
+
+/**
+ * Adds a unique index on feeds.feedUrl (issue #140): nothing previously stopped two Feed rows
+ * from sharing a feedUrl, so a re-subscribe (search, a URL redirect not caught by the existing
+ * pre-insert check, a second OPML import) could silently split a podcast's episodes across two
+ * feedId groups -- see [Feed]'s doc comment for the user-visible symptoms this caused.
+ *
+ * Any existing duplicates are merged into the lowest-id row for that feedUrl first: every
+ * feed_items row under a losing duplicate is re-pointed to the surviving feed's id, then the
+ * now-empty duplicate Feed rows are deleted. Re-pointing rather than just deleting the losing
+ * Feed row matters -- a plain delete would cascade through feed_items to queue_entries too,
+ * silently dropping a queued episode from Next Up, which is exactly the bug this migration
+ * exists to fix, not something to reintroduce while fixing it. Any itemGuid collisions this
+ * repoint creates within the surviving feed are left for FeedRepository.deduplicateItems to
+ * self-heal on that feed's next refresh, same as any other duplicate-episode scenario it already
+ * handles (it already prefers a queued copy over any other, so a queued episode still won't be
+ * the one it deletes).
+ */
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "UPDATE feed_items SET feedId = (" +
+                "SELECT MIN(f2.id) FROM feeds f2 WHERE f2.feedUrl = (" +
+                "SELECT f1.feedUrl FROM feeds f1 WHERE f1.id = feed_items.feedId)) " +
+                "WHERE feedId IN (" +
+                "SELECT f.id FROM feeds f WHERE f.feedUrl IS NOT NULL " +
+                "AND f.id <> (SELECT MIN(f3.id) FROM feeds f3 WHERE f3.feedUrl = f.feedUrl))",
+        )
+        db.execSQL(
+            "DELETE FROM feeds WHERE feedUrl IS NOT NULL " +
+                "AND id <> (SELECT MIN(f2.id) FROM feeds f2 WHERE f2.feedUrl = feeds.feedUrl)",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_feeds_feedUrl ON feeds(feedUrl)")
+    }
+}

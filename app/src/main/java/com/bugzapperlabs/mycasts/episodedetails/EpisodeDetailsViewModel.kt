@@ -30,6 +30,12 @@ data class EpisodeDetailsUiState(
     val initialIndex: Int = 0,
     val feedTitle: String? = null,
     val feedImageUrl: String? = null,
+    /** True once [items] has loaded but doesn't contain the episode this screen was opened for
+     *  (issue #140) -- e.g. it actually belongs to a different feedId (a duplicate Feed row for
+     *  the same podcast) than the one this screen navigated to. [initialIndex] silently falling
+     *  back to 0 in that case used to open on a completely different, unrelated episode instead
+     *  of surfacing the mismatch. */
+    val initialItemNotFound: Boolean = false,
 )
 
 @HiltViewModel
@@ -55,8 +61,14 @@ class EpisodeDetailsViewModel @Inject constructor(
         feedRepository.observeItems(feedId),
         feedRepository.observeFeed(feedId),
     ) { items, feed ->
-        val index = items.indexOfFirst { it.id == initialItemId }.coerceAtLeast(0)
-        EpisodeDetailsUiState(items = items, initialIndex = index, feedTitle = feed?.userTitle ?: feed?.title, feedImageUrl = feed?.imageUrl)
+        val index = items.indexOfFirst { it.id == initialItemId }
+        EpisodeDetailsUiState(
+            items = items,
+            initialIndex = index.coerceAtLeast(0),
+            feedTitle = feed?.userTitle ?: feed?.title,
+            feedImageUrl = feed?.imageUrl,
+            initialItemNotFound = items.isNotEmpty() && index == -1,
+        )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EpisodeDetailsUiState())
 
     val playbackState: StateFlow<PlaybackUiState> = playbackController.uiState

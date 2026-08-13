@@ -26,7 +26,14 @@ class FeedRepository @Inject constructor(
 
     fun observeFeed(feedId: Long): Flow<Feed?> = feedDao.observeById(feedId)
 
-    suspend fun subscribe(feed: Feed): Long = feedDao.insert(feed)
+    /**
+     * Returns an already-subscribed feed's existing id instead of inserting a duplicate row
+     * (issue #140) -- `feeds.feedUrl` carries a DB-level unique index precisely so a duplicate
+     * insert here would otherwise throw, but checking first (rather than catching the exception)
+     * also means an existing feed's own settings are left untouched rather than silently
+     * overwritten by whatever blank [feed] the caller happened to build for a "new" subscription.
+     */
+    suspend fun subscribe(feed: Feed): Long = feed.feedUrl?.let { feedDao.findByFeedUrl(it)?.id } ?: feedDao.insert(feed)
 
     suspend fun unsubscribe(feed: Feed) = feedDao.delete(feed)
 

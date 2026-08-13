@@ -276,6 +276,47 @@ class OpmlImporterTest {
     }
 
     @Test
+    fun import_twoCandidatesResolvingToTheSameFeedAfterDiscovery_onlyImportsOnce() = runTest {
+        // issue #140: two OPML entries with distinct xmlUrls can still resolve to the very same
+        // feed after HTML feed-link discovery (the only redirect-like case FeedFetcher's own
+        // resolvedUrl actually reflects) -- the upfront seenUrls/findByFeedUrl checks only ever see
+        // each candidate's original xmlUrl, so this collision wasn't caught until here.
+        dispatchByPath(
+            "/site-a" to MockResponse().setResponseCode(200).setBody(
+                "<!doctype html><html><head>" +
+                    "<link rel=\"alternate\" type=\"application/rss+xml\" href=\"${server.url("/feed")}\">" +
+                    "</head><body></body></html>",
+            ),
+            "/site-b" to MockResponse().setResponseCode(200).setBody(
+                "<!doctype html><html><head>" +
+                    "<link rel=\"alternate\" type=\"application/rss+xml\" href=\"${server.url("/feed")}\">" +
+                    "</head><body></body></html>",
+            ),
+            "/feed" to MockResponse().setResponseCode(200).setBody(rssXml("Shared Podcast")),
+        )
+        settingsDataStore.setFeedRefreshConcurrency(1)
+        val document = OpmlDocument(
+            folders = listOf(
+                OpmlFolder(
+                    "Tech",
+                    listOf(
+                        OpmlFeed("Site A", server.url("/site-a").toString()),
+                        OpmlFeed("Site B", server.url("/site-b").toString()),
+                    ),
+                ),
+            ),
+        )
+
+        val result = importer.import(document)
+
+        assertEquals(1, result.importedCount)
+        assertEquals(1, result.alreadySubscribedCount)
+        assertEquals(0, result.invalidCount)
+        val feeds = db.feedDao().observeAll().first()
+        assertEquals(listOf("Shared Podcast"), feeds.map { it.title })
+    }
+
+    @Test
     fun import_skipsInvalidFeedsAndReportsCount() = runTest {
         // issue #231: a feed URL that fails to fetch/parse shouldn't be subscribed at all.
         dispatchByPath(

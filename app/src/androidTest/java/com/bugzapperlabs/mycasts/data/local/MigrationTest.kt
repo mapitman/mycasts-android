@@ -62,6 +62,11 @@ class MigrationTest {
     }
 
     @Test
+    fun version14Schema_opensSuccessfully() {
+        helper.createDatabase(TEST_DB, 14).close()
+    }
+
+    @Test
     fun migrate1To2_addsDownloadColumnsWithoutDataLoss() {
         helper.createDatabase(TEST_DB, 1).apply {
             execSQL("INSERT INTO categories (id, name, sortOrder) VALUES (1, 'Tech', NULL)")
@@ -337,6 +342,92 @@ class MigrationTest {
             assertTrue(cursor.moveToFirst())
             assertEquals(0, cursor.getInt(0))
         }
+        migrated.close()
+    }
+
+    @Test
+    fun migrate13To14_mergesDuplicateFeedUrlRowsPreservingQueuedItemThenAddsUniqueIndex() {
+        // issue #140: two Feed rows sharing a feedUrl (e.g. a re-subscribe or an OPML re-import
+        // that slipped past the app-level guard) used to coexist indefinitely -- this migration
+        // merges the loser (higher id) into the winner (lowest id) by re-pointing its feed_items
+        // rather than deleting the row outright, so a queued episode under the loser survives
+        // (re-pointing feedId, not cascade-deleting) rather than being silently dropped from
+        // Next Up the way a plain DELETE FROM feeds would have.
+        helper.createDatabase(TEST_DB, 13).apply {
+            execSQL(
+                "INSERT INTO feeds (id, title, userTitle, description, feedUrl, siteUrl, imageUrl, " +
+                    "displayMode, itemsToKeep, lastGet, sortOrder, autoDownloadEnabled, autoQueueEnabled, " +
+                    "autoQueueMaxCount, playbackSpeed, autoQueuePosition, volumeBoostMillibels, " +
+                    "startSkipSeconds, maxDownloadsToKeep) " +
+                    "VALUES (1, 'A Podcast', NULL, NULL, 'https://example.com/feed', NULL, NULL, NULL, " +
+                    "NULL, NULL, NULL, 0, 0, NULL, 1.0, 'BOTTOM', 0, 0, NULL)",
+            )
+            execSQL(
+                "INSERT INTO feeds (id, title, userTitle, description, feedUrl, siteUrl, imageUrl, " +
+                    "displayMode, itemsToKeep, lastGet, sortOrder, autoDownloadEnabled, autoQueueEnabled, " +
+                    "autoQueueMaxCount, playbackSpeed, autoQueuePosition, volumeBoostMillibels, " +
+                    "startSkipSeconds, maxDownloadsToKeep) " +
+                    "VALUES (2, 'A Podcast', NULL, NULL, 'https://example.com/feed', NULL, NULL, NULL, " +
+                    "NULL, NULL, NULL, 0, 0, NULL, 1.0, 'BOTTOM', 0, 0, NULL)",
+            )
+            // A third, unrelated feed with its own distinct feedUrl -- must be untouched by the merge.
+            execSQL(
+                "INSERT INTO feeds (id, title, userTitle, description, feedUrl, siteUrl, imageUrl, " +
+                    "displayMode, itemsToKeep, lastGet, sortOrder, autoDownloadEnabled, autoQueueEnabled, " +
+                    "autoQueueMaxCount, playbackSpeed, autoQueuePosition, volumeBoostMillibels, " +
+                    "startSkipSeconds, maxDownloadsToKeep) " +
+                    "VALUES (3, 'Another Podcast', NULL, NULL, 'https://example.com/other', NULL, NULL, " +
+                    "NULL, NULL, NULL, NULL, 0, 0, NULL, 1.0, 'BOTTOM', 0, 0, NULL)",
+            )
+            // autoDownloaded is spelled out explicitly (unlike the isRead-only inserts elsewhere in
+            // this file) because those all create the DB at a version *before* autoDownloaded
+            // existed, where its later ALTER TABLE ... DEFAULT 0 covers the omission -- this test
+            // creates the DB directly at v13, where the column's CREATE TABLE has no such default.
+            execSQL("INSERT INTO feed_items (id, feedId, title, isRead, autoDownloaded) VALUES ('item-canonical', 1, 'Canonical Item', 0, 0)")
+            execSQL("INSERT INTO feed_items (id, feedId, title, isRead, autoDownloaded) VALUES ('item-queued', 2, 'Queued Item', 0, 0)")
+            execSQL("INSERT INTO feed_items (id, feedId, title, isRead, autoDownloaded) VALUES ('item-other-feed', 3, 'Other Feed Item', 0, 0)")
+            execSQL("INSERT INTO queue_entries (itemId, position, addedAt, autoQueued) VALUES ('item-queued', 0, 1000, 0)")
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 14, true, MIGRATION_13_14)
+
+        migrated.query("SELECT id FROM feeds WHERE feedUrl = 'https://example.com/feed'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1L, cursor.getLong(0))
+            assertTrue("expected exactly one surviving row for the duplicate feedUrl", !cursor.moveToNext())
+        }
+        migrated.query("SELECT feedId FROM feed_items WHERE id = 'item-queued'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1L, cursor.getLong(0))
+        }
+        migrated.query("SELECT COUNT(*) FROM queue_entries WHERE itemId = 'item-queued'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.query("SELECT feedId FROM feed_items WHERE id = 'item-other-feed'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(3L, cursor.getLong(0))
+        }
+        migrated.query("SELECT COUNT(*) FROM feeds").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(2, cursor.getInt(0))
+        }
+
+        var threw = false
+        try {
+            migrated.execSQL(
+                "INSERT INTO feeds (id, title, userTitle, description, feedUrl, siteUrl, imageUrl, " +
+                    "displayMode, itemsToKeep, lastGet, sortOrder, autoDownloadEnabled, autoQueueEnabled, " +
+                    "autoQueueMaxCount, playbackSpeed, autoQueuePosition, volumeBoostMillibels, " +
+                    "startSkipSeconds, maxDownloadsToKeep) " +
+                    "VALUES (4, 'Dup', NULL, NULL, 'https://example.com/feed', NULL, NULL, NULL, " +
+                    "NULL, NULL, NULL, 0, 0, NULL, 1.0, 'BOTTOM', 0, 0, NULL)",
+            )
+        } catch (e: android.database.sqlite.SQLiteConstraintException) {
+            threw = true
+        }
+        assertTrue("expected the new unique index to reject a duplicate feedUrl insert", threw)
         migrated.close()
     }
 

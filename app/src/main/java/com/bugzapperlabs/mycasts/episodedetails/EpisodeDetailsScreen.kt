@@ -101,7 +101,7 @@ fun EpisodeDetailsScreen(
         }
     }
 
-    if (uiState.items.isEmpty()) {
+    if (uiState.items.isEmpty() || uiState.initialItemNotFound) {
         Scaffold(modifier = modifier) { padding ->
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.reader_no_content_to_show))
