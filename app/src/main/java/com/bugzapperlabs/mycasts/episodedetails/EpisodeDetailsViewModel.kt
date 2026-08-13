@@ -88,34 +88,6 @@ class EpisodeDetailsViewModel @Inject constructor(
         }
     }
 
-    fun seekTo(positionMs: Long) {
-        playbackController.seekTo(positionMs)
-    }
-
-    fun skipForward() {
-        playbackController.skipForward()
-    }
-
-    fun skipBackward() {
-        playbackController.skipBackward()
-    }
-
-    fun nextChapter() {
-        playbackController.nextChapter()
-    }
-
-    fun previousChapter() {
-        playbackController.previousChapter()
-    }
-
-    fun setPlaybackSpeed(speed: Float) {
-        playbackController.setSpeed(speed)
-    }
-
-    fun setVolumeBoost(millibels: Int) {
-        playbackController.setVolumeBoost(millibels)
-    }
-
     fun downloadEnclosure(item: FeedItem) {
         downloadFeedbackCoordinator.startDownload(item)
     }

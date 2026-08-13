@@ -67,6 +67,10 @@
     <string name="article_list_no_episodes">No hay episodios</string>
     <string name="article_list_no_unplayed_episodes">No hay episodios sin reproducir</string>
 
+    <!-- Now Playing -->
+    <string name="now_playing_title">Reproduciendo ahora</string>
+    <string name="cd_open_now_playing">Reproduciendo ahora</string>
+
     <!-- Next Up queue -->
     <string name="queue_title">Reproducir a continuación</string>
     <string name="queue_empty">Nada en cola</string>

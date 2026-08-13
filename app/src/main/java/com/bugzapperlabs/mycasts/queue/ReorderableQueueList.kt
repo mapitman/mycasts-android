@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -397,7 +398,16 @@ fun ReorderableQueueList(
                             .fillMaxWidth()
                             .height(QUEUE_ROW_HEIGHT)
                             .offset { IntOffset(swipeOffsetX.value.roundToInt(), 0) }
-                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                            .background(
+                                // issue #96: highlights the row the player is actually about to
+                                // fall through to, e.g. right after playNow() while its removal
+                                // from the queue table is still in flight.
+                                if (isCurrentlyPlaying) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHighest
+                                },
+                            )
                             // Horizontal-only: detectHorizontalDragGestures cancels out on a
                             // mostly-vertical movement (letting the LazyColumn scroll normally)
                             // and never consumes the initial down of a stationary tap/long-press,
@@ -467,6 +477,7 @@ fun ReorderableQueueList(
                     ) {
                         QueueRowContent(
                             episode = episode,
+                            isCurrentlyPlaying = isCurrentlyPlaying,
                             dragHandleModifier = Modifier.pointerInput(episode.item.id) {
                                 // Dragging starts immediately here (no long-press) -- unlike a
                                 // draggable row with no separate handle, this icon isn't also a tap
@@ -540,7 +551,7 @@ fun ReorderableQueueList(
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                QueueRowContent(episode = draggedEpisode, dragHandleModifier = Modifier)
+                QueueRowContent(episode = draggedEpisode, isCurrentlyPlaying = false, dragHandleModifier = Modifier)
             }
         }
     }
@@ -553,6 +564,7 @@ fun ReorderableQueueList(
 @Composable
 private fun RowScope.QueueRowContent(
     episode: QueuedEpisode,
+    isCurrentlyPlaying: Boolean,
     dragHandleModifier: Modifier,
 ) {
     Icon(
@@ -582,6 +594,10 @@ private fun RowScope.QueueRowContent(
         Text(
             text = episode.item.title.orEmpty(),
             style = MaterialTheme.typography.titleSmall,
+            // issue #96: ties the title's own color to the row highlight above, rather than the
+            // highlight being the only signal -- readable even where a background tint alone
+            // wouldn't stand out (e.g. accessibility high-contrast themes).
+            color = if (isCurrentlyPlaying) MaterialTheme.colorScheme.primary else Color.Unspecified,
             maxLines = 1,
         )
         if (episode.feedTitle != null) {
@@ -599,4 +615,22 @@ private fun RowScope.QueueRowContent(
             maxLines = 1,
         )
     }
+    val durationMs = episode.item.enclosureDurationMs
+    if (durationMs != null && durationMs > 0) {
+        Text(
+            text = formatQueueDuration(durationMs),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
+/** "1h 24m"/"48m" (issue #96) -- coarser than the mm:ss position/remaining-time labels the player
+ *  itself uses, which is all a queue row has room for. */
+private fun formatQueueDuration(durationMs: Long): String {
+    val totalMinutes = (durationMs / 60_000L).toInt().coerceAtLeast(0)
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
 }
