@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -112,7 +113,11 @@ fun AddFeedScreen(
     }
 
     Scaffold(
-        modifier = modifier,
+        // Without this, the Snackbar below rendered behind the on-screen keyboard whenever an
+        // error came back while a text field still had focus (e.g. right after tapping "Add
+        // Feed") -- this screen is edge-to-edge, so IME insets need to be handled explicitly
+        // rather than relying on the system to resize/pan the window for it.
+        modifier = modifier.imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         topBar = {
             TopAppBar(
