@@ -226,22 +226,18 @@ class FeedUpdateEngine @Inject constructor(
         // its own next refresh.
         feedRepository.deduplicateItems(feed.id)
         val defaultItemsToKeep = settings.maxItemsPerFeed
-        val itemsToKeepForFeed = updatedFeed.itemsToKeep ?: defaultItemsToKeep
-        // Protects this refresh's own new items from same-refresh eviction when the enforcer is
-        // guaranteed to process them right after (issue #83) -- see trimToItemsToKeep's doc.
-        // Capped to itemsToKeepForFeed itself (newest-by-publishDate), rather than exempting
-        // every new item unconditionally (issue #134): a non-first refresh bringing in more
-        // "new" episodes than the cap allows -- e.g. one that had been crash-interrupted
-        // mid-persist on an earlier attempt, so a retry no longer saw it as a first fetch and
-        // skipped the first-fetch cap on itemsToProcess above -- used to leave the feed stuck
-        // over-cap until a *later* refresh finally saw those same items as no-longer-new. This
-        // way the temporary same-refresh exemption itself never exceeds the cap either.
+        // Passes this refresh's own new item ids as *candidates* for same-refresh protection from
+        // eviction, when the enforcer is guaranteed to process them right after (issue #83) --
+        // see trimToItemsToKeep's doc. Deliberately left unranked and uncapped here: an earlier
+        // version sorted and took the top itemsToKeepForFeed of just [newItems] (issue #134), but
+        // that ranking was blind to the feed's already-stored items, so a new-to-this-refresh item
+        // that's actually old (e.g. a back-catalog episode reissued under a changed guid) could
+        // still win that self-ranked cut over a genuinely newer stored item (issue #137).
+        // trimToItemsToKeep now does the one authoritative ranking itself, against the feed's full
+        // combined item set it already has to fetch anyway -- passing every candidate here and
+        // letting it filter down to the true survivors is both simpler and avoids a second query.
         val protectedNewItemIds = if (updatedFeed.autoDownloadEnabled || updatedFeed.autoQueueEnabled) {
-            if (itemsToKeepForFeed == UNLIMITED_ITEMS_TO_KEEP) {
-                newItemIds.toSet()
-            } else {
-                newItems.sortedByDescending { it.publishDate ?: 0L }.take(itemsToKeepForFeed).map { it.id }.toSet()
-            }
+            newItemIds.toSet()
         } else {
             emptySet()
         }

@@ -447,6 +447,48 @@ class FeedUpdateEngineTest {
     }
 
     @Test
+    fun updateFeed_subsequentRefreshWithOlderReissuedItem_doesNotDisplaceGenuinelyNewerStoredItem() = runTest {
+        // issue #137: reproduces the reported bug -- a refresh can introduce a "new" row (no
+        // existing itemGuid match) that's actually OLDER by publishDate than what the feed already
+        // has stored, e.g. a podcast host migration reissuing a back-catalog episode under a
+        // changed guid. Before this fix, protectedNewItemIds ranked this refresh's new rows only
+        // against each other (contrast the "protectsUpToCapNewestFirst" test above, where there was
+        // nothing else to rank against), so a lone reissued old episode -- the only "new" item this
+        // refresh, hence trivially "newest" among a set of one -- got force-kept over the genuinely
+        // newer already-stored item instead of being evicted.
+        val url = server.url("/feed.xml").toString()
+        val feedId = repository.subscribe(
+            Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1, autoDownloadEnabled = true),
+        )
+        val feed = repository.getFeed(feedId)!!
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(Triple("existing-newest", "Existing Newest", "Fri, 03 Jan 2025 00:00:00 GMT")),
+            ),
+        )
+        engine.updateFeed(feed)
+        val refreshedFeed = repository.getFeed(feedId)!!
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("existing-newest", "Existing Newest", "Fri, 03 Jan 2025 00:00:00 GMT"),
+                    Triple("reissued-old", "Reissued Old Episode", "Mon, 01 Jan 2024 00:00:00 GMT"),
+                ),
+            ),
+        )
+
+        val result = engine.updateFeed(refreshedFeed)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        val success = result as FeedUpdateResult.Success
+        // "existing-newest" matches by guid so it's not new; only "reissued-old" is.
+        assertEquals(1, success.newItemIds.size)
+        assertEquals(1, success.evictedItemIds.size)
+        val stored = repository.observeItems(feed.id).first()
+        assertEquals(listOf("existing-newest"), stored.map { it.itemGuid })
+    }
+
+    @Test
     fun updateFeed_globalAutoDownloadDefaultEnabled_setsAutoDownloadAndMaxCountOnFirstFetch() = runTest {
         // issue #98: mirrors the existing auto-queue default-on-first-fetch behavior (issue #137),
         // but for auto-download, gated by a global Settings toggle rather than being unconditional.
