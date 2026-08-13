@@ -150,15 +150,19 @@ class FeedRepository @Inject constructor(
      * [alwaysExempt] items count *against* [itemsToKeep]'s budget rather than surviving on top of
      * it (issue #134): the naive version of this kept the newest [itemsToKeep] items outright and
      * *additionally* spared any [alwaysExempt] item that happened to fall outside that head,
-     * regardless of how many. Since [FeedUpdateEngine]'s caller only ever protects up to
-     * [itemsToKeep] of *this refresh's own* newest new items -- not necessarily the feed's true
-     * newest [itemsToKeep] once combined with whatever it already had stored -- a protected item
-     * could rank outside the true head and still survive on top of it, so a feed could end up
-     * holding close to double its cap after a single refresh that both had pre-existing older
-     * items *and* a large protected new batch. The queue exemption above stays deliberately
-     * unbounded and outside this budget, unlike [alwaysExempt] -- a user's own manual queue
-     * additions shouldn't silently shrink to make room the way a same-refresh auto-protection
-     * grace period should.
+     * regardless of how many. The queue exemption above stays deliberately unbounded and outside
+     * this budget, unlike [alwaysExempt] -- a user's own manual queue additions shouldn't silently
+     * shrink to make room the way a same-refresh auto-protection grace period should.
+     *
+     * An [alwaysExempt] candidate is only actually protected if it also ranks in the feed's true
+     * newest [itemsToKeep] once judged against everything already stored, not merely against the
+     * other candidates [FeedUpdateEngine]'s caller happened to pass in (issue #137): a refresh can
+     * introduce rows that are "new" only because their itemGuid changed -- e.g. a podcast host
+     * migration reissuing back-catalog episodes under new guids -- and ranking those only against
+     * each other, blind to the feed's already-stored items, let an actually-old reissued episode
+     * get force-kept over a genuinely newer stored one. [items] is already fetched sorted newest
+     * publishDate-first, so `rest`'s own first [itemsToKeep] entries below already are that true
+     * ranking; no extra query is needed to check candidates against it.
      */
     suspend fun trimToItemsToKeep(feedId: Long, defaultItemsToKeep: Int, alwaysExempt: Set<String> = emptySet()): List<FeedItem> {
         val itemsToKeep = feedDao.getById(feedId)?.itemsToKeep ?: defaultItemsToKeep
@@ -168,7 +172,8 @@ class FeedRepository @Inject constructor(
 
         val queuedItemIds = queueDao.orderedItemIdsForFeed(feedId).toSet()
         val (_, rest) = items.partition { it.id in queuedItemIds }
-        val (protectedNew, unprotected) = rest.partition { it.id in alwaysExempt }
+        val trueTopIds = rest.take(itemsToKeep).map { it.id }.toSet()
+        val (protectedNew, unprotected) = rest.partition { it.id in alwaysExempt && it.id in trueTopIds }
         val remainingBudget = (itemsToKeep - protectedNew.size).coerceAtLeast(0)
         val evicted = unprotected.drop(remainingBudget)
         if (evicted.isEmpty()) return emptyList()

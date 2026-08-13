@@ -135,6 +135,50 @@ class FeedRepositoryTest {
     }
 
     @Test
+    fun trimToItemsToKeep_alwaysExemptItemOutsideTrueTopN_isNotProtected() = runTest {
+        // issue #137: alwaysExempt must not force-keep a candidate that's actually old once judged
+        // against the feed's full item set, even though the caller believed it was "new".
+        val feedId = repository.subscribe(Feed(title = "A Feed", itemsToKeep = 1))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "genuinely-newest", feedId = feedId, itemGuid = "g1", publishDate = 100L),
+                FeedItem(id = "old-but-exempt-candidate", feedId = feedId, itemGuid = "g2", publishDate = 1L),
+            ),
+        )
+
+        val evicted = repository.trimToItemsToKeep(
+            feedId,
+            defaultItemsToKeep = 999,
+            alwaysExempt = setOf("old-but-exempt-candidate"),
+        )
+
+        assertEquals(listOf("old-but-exempt-candidate"), evicted.map { it.id })
+        assertEquals(listOf("genuinely-newest"), repository.observeItems(feedId).first().map { it.id })
+    }
+
+    @Test
+    fun trimToItemsToKeep_alwaysExemptItemWithinTrueTopN_isStillProtected() = runTest {
+        // Regression for issue #83/#134: a genuinely newest candidate must still survive
+        // same-refresh eviction -- unaffected by issue #137's fix.
+        val feedId = repository.subscribe(Feed(title = "A Feed", itemsToKeep = 1))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "pre-existing-older", feedId = feedId, itemGuid = "g1", publishDate = 1L),
+                FeedItem(id = "genuinely-newest-exempt", feedId = feedId, itemGuid = "g2", publishDate = 100L),
+            ),
+        )
+
+        val evicted = repository.trimToItemsToKeep(
+            feedId,
+            defaultItemsToKeep = 999,
+            alwaysExempt = setOf("genuinely-newest-exempt"),
+        )
+
+        assertEquals(listOf("pre-existing-older"), evicted.map { it.id })
+        assertEquals(listOf("genuinely-newest-exempt"), repository.observeItems(feedId).first().map { it.id })
+    }
+
+    @Test
     fun deduplicateItems_keepsMostRecentCopyWhenNoneQueued() = runTest {
         // issue #70 follow-up: the since-fixed concurrent-refresh race could insert multiple rows
         // sharing the same itemGuid, each with its own id.
