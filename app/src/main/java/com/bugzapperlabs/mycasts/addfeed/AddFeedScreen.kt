@@ -82,7 +82,12 @@ fun AddFeedScreen(
     }
 
     LaunchedEffect(uiState) {
-        if (uiState is AddFeedUiState.Success) onDone()
+        val state = uiState
+        if (state is AddFeedUiState.Success) onDone()
+        // A Snackbar, not an inline Text lower in the scrollable form (issue #122) -- the form is
+        // tall enough that an error for a single-URL add (e.g. "not a podcast") could land off the
+        // bottom of the screen, invisible unless the user happened to already be scrolled down.
+        if (state is AddFeedUiState.Error) snackbarHostState.showSnackbar(state.message)
     }
 
     // Add/import work runs in AddFeedViewModel's own scope, cleared the moment this screen leaves
@@ -231,14 +236,6 @@ fun AddFeedScreen(
                 Text(stringResource(R.string.add_feed_import_from_text_button))
             }
 
-            when (val state = uiState) {
-                is AddFeedUiState.Error -> Text(
-                    text = state.message,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 16.dp),
-                )
-                else -> Unit
-            }
         }
         // A busy overlay at the top of the screen (issue #267) rather than a spinner buried at
         // the bottom of the scrollable form, which was easy to miss without scrolling down.
