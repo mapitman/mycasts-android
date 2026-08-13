@@ -205,4 +205,46 @@ class AutoQueueAndDownloadEnforcerTest {
         val queue = queueRepository.observeQueue().first()
         assertEquals(listOf("ep-new"), queue.map { it.item.id })
     }
+
+    @Test
+    fun apply_moreNewEpisodesThanDownloadCap_onlyDownloadsNewestByPublishDate() = runTest {
+        // Regression test for a real crash: the old behavior started a download for every one of
+        // newItemIds and only trimmed back down to maxDownloadsToKeep afterward (once downloads
+        // completed) -- a feed's first fetch bringing in hundreds/thousands of "new" episodes at
+        // once, with auto-download enabled, enqueued that many concurrent EnclosureDownloadWorkers
+        // and OOM-crashed the app. Mirrors apply_moreNewEpisodesThanCap_onlyQueuesNewestByPublishDate
+        // above for the auto-queue side of this same bug class (issue #102).
+        val enqueuedItemIds = mutableListOf<String>()
+        val recordingDownloadRepository = EnclosureDownloadRepository(
+            feedRepository = feedRepository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
+                    enqueuedItemIds += itemId
+                }
+                override fun cancelDownload(itemId: String) {}
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        val recordingEnforcer = AutoQueueAndDownloadEnforcer(feedRepository, recordingDownloadRepository, queueRepository)
+        val feedId = feedRepository.subscribe(Feed(title = "A Podcast", autoDownloadEnabled = true, maxDownloadsToKeep = 1))
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(id = "ep-old", feedId = feedId, itemGuid = "ep-old", enclosureUrl = "https://example.com/old.mp3", enclosureType = "audio/mpeg", publishDate = 1L),
+                FeedItem(id = "ep-mid", feedId = feedId, itemGuid = "ep-mid", enclosureUrl = "https://example.com/mid.mp3", enclosureType = "audio/mpeg", publishDate = 2L),
+                FeedItem(id = "ep-new", feedId = feedId, itemGuid = "ep-new", enclosureUrl = "https://example.com/new.mp3", enclosureType = "audio/mpeg", publishDate = 3L),
+            ),
+        )
+
+        recordingEnforcer.apply(
+            listOf(
+                FeedUpdateResult.Success(
+                    feedId = feedId,
+                    newItemIds = listOf("ep-new", "ep-mid", "ep-old"),
+                    evictedItemIds = emptyList(),
+                ),
+            ),
+        )
+
+        assertEquals(listOf("ep-new"), enqueuedItemIds)
+    }
 }

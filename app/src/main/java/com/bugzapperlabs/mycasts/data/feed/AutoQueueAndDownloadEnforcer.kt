@@ -31,10 +31,18 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
             val feed = feedRepository.getFeed(success.feedId) ?: return@forEach
 
             if (feed.autoDownloadEnabled) {
-                success.newItemIds.forEach { itemId ->
-                    val item = feedRepository.getItem(itemId) ?: return@forEach
-                    if (item.isPodcastEpisode) downloadRepository.startDownload(item, autoDownloaded = true)
-                }
+                val podcastEpisodes = success.newItemIds.mapNotNull { feedRepository.getItem(it) }.filter { it.isPodcastEpisode }
+                // Caps what actually gets *downloaded*, rather than starting a download for every
+                // new episode and trimming back down afterward via enforceFeedDownloadCap -- a
+                // feed's first fetch can bring in hundreds/thousands of "new" episodes at once
+                // (same issue #102 scenario the auto-queue branch below already guards against),
+                // and starting that many downloads at once enqueues that many concurrent
+                // EnclosureDownloadWorkers, which was OOM-crashing the app. Newest-by-publishDate
+                // wins when there are more candidates than room, same as auto-queue.
+                val toDownload = feed.maxDownloadsToKeep?.let { cap ->
+                    podcastEpisodes.sortedByDescending { it.publishDate ?: 0L }.take(cap)
+                } ?: podcastEpisodes
+                toDownload.forEach { item -> downloadRepository.startDownload(item, autoDownloaded = true) }
                 feed.maxDownloadsToKeep?.let { downloadRepository.enforceFeedDownloadCap(feed.id, it) }
             }
 

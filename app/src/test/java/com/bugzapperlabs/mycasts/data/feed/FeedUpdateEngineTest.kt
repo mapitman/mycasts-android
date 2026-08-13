@@ -72,6 +72,18 @@ class FeedUpdateEngineTest {
         """.trimIndent().trim()
     }
 
+    /** Like [rssWithItems], but with an explicit, distinct `pubDate` per item so tests can assert
+     *  which one a newest-by-publishDate cap keeps, rather than relying on item/list order. */
+    private fun rssWithDatedItems(vararg items: Triple<String, String, String>) = items.joinToString(
+        separator = "\n",
+        prefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel>" +
+            "<title>Test Feed</title><link>https://example.com</link><description>desc</description>",
+        postfix = "</channel></rss>",
+    ) { (guid, title, pubDate) ->
+        "<item><title>$title</title><link>https://example.com/$guid</link><guid>$guid</guid>" +
+            "<description>Body for $title</description><pubDate>$pubDate</pubDate></item>"
+    }
+
     @Before
     fun setUp() {
         server = MockWebServer()
@@ -287,15 +299,6 @@ class FeedUpdateEngineTest {
         // post-insert anymore for there to be anything left to evict. Distinct, out-of-chronological-
         // order pubDates so the assertion also proves the *newest* item survives, not just
         // whichever one the feed's XML happened to list first.
-        fun rssWithDatedItems(vararg items: Triple<String, String, String>) = items.joinToString(
-            separator = "\n",
-            prefix = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel>" +
-                "<title>Test Feed</title><link>https://example.com</link><description>desc</description>",
-            postfix = "</channel></rss>",
-        ) { (guid, title, pubDate) ->
-            "<item><title>$title</title><link>https://example.com/$guid</link><guid>$guid</guid>" +
-                "<description>Body for $title</description><pubDate>$pubDate</pubDate></item>"
-        }
         val feed = subscribeFeed(itemsToKeep = 1)
         server.enqueue(
             MockResponse().setResponseCode(200).setBody(
@@ -354,7 +357,7 @@ class FeedUpdateEngineTest {
     }
 
     @Test
-    fun updateFeed_autoDownloadEnabled_subsequentRefresh_protectsNewItemsFromSameRefreshTrim() = runTest {
+    fun updateFeed_autoDownloadEnabled_subsequentRefresh_protectsUpToCapNewestFirst() = runTest {
         // issue #83's original mechanism, still live for a *subsequent* refresh (as opposed to
         // issue #110's first-fetch cap above): trimToItemsToKeep runs inside persist(), before the
         // caller ever gets a chance to run AutoQueueAndDownloadEnforcer.apply() against this
@@ -362,6 +365,15 @@ class FeedUpdateEngineTest {
         // itemsToKeep allows used to have the oldest of that very batch evicted immediately, so the
         // enforcer's later feedRepository.getItem(itemId) lookup silently found nothing and
         // skipped auto-download entirely for those episodes, with no error or trace of it happening.
+        //
+        // issue #134 then bounded that same-refresh exemption to itemsToKeep itself
+        // (newest-by-publishDate) rather than exempting every new item unconditionally -- a feed
+        // that (for whatever reason, e.g. a crash-interrupted earlier attempt) saw more "new"
+        // items in one non-first refresh than itemsToKeep allows used to sit stuck over-cap until
+        // a *later* refresh saw them as no-longer-new, instead of the cap holding immediately.
+        // Distinct pubDates prove the *newest* of this refresh's own new items is the one that
+        // survives, not just whichever the feed's XML happened to list first.
+        //
         // The prior fetch deliberately returns zero items (rather than, say, one) -- keeps this
         // refresh's eviction candidates limited to just this refresh's own new items, since
         // FeedItemDao.getByFeed has no explicit ORDER BY and this test shouldn't depend on
@@ -374,19 +386,64 @@ class FeedUpdateEngineTest {
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems()))
         engine.updateFeed(feed)
         val refreshedFeed = repository.getFeed(feedId)!!
-        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("guid-1", "Older", "Mon, 03 Jun 2013 11:05:30 GMT"),
+                    Triple("guid-2", "Newer", "Wed, 05 Jun 2013 11:05:30 GMT"),
+                ),
+            ),
+        )
 
         val result = engine.updateFeed(refreshedFeed)
 
         assertTrue(result is FeedUpdateResult.Success)
         val success = result as FeedUpdateResult.Success
-        // Nothing evicted this refresh -- both new items survive long enough for the enforcer to
-        // see them, even though itemsToKeep=1 would normally trim one of them immediately.
-        assertTrue("evictedItemIds=${success.evictedItemIds}", success.evictedItemIds.isEmpty())
         assertEquals(2, success.newItemIds.size)
-        success.newItemIds.forEach { itemId ->
-            assertTrue("item $itemId should still exist", repository.getItem(itemId) != null)
-        }
+        // itemsToKeep=1: only the newest of this refresh's own new items is protected/survives,
+        // never both -- the cap holds even during the temporary same-refresh exemption window.
+        assertEquals(1, success.evictedItemIds.size)
+        val stored = repository.observeItems(feed.id).first()
+        assertEquals(listOf("guid-2"), stored.map { it.itemGuid })
+    }
+
+    @Test
+    fun updateFeed_subsequentRefreshWithManyNewerItems_stillEvictsPreExistingOlderItemsDownToCap() = runTest {
+        // Reproduces a real-world report: a feed already holding itemsToKeep's worth of older
+        // items (from an earlier, unrelated fetch) gets refreshed, and this refresh's RSS returns
+        // a batch of newer items that don't match any existing guid. The newer batch is correctly
+        // capped by protectedNewItemIds (per the test above), but that alone doesn't prove the
+        // *pre-existing older* items -- which aren't part of this refresh's newItemIds at all --
+        // actually get evicted back down to the cap rather than lingering indefinitely just
+        // because they predate this refresh.
+        val feed = subscribeFeed(itemsToKeep = 2)
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("old-1", "Old One", "Mon, 01 Jan 2024 00:00:00 GMT"),
+                    Triple("old-2", "Old Two", "Tue, 02 Jan 2024 00:00:00 GMT"),
+                ),
+            ),
+        )
+        engine.updateFeed(feed)
+        val refreshedFeed = repository.getFeed(feed.id)!!.copy(autoQueueEnabled = true)
+        repository.updateFeed(refreshedFeed)
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("new-1", "New One", "Wed, 01 Jan 2025 00:00:00 GMT"),
+                    Triple("new-2", "New Two", "Thu, 02 Jan 2025 00:00:00 GMT"),
+                    Triple("new-3", "New Three", "Fri, 03 Jan 2025 00:00:00 GMT"),
+                ),
+            ),
+        )
+
+        val result = engine.updateFeed(refreshedFeed)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        val stored = repository.observeItems(feed.id).first()
+        assertEquals("stored=${stored.map { it.itemGuid }}", 2, stored.size)
+        assertEquals(setOf("new-2", "new-3"), stored.map { it.itemGuid }.toSet())
     }
 
     @Test

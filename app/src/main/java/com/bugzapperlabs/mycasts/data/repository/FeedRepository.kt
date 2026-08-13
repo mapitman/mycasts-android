@@ -146,6 +146,19 @@ class FeedRepository @Inject constructor(
      * auto-download or auto-queue enabled, so they survive long enough for the enforcer to act on
      * them; from the *next* refresh onward they're just ordinary items again, subject to the same
      * trim rules (via the queue exemption above) as anything else.
+     *
+     * [alwaysExempt] items count *against* [itemsToKeep]'s budget rather than surviving on top of
+     * it (issue #134): the naive version of this kept the newest [itemsToKeep] items outright and
+     * *additionally* spared any [alwaysExempt] item that happened to fall outside that head,
+     * regardless of how many. Since [FeedUpdateEngine]'s caller only ever protects up to
+     * [itemsToKeep] of *this refresh's own* newest new items -- not necessarily the feed's true
+     * newest [itemsToKeep] once combined with whatever it already had stored -- a protected item
+     * could rank outside the true head and still survive on top of it, so a feed could end up
+     * holding close to double its cap after a single refresh that both had pre-existing older
+     * items *and* a large protected new batch. The queue exemption above stays deliberately
+     * unbounded and outside this budget, unlike [alwaysExempt] -- a user's own manual queue
+     * additions shouldn't silently shrink to make room the way a same-refresh auto-protection
+     * grace period should.
      */
     suspend fun trimToItemsToKeep(feedId: Long, defaultItemsToKeep: Int, alwaysExempt: Set<String> = emptySet()): List<FeedItem> {
         val itemsToKeep = feedDao.getById(feedId)?.itemsToKeep ?: defaultItemsToKeep
@@ -154,7 +167,10 @@ class FeedRepository @Inject constructor(
         if (items.size <= itemsToKeep) return emptyList()
 
         val queuedItemIds = queueDao.orderedItemIdsForFeed(feedId).toSet()
-        val evicted = items.drop(itemsToKeep).filterNot { it.id in queuedItemIds || it.id in alwaysExempt }
+        val (_, rest) = items.partition { it.id in queuedItemIds }
+        val (protectedNew, unprotected) = rest.partition { it.id in alwaysExempt }
+        val remainingBudget = (itemsToKeep - protectedNew.size).coerceAtLeast(0)
+        val evicted = unprotected.drop(remainingBudget)
         if (evicted.isEmpty()) return emptyList()
         feedItemDao.deleteAll(evicted)
         return evicted
