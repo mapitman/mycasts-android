@@ -117,6 +117,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setAutoDownloadNewFeedsMaxCount(value) }
     }
 
+    /** Retroactively applies the just-enabled auto-download-by-default setting to every
+     *  already-subscribed feed (issue #117), not just ones added from here on. */
+    fun enableAutoDownloadForExistingFeeds() {
+        viewModelScope.launch { feedRepository.setAutoDownloadEnabledForAllFeeds(true) }
+    }
+
     fun setUseDeviceThemeColors(value: Boolean) {
         viewModelScope.launch { settingsDataStore.setUseDeviceThemeColors(value) }
     }

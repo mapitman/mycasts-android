@@ -262,4 +262,15 @@ class SettingsViewModelTest {
         assertEquals(20, settings.maxItemsPerFeed)
         assertEquals(1, db.feedDao().observeAll().first().size)
     }
+
+    @Test
+    fun enableAutoDownloadForExistingFeeds_enablesItOnEveryExistingFeed() = runTest(testDispatcher, timeout = 120.seconds) {
+        repository.subscribe(Feed(title = "Feed A", autoDownloadEnabled = false))
+        repository.subscribe(Feed(title = "Feed B", autoDownloadEnabled = false))
+
+        viewModel.enableAutoDownloadForExistingFeeds()
+
+        val feeds = db.feedDao().observeAll().first { feeds -> feeds.all { it.autoDownloadEnabled } }
+        assertEquals(2, feeds.size)
+    }
 }

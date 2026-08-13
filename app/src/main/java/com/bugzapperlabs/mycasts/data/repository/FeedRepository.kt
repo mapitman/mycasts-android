@@ -73,6 +73,10 @@ class FeedRepository @Inject constructor(
 
     suspend fun removeAllFeeds() = feedDao.deleteAll()
 
+    /** Issue #117: applies the global auto-download-by-default setting to every existing
+     *  subscription, not just ones added going forward. */
+    suspend fun setAutoDownloadEnabledForAllFeeds(enabled: Boolean) = feedDao.setAutoDownloadEnabledForAllFeeds(enabled)
+
     /** Clears saved podcast resume positions. Does not touch downloaded files/state (see [com.bugzapperlabs.mycasts.download.DownloadManager]). */
     suspend fun clearAllEnclosurePositions() = feedItemDao.clearAllEnclosurePositions()
 

@@ -127,7 +127,7 @@
     <string name="settings_download_on_cellular">Télécharger sur réseau mobile</string>
     <string name="settings_allow_streaming">Autoriser le streaming</string>
     <string name="settings_auto_delete_finished_downloads">Supprimer automatiquement les téléchargements écoutés</string>
-    <string name="settings_auto_download_new_feeds">Télécharger automatiquement les nouveaux abonnements par défaut</string>
+    <string name="settings_auto_download_new_feeds">Télécharger automatiquement les nouveaux abonnements</string>
     <string name="settings_auto_download_max_count">Nombre maximal d\'épisodes téléchargés à conserver par défaut</string>
     <string name="settings_battery_optimization_heading">Utilisation de la batterie en arrière-plan</string>
     <string name="settings_battery_optimization_description">Pour un passage automatique fiable à l\'épisode suivant et des téléchargements fiables écran éteint, autorisez MyCasts à fonctionner sans restriction de batterie.</string>
@@ -160,6 +160,8 @@
     <string name="settings_confirm_remove_all_feeds_message">Cela supprime définitivement tous les flux abonnés et leur contenu.</string>
     <string name="settings_confirm_reset_title">Réinitialiser les paramètres ?</string>
     <string name="settings_confirm_reset_message">Cela restaure tous les paramètres à leurs valeurs par défaut. Les flux ne sont pas affectés.</string>
+    <string name="settings_confirm_apply_auto_download_title">Appliquer aussi aux podcasts existants ?</string>
+    <string name="settings_confirm_apply_auto_download_message">Activer le téléchargement automatique aussi pour les podcasts déjà abonnés, pas seulement les nouveaux ?</string>
 
     <!-- Add feed -->
     <string name="add_feed_title">Ajouter un flux</string>

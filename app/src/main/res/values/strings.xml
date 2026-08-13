@@ -131,7 +131,7 @@
     <string name="settings_download_on_cellular">Download on cellular</string>
     <string name="settings_allow_streaming">Allow streaming</string>
     <string name="settings_auto_delete_finished_downloads">Auto-delete downloads once played</string>
-    <string name="settings_auto_download_new_feeds">Auto-download new subscriptions by default</string>
+    <string name="settings_auto_download_new_feeds">Auto-download new subscriptions</string>
     <string name="settings_auto_download_max_count">Max downloaded episodes to keep by default</string>
     <string name="settings_battery_optimization_heading">Background battery usage</string>
     <string name="settings_battery_optimization_description">For reliable podcast auto-advance and downloads when the screen is off, allow MyCasts to run without battery restrictions.</string>
@@ -164,6 +164,8 @@
     <string name="settings_confirm_remove_all_feeds_message">This permanently deletes every subscribed feed and its content.</string>
     <string name="settings_confirm_reset_title">Reset settings?</string>
     <string name="settings_confirm_reset_message">This restores all settings to their defaults. Feeds are not affected.</string>
+    <string name="settings_confirm_apply_auto_download_title">Apply to existing podcasts too?</string>
+    <string name="settings_confirm_apply_auto_download_message">Turn on auto-download for podcasts you\'re already subscribed to, not just new ones going forward?</string>
 
     <!-- Add feed -->
     <string name="add_feed_title">Add Feed</string>
