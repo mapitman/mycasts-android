@@ -32,6 +32,22 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
 
             if (feed.autoDownloadEnabled) {
                 val podcastEpisodes = success.newItemIds.mapNotNull { feedRepository.getItem(it) }.filter { it.isPodcastEpisode }
+                // Only episodes newer than what's already auto-downloaded for this feed are
+                // candidates (issue #162) -- otherwise a batch of "new" items that happens to
+                // include something older than an existing download (a backfilled bonus episode,
+                // a reissued itemGuid) would get downloaded just because there was cap headroom,
+                // reaching back into the catalog instead of only ever moving forward in time.
+                // Manually-downloaded episodes don't count toward this threshold, matching
+                // enforceFeedDownloadCap below, which likewise only ever evicts autoDownloaded
+                // ones -- a manual download shouldn't silently block a newer episode's auto-download.
+                val newestAlreadyDownloaded = feed.maxDownloadsToKeep?.let {
+                    feedRepository.autoDownloadedItemsForFeed(feed.id).maxOfOrNull { item -> item.publishDate ?: 0L }
+                }
+                val eligibleEpisodes = if (newestAlreadyDownloaded == null) {
+                    podcastEpisodes
+                } else {
+                    podcastEpisodes.filter { (it.publishDate ?: 0L) > newestAlreadyDownloaded }
+                }
                 // Caps what actually gets *downloaded*, rather than starting a download for every
                 // new episode and trimming back down afterward via enforceFeedDownloadCap -- a
                 // feed's first fetch can bring in hundreds/thousands of "new" episodes at once
@@ -40,9 +56,12 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
                 // EnclosureDownloadWorkers, which was OOM-crashing the app. Newest-by-publishDate
                 // wins when there are more candidates than room, same as auto-queue.
                 val toDownload = feed.maxDownloadsToKeep?.let { cap ->
-                    podcastEpisodes.sortedByDescending { it.publishDate ?: 0L }.take(cap)
-                } ?: podcastEpisodes
+                    eligibleEpisodes.sortedByDescending { it.publishDate ?: 0L }.take(cap)
+                } ?: eligibleEpisodes
                 toDownload.forEach { item -> downloadRepository.startDownload(item, autoDownloaded = true) }
+                // Makes room for what was just started above, evicting the feed's oldest
+                // auto-downloaded episodes beyond the cap (issue #162) -- also re-caught-up as
+                // each of these downloads actually completes, see EnclosureDownloadRepository.completeDownload.
                 feed.maxDownloadsToKeep?.let { downloadRepository.enforceFeedDownloadCap(feed.id, it) }
             }
 
