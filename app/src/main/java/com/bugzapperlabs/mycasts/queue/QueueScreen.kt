@@ -2,16 +2,17 @@ package com.bugzapperlabs.mycasts.queue
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -145,40 +146,44 @@ fun QueueScreen(
                 // BottomSheetScaffold's Expanded anchor (layoutHeight - sheetHeight) lands short of
                 // the top instead of reaching it. MiniPlayerBar below takes the weight(1f) leftover
                 // once the strip's fixed height is subtracted, so it's the one that stretches.
-                Column(modifier = Modifier.fillMaxHeight()) {
-                    // Keeps the strip/player's own content from sliding up under the status bar
-                    // (notification icons, clock) once the sheet is dragged/expanded fully open --
-                    // fillMaxHeight above still has to measure the Column at the scaffold's full
-                    // height for BottomSheetScaffold's Expanded anchor to reach the true top
-                    // (issue #130's fix, still needed), so this reserves the inset as blank space
-                    // at the top of that same fixed-height Column instead of shrinking it.
-                    Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-                    NowPlayingMiniStrip(
-                        playbackState = playbackState,
-                        onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
-                        onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
-                        onSkipBackward = miniPlayerViewModel::skipBackward,
-                        onSkipForward = miniPlayerViewModel::skipForward,
-                        // Not the screen's true bottom edge -- the bottom nav bar below reserves
-                        // this padding itself.
-                        applyNavigationBarsPadding = false,
-                        showControls = !isExpanded,
-                    )
-                    MiniPlayerBar(
-                        playbackState = playbackState,
-                        onOpenEpisode = onOpenCurrentEpisode,
-                        onSeek = miniPlayerViewModel::seekTo,
-                        onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
-                        onSkipBackward = miniPlayerViewModel::skipBackward,
-                        onSkipForward = miniPlayerViewModel::skipForward,
-                        onNextChapter = miniPlayerViewModel::nextChapter,
-                        onPreviousChapter = miniPlayerViewModel::previousChapter,
-                        onSpeedChange = miniPlayerViewModel::setSpeed,
-                        onVolumeBoostChange = miniPlayerViewModel::setVolumeBoost,
-                        onStop = miniPlayerViewModel::stop,
-                        applyNavigationBarsPadding = false,
-                        modifier = Modifier.weight(1f),
-                    )
+                //
+                // The Column's height is shrunk by the status-bar inset (rather than left at the
+                // scaffold's full height with a spacer inset from inside it) so the Expanded anchor
+                // itself lands just below the status bar -- NowPlayingMiniStrip has to stay the
+                // Column's first child with nothing above it, since the sheet's peeked state shows
+                // only this same Column's own top sheetPeekHeight, i.e. the strip itself; a spacer
+                // there would push the strip out of that peeked window instead of just out of the
+                // status bar's way once expanded.
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                    Column(modifier = Modifier.height(maxHeight - statusBarInset)) {
+                        NowPlayingMiniStrip(
+                            playbackState = playbackState,
+                            onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
+                            onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
+                            onSkipBackward = miniPlayerViewModel::skipBackward,
+                            onSkipForward = miniPlayerViewModel::skipForward,
+                            // Not the screen's true bottom edge -- the bottom nav bar below reserves
+                            // this padding itself.
+                            applyNavigationBarsPadding = false,
+                            showControls = !isExpanded,
+                        )
+                        MiniPlayerBar(
+                            playbackState = playbackState,
+                            onOpenEpisode = onOpenCurrentEpisode,
+                            onSeek = miniPlayerViewModel::seekTo,
+                            onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
+                            onSkipBackward = miniPlayerViewModel::skipBackward,
+                            onSkipForward = miniPlayerViewModel::skipForward,
+                            onNextChapter = miniPlayerViewModel::nextChapter,
+                            onPreviousChapter = miniPlayerViewModel::previousChapter,
+                            onSpeedChange = miniPlayerViewModel::setSpeed,
+                            onVolumeBoostChange = miniPlayerViewModel::setVolumeBoost,
+                            onStop = miniPlayerViewModel::stop,
+                            applyNavigationBarsPadding = false,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         },
