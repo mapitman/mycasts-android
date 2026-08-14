@@ -157,17 +157,24 @@ fun QueueScreen(
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                     Column(modifier = Modifier.height(maxHeight - statusBarInset)) {
-                        NowPlayingMiniStrip(
-                            playbackState = playbackState,
-                            onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
-                            onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
-                            onSkipBackward = miniPlayerViewModel::skipBackward,
-                            onSkipForward = miniPlayerViewModel::skipForward,
-                            // Not the screen's true bottom edge -- the bottom nav bar below reserves
-                            // this padding itself.
-                            applyNavigationBarsPadding = false,
-                            showControls = !isExpanded,
-                        )
+                        // Dropped entirely once fully expanded (rather than just hiding its
+                        // transport row via showControls), not just hidden in place -- MiniPlayerBar
+                        // below already shows the same artwork/title at full size once open, so the
+                        // strip was a redundant duplicate of that -- and leaving it in the Column
+                        // would hold onto its space instead of handing it to MiniPlayerBar's
+                        // weight(1f) below.
+                        if (!isExpanded) {
+                            NowPlayingMiniStrip(
+                                playbackState = playbackState,
+                                onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
+                                onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
+                                onSkipBackward = miniPlayerViewModel::skipBackward,
+                                onSkipForward = miniPlayerViewModel::skipForward,
+                                // Not the screen's true bottom edge -- the bottom nav bar below
+                                // reserves this padding itself.
+                                applyNavigationBarsPadding = false,
+                            )
+                        }
                         MiniPlayerBar(
                             playbackState = playbackState,
                             onOpenEpisode = onOpenCurrentEpisode,
