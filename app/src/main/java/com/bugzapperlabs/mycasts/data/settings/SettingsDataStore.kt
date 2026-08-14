@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -50,6 +51,8 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
                 else -> stored
             },
             useDeviceThemeColors = prefs[Keys.USE_DEVICE_THEME_COLORS] ?: AppSettings().useDeviceThemeColors,
+            pendingNewEpisodeIds = prefs[Keys.PENDING_NEW_EPISODE_IDS] ?: AppSettings().pendingNewEpisodeIds,
+            newEpisodeIdsToShow = prefs[Keys.NEW_EPISODE_IDS_TO_SHOW] ?: AppSettings().newEpisodeIdsToShow,
         )
     }
 
@@ -195,6 +198,32 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.USE_DEVICE_THEME_COLORS] = value }
     }
 
+    /** Adds [ids] to the pool of episodes found since the app was last opened (issue #161),
+     *  called by [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorker] after every scheduled
+     *  refresh that turns up new episodes -- a plain union rather than a replace, so several
+     *  refreshes in a row without the app being opened keep accumulating instead of the count
+     *  resetting to just the most recent run. */
+    suspend fun addPendingNewEpisodeIds(ids: Collection<String>) {
+        dataStore.edit {
+            val current = it[Keys.PENDING_NEW_EPISODE_IDS] ?: emptySet()
+            it[Keys.PENDING_NEW_EPISODE_IDS] = current + ids
+        }
+    }
+
+    /** Marks the app as opened in the foreground (issue #161): freezes whatever's currently
+     *  pending into [AppSettings.newEpisodeIdsToShow] for the "New episodes" screen to display,
+     *  then clears the pending pool so the next scheduled refresh starts a fresh count. Called
+     *  from [com.bugzapperlabs.mycasts.MyCastsApp]'s `ProcessLifecycleOwner` observer, which only
+     *  fires on a genuine foreground transition -- not when a background refresh runs with no
+     *  Activity ever shown. */
+    suspend fun markAppOpened() {
+        dataStore.edit {
+            val pending = it[Keys.PENDING_NEW_EPISODE_IDS] ?: emptySet()
+            it[Keys.NEW_EPISODE_IDS_TO_SHOW] = pending
+            it[Keys.PENDING_NEW_EPISODE_IDS] = emptySet()
+        }
+    }
+
     // The string literals below are the on-disk DataStore key names, not the Kotlin API (issue
     // #11 renamed AppSettings/SettingsDataStore's article-flavored fields/functions to
     // episode/item wording) -- changing a literal here would silently reset that existing user's
@@ -231,5 +260,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         val AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT = booleanPreferencesKey("auto_download_new_feeds_by_default")
         val AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT = intPreferencesKey("auto_download_new_feeds_max_count")
         val USE_DEVICE_THEME_COLORS = booleanPreferencesKey("use_device_theme_colors")
+        val PENDING_NEW_EPISODE_IDS = stringSetPreferencesKey("pending_new_episode_ids")
+        val NEW_EPISODE_IDS_TO_SHOW = stringSetPreferencesKey("new_episode_ids_to_show")
     }
 }

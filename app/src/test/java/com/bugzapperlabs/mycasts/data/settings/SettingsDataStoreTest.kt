@@ -94,6 +94,35 @@ class SettingsDataStoreTest {
     }
 
     @Test
+    fun addPendingNewEpisodeIds_accumulatesAcrossCalls() = runTest {
+        settingsDataStore.addPendingNewEpisodeIds(listOf("a", "b"))
+        settingsDataStore.addPendingNewEpisodeIds(listOf("b", "c"))
+
+        assertEquals(setOf("a", "b", "c"), settingsDataStore.settings.first().pendingNewEpisodeIds)
+    }
+
+    @Test
+    fun markAppOpened_movesPendingIntoShownAndClearsPending() = runTest {
+        settingsDataStore.addPendingNewEpisodeIds(listOf("a", "b"))
+
+        settingsDataStore.markAppOpened()
+
+        val settings = settingsDataStore.settings.first()
+        assertEquals(setOf("a", "b"), settings.newEpisodeIdsToShow)
+        assertTrue(settings.pendingNewEpisodeIds.isEmpty())
+    }
+
+    @Test
+    fun markAppOpened_withNothingPending_clearsPreviouslyShownEpisodes() = runTest {
+        settingsDataStore.addPendingNewEpisodeIds(listOf("a"))
+        settingsDataStore.markAppOpened()
+
+        settingsDataStore.markAppOpened()
+
+        assertTrue(settingsDataStore.settings.first().newEpisodeIdsToShow.isEmpty())
+    }
+
+    @Test
     fun reset_clearsBackToDefaults() = runTest {
         settingsDataStore.setMaxItemsPerFeed(999)
         settingsDataStore.setAllowPodcastStreaming(false)

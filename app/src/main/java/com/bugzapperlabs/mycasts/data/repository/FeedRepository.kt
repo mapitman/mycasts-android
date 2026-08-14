@@ -5,9 +5,11 @@ import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedDao
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.FeedItemDao
+import com.bugzapperlabs.mycasts.data.local.NewEpisode
 import com.bugzapperlabs.mycasts.data.local.QueueDao
 import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -90,6 +92,11 @@ class FeedRepository @Inject constructor(
 
     /** Every episode with a download in progress or completed, across all feeds (issue #69). */
     fun observeDownloadedItems(): Flow<List<DownloadedEpisode>> = feedItemDao.observeDownloadedItems()
+
+    /** The episodes found since the app was last opened (issue #161), for the "New episodes"
+     *  screen -- see [com.bugzapperlabs.mycasts.data.settings.AppSettings.newEpisodeIdsToShow]. */
+    fun observeNewEpisodes(ids: List<String>): Flow<List<NewEpisode>> =
+        if (ids.isEmpty()) flowOf(emptyList()) else feedItemDao.observeByIds(ids)
 
     /** A feed's auto-downloaded, completed episodes, newest first (issue #250) -- see
      *  [FeedItemDao.autoDownloadedItemsForFeed]. */

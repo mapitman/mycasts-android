@@ -153,6 +153,87 @@ class FeedRefreshWorkerTest {
     }
 
     @Test
+    fun doWork_notificationCount_accumulatesAcrossRunsUntilAppOpened() = runTest {
+        // issue #161: a second scheduled refresh landing before the user ever opens the app
+        // should report the cumulative count across both runs, not just the second run's own.
+        settingsDataStore.setNotifyOnNewItems(true)
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        Shadows.shadowOf(context as android.app.Application).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+        val server = MockWebServer()
+        server.start()
+        try {
+            val url = server.url("/feed.xml").toString()
+            repository.subscribe(Feed(title = "A Feed", feedUrl = url))
+            val engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
+
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <rss version="2.0"><channel>
+                      <title>A Feed</title>
+                      <link>https://example.com</link>
+                      <description>desc</description>
+                      <item>
+                        <title>Article 1</title>
+                        <link>https://example.com/1</link>
+                        <guid>guid-1</guid>
+                        <description>Body</description>
+                        <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+                      </item>
+                    </channel></rss>
+                    """.trimIndent(),
+                ),
+            )
+            TestListenableWorkerBuilder<FeedRefreshWorker>(context)
+                .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))
+                .build()
+                .doWork()
+
+            server.enqueue(
+                MockResponse().setResponseCode(200).setBody(
+                    """
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <rss version="2.0"><channel>
+                      <title>A Feed</title>
+                      <link>https://example.com</link>
+                      <description>desc</description>
+                      <item>
+                        <title>Article 1</title>
+                        <link>https://example.com/1</link>
+                        <guid>guid-1</guid>
+                        <description>Body</description>
+                        <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+                      </item>
+                      <item>
+                        <title>Article 2</title>
+                        <link>https://example.com/2</link>
+                        <guid>guid-2</guid>
+                        <description>Body</description>
+                        <pubDate>Tue, 04 Jun 2013 11:05:30 GMT</pubDate>
+                      </item>
+                    </channel></rss>
+                    """.trimIndent(),
+                ),
+            )
+            TestListenableWorkerBuilder<FeedRefreshWorker>(context)
+                .setWorkerFactory(TestWorkerFactory(repository, engine, downloadRepository, queueRepository, settingsDataStore))
+                .build()
+                .doWork()
+
+            assertEquals(2, settingsDataStore.settings.first().pendingNewEpisodeIds.size)
+
+            val notificationManager = context.getSystemService(NotificationManager::class.java)
+            val shadowManager = Shadows.shadowOf(notificationManager)
+            val notification = shadowManager.allNotifications.last()
+            val text = Shadows.shadowOf(notification).contentText.toString()
+            assertTrue("expected notification to report 2 new episodes, was \"$text\"", text.contains("2"))
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun doWork_doesNotNotify_whenSettingDisabled() = runTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val server = MockWebServer()

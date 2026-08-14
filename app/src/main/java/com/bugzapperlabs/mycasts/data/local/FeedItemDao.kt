@@ -112,4 +112,18 @@ interface FeedItemDao {
         """,
     )
     fun observeDownloadedItems(): Flow<List<DownloadedEpisode>>
+
+    // Callers guard against an empty [ids] themselves (issue #161) -- an empty Room `IN ()` list
+    // still matches nothing, but skipping the query entirely avoids registering a live observer
+    // for a result that's already known to be empty.
+    @Query(
+        """
+        SELECT feed_items.*, COALESCE(feeds.userTitle, feeds.title) AS feedTitle, feeds.imageUrl AS feedImageUrl
+        FROM feed_items
+        INNER JOIN feeds ON feeds.id = feed_items.feedId
+        WHERE feed_items.id IN (:ids)
+        ORDER BY feed_items.publishDate DESC
+        """,
+    )
+    fun observeByIds(ids: List<String>): Flow<List<NewEpisode>>
 }

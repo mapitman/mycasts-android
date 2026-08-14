@@ -110,6 +110,31 @@ class FeedRepositoryTest {
     }
 
     @Test
+    fun observeNewEpisodes_returnsOnlyRequestedIdsWithFeedTitle() = runTest {
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "item-1", feedId = feedId, itemGuid = "guid-1", title = "Episode 1"),
+                FeedItem(id = "item-2", feedId = feedId, itemGuid = "guid-2", title = "Episode 2"),
+            ),
+        )
+
+        val episodes = repository.observeNewEpisodes(listOf("item-1")).first()
+
+        assertEquals(1, episodes.size)
+        assertEquals("Episode 1", episodes.single().item.title)
+        assertEquals("A Feed", episodes.single().feedTitle)
+    }
+
+    @Test
+    fun observeNewEpisodes_emptyIds_returnsEmptyWithoutQuerying() = runTest {
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        repository.insertItems(listOf(FeedItem(id = "item-1", feedId = feedId, itemGuid = "guid-1")))
+
+        assertTrue(repository.observeNewEpisodes(emptyList()).first().isEmpty())
+    }
+
+    @Test
     fun findByItemGuid_locatesExistingItemForDedup() = runTest {
         val feedId = repository.subscribe(Feed(title = "A Feed"))
         repository.insertItems(listOf(FeedItem(id = "item-1", feedId = feedId, itemGuid = "guid-1")))

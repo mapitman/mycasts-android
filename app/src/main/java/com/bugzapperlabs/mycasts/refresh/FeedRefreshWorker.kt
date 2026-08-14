@@ -75,9 +75,17 @@ class FeedRefreshWorker @AssistedInject constructor(
 
             UnreadWidget().updateAll(applicationContext)
 
-            val newItemCount = results.filterIsInstance<FeedUpdateResult.Success>().sumOf { it.newItemCount }
-            if (newItemCount > 0 && settingsDataStore.settings.first().notifyOnNewItems) {
-                notifyNewItems(newItemCount)
+            // Cumulative since the app was last opened (issue #161), not just this run's own new
+            // items -- several scheduled refreshes can land in a row before the user ever opens the
+            // app, and the notification/New-episodes screen should reflect all of them, not just the
+            // most recent refresh's count. See SettingsDataStore.markAppOpened for where this resets.
+            val newItemIds = results.filterIsInstance<FeedUpdateResult.Success>().flatMap { it.newItemIds }
+            if (newItemIds.isNotEmpty()) {
+                settingsDataStore.addPendingNewEpisodeIds(newItemIds)
+                val pendingCount = settingsDataStore.settings.first().pendingNewEpisodeIds.size
+                if (settingsDataStore.settings.first().notifyOnNewItems) {
+                    notifyNewItems(pendingCount)
+                }
             }
 
             Result.success()
@@ -116,10 +124,14 @@ class FeedRefreshWorker @AssistedInject constructor(
             return
         }
 
+        // issue #161: lands on the "New episodes" screen instead of just the default start
+        // destination, the same way UnreadWidget's feed tap carries WIDGET_FEED_ID_EXTRA.
+        val intent = android.content.Intent(applicationContext, MainActivity::class.java)
+            .putExtra(MainActivity.NEW_EPISODES_EXTRA, true)
         val contentIntent = android.app.PendingIntent.getActivity(
             applicationContext,
             0,
-            android.content.Intent(applicationContext, MainActivity::class.java),
+            intent,
             android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(applicationContext, MyCastsApp.NEW_ITEMS_CHANNEL_ID)

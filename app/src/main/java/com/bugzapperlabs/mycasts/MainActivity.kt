@@ -78,6 +78,7 @@ import com.bugzapperlabs.mycasts.download.DownloadFeedbackCoordinator
 import com.bugzapperlabs.mycasts.downloads.DownloadsScreen
 import com.bugzapperlabs.mycasts.feedlist.FeedListScreen
 import com.bugzapperlabs.mycasts.feedproperties.FeedPropertiesScreen
+import com.bugzapperlabs.mycasts.newepisodes.NewEpisodesScreen
 import com.bugzapperlabs.mycasts.playback.MiniPlayerViewModel
 import com.bugzapperlabs.mycasts.playback.NowPlayingMiniStrip
 import com.bugzapperlabs.mycasts.queue.QueueScreen
@@ -99,8 +100,10 @@ private val TOP_LEVEL_ROUTES = setOf("feedList", "downloads", "queue", "settings
  *  a nav bar showing four unrelated tabs would be more confusing than useful. The episode list
  *  is the one non-top-level route that keeps the bar (issue #146): it's still one tap away from
  *  every tab, and losing bottom-nav access every time a feed is opened previously meant using
- *  the system back button/gesture just to reach another tab. */
-private val BOTTOM_NAV_ROUTES = TOP_LEVEL_ROUTES + "episodeList/{feedId}"
+ *  the system back button/gesture just to reach another tab. "newEpisodes" (issue #161) is the
+ *  same case again -- reached from a notification tap with an otherwise-empty back stack, so
+ *  without the bar there'd be no way off it except killing the app. */
+private val BOTTOM_NAV_ROUTES = TOP_LEVEL_ROUTES + "episodeList/{feedId}" + "newEpisodes"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @AndroidEntryPoint
@@ -171,6 +174,7 @@ class MainActivity : ComponentActivity() {
         val startDestination = intent.getLongExtra(WIDGET_FEED_ID_EXTRA, -1L)
             .takeIf { it >= 0 }
             ?.let { feedId -> "episodeList/$feedId" }
+            ?: "newEpisodes".takeIf { intent.getBooleanExtra(NEW_EPISODES_EXTRA, false) }
             ?: sharedUrl?.let { "addFeed?sharedUrl=${Uri.encode(it)}" }
             ?: "feedList"
 
@@ -429,6 +433,11 @@ class MainActivity : ComponentActivity() {
                         composable("settings") {
                             SettingsScreen()
                         }
+                        composable("newEpisodes") {
+                            NewEpisodesScreen(
+                                onEpisodeClick = { feedId, itemId -> openEpisodeDetails(feedId, itemId) },
+                            )
+                        }
                         composable(
                             "addFeed?sharedUrl={sharedUrl}",
                             arguments = listOf(
@@ -547,6 +556,10 @@ class MainActivity : ComponentActivity() {
         /** Matches [com.bugzapperlabs.mycasts.widget.FeedIdParam]'s key name -- Glance's actionStartActivity
          * puts ActionParameters into the launch Intent's extras keyed by parameter name. */
         const val WIDGET_FEED_ID_EXTRA = "feedId"
+
+        /** Set on the new-episodes notification's PendingIntent (issue #161) to land on the
+         *  "New episodes" screen instead of the default start destination. */
+        const val NEW_EPISODES_EXTRA = "newEpisodes"
 
         /** Mime types the OPML share/open intent filters (issue #38) register for in the manifest. */
         private val OPML_MIME_TYPES = setOf("text/x-opml", "text/xml", "application/xml")

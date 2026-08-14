@@ -271,4 +271,9 @@
 
     <!-- Widget -->
     <string name="widget_all_caught_up">Todo al día</string>
+
+    <!-- New episodes screen -->
+    <string name="new_episodes_title">Nuevos episodios</string>
+    <string name="new_episodes_empty">No hay episodios nuevos desde la última vez que abriste la app.</string>
+    <string name="new_episodes_row_subtitle">%1$s • %2$s</string>
 </resources>
