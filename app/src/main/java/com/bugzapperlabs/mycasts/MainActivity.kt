@@ -195,6 +195,21 @@ class MainActivity : ComponentActivity() {
                 val currentRoute = currentBackStackEntry?.destination?.route
                 val coroutineScope = rememberCoroutineScope()
 
+                // Requests the player sheet collapse whenever the Next Up tab is left behind
+                // (issue #148), however that happens -- another tab, the system back gesture, an
+                // episode opened from the expanded player -- rather than only reacting to the
+                // Next Up tab's own onClick. QueueScreen's rememberBottomSheetScaffoldState
+                // survives being navigated away from (it's saved/restored, not recreated), so
+                // without this an already-expanded sheet would stay expanded the next time the
+                // user lands back on Next Up.
+                var previousRoute by remember { mutableStateOf<String?>(null) }
+                LaunchedEffect(currentRoute) {
+                    if (previousRoute == "queue" && currentRoute != "queue") {
+                        miniPlayerViewModel.requestCollapse()
+                    }
+                    previousRoute = currentRoute
+                }
+
                 // One-time nudge (issue #273) toward exempting the app from Doze battery
                 // optimization: even with the wake lock PlaybackService holds across the
                 // STATE_ENDED-to-next-episode gap (issues #179, #241), Doze can still
@@ -326,7 +341,18 @@ class MainActivity : ComponentActivity() {
                                     )
                                     NavigationBarItem(
                                         selected = currentRoute == "queue",
-                                        onClick = { navigateToTopLevel("queue") },
+                                        // Repeated taps toggle the player sheet instead of
+                                        // re-navigating (issue #148): navigating to the
+                                        // already-current destination is a no-op, so once
+                                        // already on Next Up this tells QueueScreen's sheet to
+                                        // flip between peeked and expanded instead.
+                                        onClick = {
+                                            if (currentRoute == "queue") {
+                                                miniPlayerViewModel.toggleSheet()
+                                            } else {
+                                                navigateToTopLevel("queue")
+                                            }
+                                        },
                                         icon = { Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null) },
                                         label = { Text(stringResource(R.string.queue_title)) },
                                     )
