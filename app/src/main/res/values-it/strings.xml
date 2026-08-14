@@ -223,6 +223,7 @@
     <string name="feed_properties_title">Proprietà del feed</string>
     <string name="feed_properties_title_label">Titolo</string>
     <string name="feed_properties_save_title">Salva titolo</string>
+    <string name="feed_properties_edit_title">Modifica titolo</string>
     <string name="feed_properties_url_label">URL del feed (tocca per copiare)</string>
     <string name="feed_properties_url_copied">URL del feed copiato negli appunti</string>
     <string name="feed_properties_use_global_max">Usa impostazione globale di episodi massimi (%1$d)</string>

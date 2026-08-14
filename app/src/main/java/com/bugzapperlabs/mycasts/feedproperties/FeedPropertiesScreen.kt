@@ -9,10 +9,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -56,7 +61,7 @@ fun FeedPropertiesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showUnsubscribeConfirm by remember { mutableStateOf(false) }
-    var titleField by remember { mutableStateOf<String?>(null) }
+    var editedTitle by remember { mutableStateOf<String?>(null) }
     val clipboardManager = LocalClipboardManager.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -82,18 +87,21 @@ fun FeedPropertiesScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            OutlinedTextField(
-                value = titleField ?: uiState.displayTitle,
-                onValueChange = { titleField = it },
-                label = { Text(stringResource(R.string.feed_properties_title_label)) },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-            Button(
-                onClick = { titleField?.let(viewModel::setTitle) },
-                modifier = Modifier.padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.feed_properties_save_title))
+                Text(
+                    text = uiState.displayTitle,
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(onClick = { editedTitle = uiState.displayTitle }) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.feed_properties_edit_title),
+                    )
+                }
             }
 
             // issue #104: surface the underlying feed URL, since it's otherwise invisible to users
@@ -325,6 +333,34 @@ fun FeedPropertiesScreen(
                 Text(stringResource(R.string.feed_properties_unsubscribe))
             }
         }
+    }
+
+    val titleBeingEdited = editedTitle
+    if (titleBeingEdited != null) {
+        AlertDialog(
+            onDismissRequest = { editedTitle = null },
+            title = { Text(stringResource(R.string.feed_properties_edit_title)) },
+            text = {
+                OutlinedTextField(
+                    value = titleBeingEdited,
+                    onValueChange = { editedTitle = it },
+                    label = { Text(stringResource(R.string.feed_properties_title_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.setTitle(titleBeingEdited)
+                    editedTitle = null
+                }) {
+                    Text(stringResource(R.string.feed_properties_save_title))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editedTitle = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
     }
 
     if (showUnsubscribeConfirm) {
