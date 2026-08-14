@@ -18,15 +18,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -39,7 +35,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -71,6 +66,7 @@ import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
 import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import com.bugzapperlabs.mycasts.data.settings.itemsToKeepFromSliderPosition
+import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
 import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
 import kotlinx.coroutines.launch
 
@@ -79,7 +75,6 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
-    onBack: () -> Unit = {},
 ) {
     val settings by viewModel.settings.collectAsState()
     val addDefaultFeedsMessage by viewModel.addDefaultFeedsMessage.collectAsState()
@@ -102,16 +97,11 @@ fun SettingsScreen(
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
-                },
-            )
-        },
+        // No title, no back arrow (issues #127/#128): the bottom nav's highlighted "Settings" tab
+        // already conveys this screen, and system back gestures/buttons cover navigating away.
+        // Nothing else in this bar either, so CompactTopBar replaces a full-height empty
+        // TopAppBar with one that reserves only the status-bar inset.
+        topBar = { CompactTopBar() },
     ) { innerPadding ->
         Column(
             modifier = Modifier

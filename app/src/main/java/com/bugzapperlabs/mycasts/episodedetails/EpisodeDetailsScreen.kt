@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.CheckCircle
@@ -82,7 +81,6 @@ import com.bugzapperlabs.mycasts.ui.components.ReaderText
 fun EpisodeDetailsScreen(
     modifier: Modifier = Modifier,
     viewModel: EpisodeDetailsViewModel = hiltViewModel(),
-    onBack: () -> Unit = {},
     onQueueClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -115,17 +113,13 @@ fun EpisodeDetailsScreen(
 
     val currentItem = uiState.items.getOrNull(pagerState.currentPage)
 
+    // No back arrow (issue #128): system back gestures/buttons cover navigating away.
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
                 title = {
                     uiState.feedTitle?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
                 },
                 actions = {
                     if (currentItem?.isPodcastEpisode == true) {

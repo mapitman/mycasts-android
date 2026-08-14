@@ -2,12 +2,17 @@ package com.bugzapperlabs.mycasts.queue
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -23,7 +28,6 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +47,7 @@ import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import com.bugzapperlabs.mycasts.playback.MiniPlayerBar
 import com.bugzapperlabs.mycasts.playback.MiniPlayerViewModel
 import com.bugzapperlabs.mycasts.playback.NowPlayingMiniStrip
+import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
 import kotlinx.coroutines.launch
 
 /** Height of the player sheet's peeked state -- sized to [NowPlayingMiniStrip], the sheet's own
@@ -141,56 +146,76 @@ fun QueueScreen(
                 // BottomSheetScaffold's Expanded anchor (layoutHeight - sheetHeight) lands short of
                 // the top instead of reaching it. MiniPlayerBar below takes the weight(1f) leftover
                 // once the strip's fixed height is subtracted, so it's the one that stretches.
-                Column(modifier = Modifier.fillMaxHeight()) {
-                    NowPlayingMiniStrip(
-                        playbackState = playbackState,
-                        onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
-                        onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
-                        onSkipBackward = miniPlayerViewModel::skipBackward,
-                        onSkipForward = miniPlayerViewModel::skipForward,
-                        // Not the screen's true bottom edge -- the bottom nav bar below reserves
-                        // this padding itself.
-                        applyNavigationBarsPadding = false,
-                        showControls = !isExpanded,
-                    )
-                    MiniPlayerBar(
-                        playbackState = playbackState,
-                        onOpenEpisode = onOpenCurrentEpisode,
-                        onSeek = miniPlayerViewModel::seekTo,
-                        onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
-                        onSkipBackward = miniPlayerViewModel::skipBackward,
-                        onSkipForward = miniPlayerViewModel::skipForward,
-                        onNextChapter = miniPlayerViewModel::nextChapter,
-                        onPreviousChapter = miniPlayerViewModel::previousChapter,
-                        onSpeedChange = miniPlayerViewModel::setSpeed,
-                        onVolumeBoostChange = miniPlayerViewModel::setVolumeBoost,
-                        onStop = miniPlayerViewModel::stop,
-                        applyNavigationBarsPadding = false,
-                        modifier = Modifier.weight(1f),
-                    )
+                //
+                // The Column's height is shrunk by the status-bar inset (rather than left at the
+                // scaffold's full height with a spacer inset from inside it) so the Expanded anchor
+                // itself lands just below the status bar -- NowPlayingMiniStrip has to stay the
+                // Column's first child with nothing above it, since the sheet's peeked state shows
+                // only this same Column's own top sheetPeekHeight, i.e. the strip itself; a spacer
+                // there would push the strip out of that peeked window instead of just out of the
+                // status bar's way once expanded.
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                    Column(modifier = Modifier.height(maxHeight - statusBarInset)) {
+                        // Dropped entirely once fully expanded (rather than just hiding its
+                        // transport row via showControls), not just hidden in place -- MiniPlayerBar
+                        // below already shows the same artwork/title at full size once open, so the
+                        // strip was a redundant duplicate of that -- and leaving it in the Column
+                        // would hold onto its space instead of handing it to MiniPlayerBar's
+                        // weight(1f) below.
+                        if (!isExpanded) {
+                            NowPlayingMiniStrip(
+                                playbackState = playbackState,
+                                onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
+                                onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
+                                onSkipBackward = miniPlayerViewModel::skipBackward,
+                                onSkipForward = miniPlayerViewModel::skipForward,
+                                // Not the screen's true bottom edge -- the bottom nav bar below
+                                // reserves this padding itself.
+                                applyNavigationBarsPadding = false,
+                            )
+                        }
+                        MiniPlayerBar(
+                            playbackState = playbackState,
+                            onOpenEpisode = onOpenCurrentEpisode,
+                            onSeek = miniPlayerViewModel::seekTo,
+                            onTogglePlayPause = miniPlayerViewModel::togglePlayPause,
+                            onSkipBackward = miniPlayerViewModel::skipBackward,
+                            onSkipForward = miniPlayerViewModel::skipForward,
+                            onNextChapter = miniPlayerViewModel::nextChapter,
+                            onPreviousChapter = miniPlayerViewModel::previousChapter,
+                            onSpeedChange = miniPlayerViewModel::setSpeed,
+                            onVolumeBoostChange = miniPlayerViewModel::setVolumeBoost,
+                            onStop = miniPlayerViewModel::stop,
+                            applyNavigationBarsPadding = false,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
         },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.queue_title)) },
-                actions = {
-                    if (queue.size > 1) {
-                        IconButton(onClick = viewModel::sortByPublishDate) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = stringResource(
-                                    if (sortAscending) {
-                                        R.string.cd_sort_queue_oldest_first
-                                    } else {
-                                        R.string.cd_sort_queue_newest_first
-                                    },
-                                ),
-                            )
-                        }
+            // No title (issue #127): the bottom nav's highlighted "Next Up" tab already conveys
+            // this is the queue screen. CompactTopBar replaces TopAppBar here too, so the sort
+            // action's own ~48dp touch target governs this bar's height instead of Material's
+            // taller ~64dp component height on top of it.
+            CompactTopBar {
+                Spacer(modifier = Modifier.weight(1f))
+                if (queue.size > 1) {
+                    IconButton(onClick = viewModel::sortByPublishDate) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = stringResource(
+                                if (sortAscending) {
+                                    R.string.cd_sort_queue_oldest_first
+                                } else {
+                                    R.string.cd_sort_queue_newest_first
+                                },
+                            ),
+                        )
                     }
-                },
-            )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { innerPadding ->

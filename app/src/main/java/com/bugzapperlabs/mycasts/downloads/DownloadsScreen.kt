@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,7 +19,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
 import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
 import java.util.Locale
 import kotlin.math.log10
@@ -45,7 +44,6 @@ import kotlin.math.pow
 fun DownloadsScreen(
     modifier: Modifier = Modifier,
     viewModel: DownloadsViewModel = hiltViewModel(),
-    onBack: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var pendingDelete by remember { mutableStateOf<FeedItem?>(null) }
@@ -53,22 +51,18 @@ fun DownloadsScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(stringResource(R.string.downloads_title))
-                        Text(
-                            text = formatBytes(uiState.totalBytes),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
-                },
-            )
+            // No "Downloads" label (issue #127): the bottom nav's highlighted tab already conveys
+            // that. The byte total is real content, not a redundant screen name, so it stays.
+            // No back arrow either (issue #128) -- this is a bottom-nav destination. CompactTopBar
+            // replaces TopAppBar here too, sized to just this text rather than Material's taller
+            // ~64dp component height on top of it.
+            CompactTopBar {
+                Text(
+                    text = formatBytes(uiState.totalBytes),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
         },
     ) { innerPadding ->
         if (uiState.episodes.isEmpty()) {

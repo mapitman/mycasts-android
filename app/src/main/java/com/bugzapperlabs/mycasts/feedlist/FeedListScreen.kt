@@ -24,7 +24,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.settings.scaleFactor
+import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
 import com.bugzapperlabs.mycasts.ui.components.ListItemRow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,11 +92,10 @@ fun FeedListScreen(
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-            )
-        },
+        // No title (issue #127) and nothing else in this bar either, so a full-height empty
+        // TopAppBar is replaced with CompactTopBar, which reserves only the status-bar inset
+        // itself rather than Material's ~64dp component height on top of it.
+        topBar = { CompactTopBar() },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddFeedClick) {
                 Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_feed))

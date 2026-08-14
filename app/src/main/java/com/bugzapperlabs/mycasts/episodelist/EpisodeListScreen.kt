@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -72,7 +71,6 @@ fun EpisodeListScreen(
     modifier: Modifier = Modifier,
     viewModel: EpisodeListViewModel = hiltViewModel(),
     onEpisodeClick: (String) -> Unit = {},
-    onBack: () -> Unit = {},
     onQueueClick: () -> Unit = {},
     onFeedSettingsClick: () -> Unit = {},
 ) {
@@ -147,13 +145,9 @@ fun EpisodeListScreen(
                     },
                 )
             } else {
+                // No back arrow (issue #128): system back gestures/buttons cover navigating away.
                 TopAppBar(
                     title = { Text(uiState.feedTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                        }
-                    },
                     actions = {
                         IconButton(onClick = onQueueClick) {
                             Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = stringResource(R.string.cd_open_queue))

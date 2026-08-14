@@ -17,14 +17,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -60,7 +56,6 @@ fun AddFeedScreen(
     viewModel: AddFeedViewModel = hiltViewModel(),
     initialUrl: String? = null,
     onDone: () -> Unit = {},
-    onBack: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onPodcastClick: (PodcastSearchResult) -> Unit = {},
 ) {
@@ -119,15 +114,11 @@ fun AddFeedScreen(
         // rather than relying on the system to resize/pan the window for it.
         modifier = modifier.imePadding(),
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
+        // No back arrow (issue #128): system back gestures/buttons cover navigating away -- the
+        // BackHandler above still blocks the system gesture itself while an add/import is
+        // Loading, so that protection doesn't depend on this arrow's visible disabled state.
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.add_feed_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, enabled = uiState !is AddFeedUiState.Loading) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
-                },
-            )
+            TopAppBar(title = { Text(stringResource(R.string.add_feed_title)) })
         },
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
