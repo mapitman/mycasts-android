@@ -17,6 +17,7 @@
     <string name="cd_add_feed">Añadir fuente</string>
     <string name="cd_clear_selection">Borrar selección</string>
     <string name="cd_select_all">Seleccionar todo</string>
+    <string name="cd_deselect_all">Deseleccionar todo</string>
     <string name="cd_mark_read">Marcar como leído</string>
     <string name="cd_mark_unread">Marcar como no leído</string>
     <string name="played_label">Reproducido</string>

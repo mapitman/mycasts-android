@@ -12,10 +12,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Deselect
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,6 +30,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -31,7 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -41,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
+import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
 import com.bugzapperlabs.mycasts.ui.components.ListItemRow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,7 +60,6 @@ fun FeedListScreen(
     viewModel: FeedListViewModel = hiltViewModel(),
     onFeedClick: (Long) -> Unit = {},
     onAddFeedClick: () -> Unit = {},
-    onFeedLongClick: (Long) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val feedListFontSize by viewModel.feedListFontSize.collectAsState()
@@ -59,6 +68,7 @@ fun FeedListScreen(
     val opmlImportProgress by viewModel.opmlImportProgress.collectAsState()
     val showAddDefaultFeedsPrompt by viewModel.showAddDefaultFeedsPrompt.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     if (showAddDefaultFeedsPrompt) {
         AlertDialog(
@@ -91,13 +101,49 @@ fun FeedListScreen(
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
-        // No title (issue #127) and nothing else in this bar either, so a full-height empty
-        // TopAppBar is replaced with CompactTopBar, which reserves only the status-bar inset
-        // itself rather than Material's ~64dp component height on top of it.
-        topBar = { CompactTopBar() },
+        topBar = {
+            if (uiState.isSelectionMode) {
+                // Multi-select management (issue #124), replacing Settings' old "Remove all
+                // feeds" -- same selection-mode top bar pattern as EpisodeListScreen.
+                TopAppBar(
+                    title = { Text(stringResource(R.string.article_list_selected, uiState.selectedIds.size)) },
+                    navigationIcon = {
+                        IconButton(onClick = viewModel::clearSelection) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_clear_selection))
+                        }
+                    },
+                    actions = {
+                        // Tapping this again once every feed is already selected deselects them
+                        // all instead of being a no-op.
+                        val allSelected = uiState.selectedIds.size == uiState.feeds.size
+                        IconButton(onClick = viewModel::selectAll) {
+                            Icon(
+                                if (allSelected) Icons.Filled.Deselect else Icons.Filled.SelectAll,
+                                contentDescription = stringResource(
+                                    if (allSelected) R.string.cd_deselect_all else R.string.cd_select_all,
+                                ),
+                            )
+                        }
+                        IconButton(onClick = viewModel::markSelectedRead) {
+                            Icon(Icons.Filled.Done, contentDescription = stringResource(R.string.cd_mark_read))
+                        }
+                        IconButton(onClick = { showDeleteConfirm = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.feed_properties_unsubscribe))
+                        }
+                    },
+                )
+            } else {
+                // No title (issue #127) and nothing else in this bar either, so a full-height
+                // empty TopAppBar is replaced with CompactTopBar, which reserves only the
+                // status-bar inset itself rather than Material's ~64dp component height on top.
+                CompactTopBar()
+            }
+        },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddFeedClick) {
-                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_feed))
+            if (!uiState.isSelectionMode) {
+                FloatingActionButton(onClick = onAddFeedClick) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.cd_add_feed))
+                }
             }
         },
     ) { innerPadding ->
@@ -173,14 +219,23 @@ fun FeedListScreen(
                             )
                         }
                         items(uiState.feeds, key = { it.feed.id }) { item ->
+                            val isSelected = item.feed.id in uiState.selectedIds
                             ListItemRow(
                                 title = item.feed.userTitle ?: item.feed.title.orEmpty(),
                                 subtitle = item.feed.description,
                                 imageUrl = item.feed.imageUrl,
                                 unreadCount = item.unreadCount,
                                 titleFontScale = feedListFontSize,
-                                onClick = { onFeedClick(item.feed.id) },
-                                onLongClick = { onFeedLongClick(item.feed.id) },
+                                selectionMode = uiState.isSelectionMode,
+                                selected = isSelected,
+                                onClick = {
+                                    if (uiState.isSelectionMode) {
+                                        viewModel.toggleSelection(item.feed.id)
+                                    } else {
+                                        onFeedClick(item.feed.id)
+                                    }
+                                },
+                                onLongClick = { viewModel.toggleSelection(item.feed.id) },
                             )
                         }
                     }
@@ -193,5 +248,16 @@ fun FeedListScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteConfirm) {
+        ConfirmDeleteDialog(
+            itemCount = uiState.selectedIds.size,
+            onConfirm = {
+                showDeleteConfirm = false
+                viewModel.deleteSelected()
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
     }
 }

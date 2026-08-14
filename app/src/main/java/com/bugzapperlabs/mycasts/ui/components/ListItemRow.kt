@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.RssFeed
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,6 +20,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,17 +40,26 @@ fun ListItemRow(
     unreadCount: Int = 0,
     isRead: Boolean = false,
     titleFontScale: Float = 1f,
+    // Multi-select management (issue #124), mirroring EpisodeListScreen's own row-local
+    // selectionMode/selected pair.
+    selectionMode: Boolean = false,
+    selected: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val isRowSelected = selected
     Row(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .then(if (selectionMode) Modifier.semantics { this.selected = isRowSelected } else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (selectionMode) {
+            Checkbox(checked = selected, onCheckedChange = null)
+        }
         // A placeholder fills the same slot when there's no image (issue #236), rather than
         // omitting it, so titles line up consistently across rows regardless of which ones have
         // an image.

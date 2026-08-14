@@ -21,6 +21,7 @@
     <string name="cd_add_feed">Add feed</string>
     <string name="cd_clear_selection">Clear selection</string>
     <string name="cd_select_all">Select all</string>
+    <string name="cd_deselect_all">Deselect all</string>
     <string name="cd_mark_read">Mark read</string>
     <string name="cd_mark_unread">Mark unread</string>
     <string name="played_label">Played</string>

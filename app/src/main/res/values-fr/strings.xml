@@ -17,6 +17,7 @@
     <string name="cd_add_feed">Ajouter un flux</string>
     <string name="cd_clear_selection">Effacer la sélection</string>
     <string name="cd_select_all">Tout sélectionner</string>
+    <string name="cd_deselect_all">Tout désélectionner</string>
     <string name="cd_mark_read">Marquer comme lu</string>
     <string name="cd_mark_unread">Marquer comme non lu</string>
     <string name="played_label">Écouté</string>

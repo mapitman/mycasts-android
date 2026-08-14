@@ -356,7 +356,6 @@ class MainActivity : ComponentActivity() {
                             FeedListScreen(
                                 onAddFeedClick = { navController.navigate("addFeed") },
                                 onFeedClick = { feedId -> navController.navigate("episodeList/$feedId") },
-                                onFeedLongClick = { feedId -> navController.navigate("feedProperties/$feedId") },
                             )
                         }
                         composable("downloads") {
