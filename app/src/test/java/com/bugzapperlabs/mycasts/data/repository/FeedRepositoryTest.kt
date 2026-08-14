@@ -110,28 +110,28 @@ class FeedRepositoryTest {
     }
 
     @Test
-    fun observeNewEpisodes_returnsOnlyRequestedIdsWithFeedTitle() = runTest {
-        val feedId = repository.subscribe(Feed(title = "A Feed"))
+    fun observeFeedIdsWithNewEpisodes_returnsDistinctFeedIdsForRequestedItems() = runTest {
+        val feedIdA = repository.subscribe(Feed(title = "Feed A"))
+        val feedIdB = repository.subscribe(Feed(title = "Feed B"))
         repository.insertItems(
             listOf(
-                FeedItem(id = "item-1", feedId = feedId, itemGuid = "guid-1", title = "Episode 1"),
-                FeedItem(id = "item-2", feedId = feedId, itemGuid = "guid-2", title = "Episode 2"),
+                FeedItem(id = "item-1", feedId = feedIdA, itemGuid = "guid-1"),
+                FeedItem(id = "item-2", feedId = feedIdA, itemGuid = "guid-2"),
+                FeedItem(id = "item-3", feedId = feedIdB, itemGuid = "guid-3"),
             ),
         )
 
-        val episodes = repository.observeNewEpisodes(listOf("item-1")).first()
+        val feedIds = repository.observeFeedIdsWithNewEpisodes(listOf("item-1", "item-2")).first()
 
-        assertEquals(1, episodes.size)
-        assertEquals("Episode 1", episodes.single().item.title)
-        assertEquals("A Feed", episodes.single().feedTitle)
+        assertEquals(setOf(feedIdA), feedIds)
     }
 
     @Test
-    fun observeNewEpisodes_emptyIds_returnsEmptyWithoutQuerying() = runTest {
+    fun observeFeedIdsWithNewEpisodes_emptyIds_returnsEmptyWithoutQuerying() = runTest {
         val feedId = repository.subscribe(Feed(title = "A Feed"))
         repository.insertItems(listOf(FeedItem(id = "item-1", feedId = feedId, itemGuid = "guid-1")))
 
-        assertTrue(repository.observeNewEpisodes(emptyList()).first().isEmpty())
+        assertTrue(repository.observeFeedIdsWithNewEpisodes(emptyList()).first().isEmpty())
     }
 
     @Test

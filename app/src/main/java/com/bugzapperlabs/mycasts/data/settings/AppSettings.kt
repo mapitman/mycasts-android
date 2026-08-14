@@ -92,7 +92,7 @@ data class AppSettings(
      *  the app is actually foregrounded, see [SettingsDataStore.markAppOpened]. */
     val pendingNewEpisodeIds: Set<String> = emptySet(),
     /** Snapshot of [pendingNewEpisodeIds] captured at the moment the app was last opened (issue
-     *  #161) -- what the "New episodes" screen (linked from the notification) shows. Frozen at
+     *  #161) -- drives which feeds the podcast list highlights as having a new episode. Frozen at
      *  open time rather than read live, so it doesn't change under the user's feet as a new batch
      *  starts accumulating in [pendingNewEpisodeIds] behind it. */
     val newEpisodeIdsToShow: Set<String> = emptySet(),

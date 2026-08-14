@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,11 @@ fun ListItemRow(
     unreadCount: Int = 0,
     isRead: Boolean = false,
     titleFontScale: Float = 1f,
+    /** Tints and italicizes the title text (issue #161) -- e.g. a podcast with an episode found
+     *  since the app was last opened. A background tint (tried first) was hard to read against
+     *  white text in dark mode, and the tint alone was too subtle on its own; the title's own
+     *  color already adapts correctly to the theme in both modes. */
+    highlighted: Boolean = false,
     // Multi-select management (issue #124), mirroring EpisodeListScreen's own row-local
     // selectionMode/selected pair.
     selectionMode: Boolean = false,
@@ -93,10 +99,11 @@ fun ListItemRow(
                     if (titleFontScale == 1f) it else it.copy(fontSize = it.fontSize * titleFontScale)
                 },
                 fontWeight = if (isRead) FontWeight.Normal else FontWeight.Bold,
-                color = if (isRead) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onSurface
+                fontStyle = if (highlighted) FontStyle.Italic else FontStyle.Normal,
+                color = when {
+                    highlighted -> MaterialTheme.colorScheme.primary
+                    isRead -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.onSurface
                 },
             )
             if (subtitle != null) {

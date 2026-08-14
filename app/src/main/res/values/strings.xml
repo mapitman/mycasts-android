@@ -275,9 +275,4 @@
 
     <!-- Widget -->
     <string name="widget_all_caught_up">All caught up</string>
-
-    <!-- New episodes screen -->
-    <string name="new_episodes_title">New episodes</string>
-    <string name="new_episodes_empty">No new episodes since you last opened the app.</string>
-    <string name="new_episodes_row_subtitle">%1$s • %2$s</string>
 </resources>

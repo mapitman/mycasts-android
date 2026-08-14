@@ -3,6 +3,7 @@ package com.bugzapperlabs.mycasts
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import androidx.core.app.NotificationManagerCompat
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -68,6 +69,11 @@ class MyCastsApp : Application(), Configuration.Provider {
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 appScope.launch { settingsDataStore.markAppOpened() }
+                // Once opened, the podcast list itself now shows which feeds have new episodes
+                // (issue #161) -- a still-visible "N new episodes" notification from before this
+                // open would otherwise sit there showing a stale count that no longer matches what
+                // markAppOpened just reset.
+                NotificationManagerCompat.from(this@MyCastsApp).cancel(NEW_ITEMS_NOTIFICATION_ID)
             }
         })
     }
@@ -76,5 +82,6 @@ class MyCastsApp : Application(), Configuration.Provider {
         const val NEW_ITEMS_CHANNEL_ID = "new_items"
         const val DOWNLOADS_CHANNEL_ID = "downloads"
         const val FEED_REFRESH_CHANNEL_ID = "feed_refresh"
+        const val NEW_ITEMS_NOTIFICATION_ID = 1
     }
 }

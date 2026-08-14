@@ -113,6 +113,17 @@ class SettingsDataStoreTest {
     }
 
     @Test
+    fun setPendingNewEpisodeIds_overwritesRatherThanUnions() = runTest {
+        // issue #166: FeedRefreshWorker uses this to prune ids for items that no longer exist --
+        // a union (like addPendingNewEpisodeIds) would defeat that entirely.
+        settingsDataStore.addPendingNewEpisodeIds(listOf("a", "b", "c"))
+
+        settingsDataStore.setPendingNewEpisodeIds(setOf("a"))
+
+        assertEquals(setOf("a"), settingsDataStore.settings.first().pendingNewEpisodeIds)
+    }
+
+    @Test
     fun markAppOpened_withNothingPending_clearsPreviouslyShownEpisodes() = runTest {
         settingsDataStore.addPendingNewEpisodeIds(listOf("a"))
         settingsDataStore.markAppOpened()

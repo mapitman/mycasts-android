@@ -116,14 +116,14 @@ interface FeedItemDao {
     // Callers guard against an empty [ids] themselves (issue #161) -- an empty Room `IN ()` list
     // still matches nothing, but skipping the query entirely avoids registering a live observer
     // for a result that's already known to be empty.
-    @Query(
-        """
-        SELECT feed_items.*, COALESCE(feeds.userTitle, feeds.title) AS feedTitle, feeds.imageUrl AS feedImageUrl
-        FROM feed_items
-        INNER JOIN feeds ON feeds.id = feed_items.feedId
-        WHERE feed_items.id IN (:ids)
-        ORDER BY feed_items.publishDate DESC
-        """,
-    )
-    fun observeByIds(ids: List<String>): Flow<List<NewEpisode>>
+    @Query("SELECT DISTINCT feedId FROM feed_items WHERE id IN (:ids)")
+    fun observeFeedIdsForItemIds(ids: List<String>): Flow<List<Long>>
+
+    // Which of [ids] still correspond to a real row (issue #166) -- FeedUpdateEngine.persist can
+    // report an id as newly inserted and then delete it again via trimToItemsToKeep within that
+    // same call (e.g. a feed's first fetch pulling in its whole back catalog before trimming back
+    // down to itemsToKeep), so a caller tracking "new" ids across refreshes needs to periodically
+    // re-check which of them are still real before trusting a raw count of that set.
+    @Query("SELECT id FROM feed_items WHERE id IN (:ids)")
+    suspend fun existingIds(ids: List<String>): List<String>
 }

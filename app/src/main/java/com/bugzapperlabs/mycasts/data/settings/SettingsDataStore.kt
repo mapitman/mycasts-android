@@ -210,9 +210,18 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         }
     }
 
+    /** Overwrites the pending pool outright (issue #166), for [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorker]
+     *  to prune ids that no longer correspond to a real episode -- e.g. a feed's first fetch can
+     *  report hundreds of ids as newly inserted and then delete most of them again via
+     *  `trimToItemsToKeep` within that same refresh, before this pool is ever read. */
+    suspend fun setPendingNewEpisodeIds(ids: Set<String>) {
+        dataStore.edit { it[Keys.PENDING_NEW_EPISODE_IDS] = ids }
+    }
+
     /** Marks the app as opened in the foreground (issue #161): freezes whatever's currently
-     *  pending into [AppSettings.newEpisodeIdsToShow] for the "New episodes" screen to display,
-     *  then clears the pending pool so the next scheduled refresh starts a fresh count. Called
+     *  pending into [AppSettings.newEpisodeIdsToShow], which the podcast list uses to highlight
+     *  feeds with an episode found since this open, then clears the pending pool so the next
+     *  scheduled refresh starts a fresh count. Called
      *  from [com.bugzapperlabs.mycasts.MyCastsApp]'s `ProcessLifecycleOwner` observer, which only
      *  fires on a genuine foreground transition -- not when a background refresh runs with no
      *  Activity ever shown. */

@@ -17,17 +17,27 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_DEFAULT
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class FeedListItemUiState(val feed: Feed, val unreadCount: Int)
+data class FeedListItemUiState(
+    val feed: Feed,
+    val unreadCount: Int,
+    /** Whether this feed has an episode found since the app was last opened (issue #161) --
+     *  highlighted in the list rather than routed through a separate screen, so it's visible
+     *  regardless of whether the user actually taps the new-episodes notification. */
+    val hasNewEpisodes: Boolean = false,
+)
 
 data class FeedListUiState(
     val feeds: List<FeedListItemUiState> = emptyList(),
@@ -120,14 +130,27 @@ class FeedListViewModel @Inject constructor(
     private val isSelectionModeActive = MutableStateFlow(false)
     private val selectedIds = MutableStateFlow<Set<Long>>(emptySet())
 
+    // The feeds to highlight for having an episode found since the app was last opened (issue
+    // #161) -- re-derived whenever newEpisodeIdsToShow changes, i.e. on every genuine app open,
+    // see SettingsDataStore.markAppOpened.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val feedIdsWithNewEpisodes: StateFlow<Set<Long>> = settingsDataStore.settings
+        .map { it.newEpisodeIdsToShow.toList() }
+        .distinctUntilChanged()
+        .flatMapLatest { ids -> feedRepository.observeFeedIdsWithNewEpisodes(ids) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
     val uiState: StateFlow<FeedListUiState> = combine(
         stableSource,
         isRefreshing,
         isSelectionModeActive,
         selectedIds,
-    ) { source, refreshing, selectionMode, selected ->
+        feedIdsWithNewEpisodes,
+    ) { source, refreshing, selectionMode, selected, newEpisodeFeedIds ->
         FeedListUiState(
-            feeds = source.feeds.map { feed -> FeedListItemUiState(feed, source.unreadCounts[feed.id] ?: 0) },
+            feeds = source.feeds.map { feed ->
+                FeedListItemUiState(feed, source.unreadCounts[feed.id] ?: 0, feed.id in newEpisodeFeedIds)
+            },
             totalUnread = source.totalUnread,
             isRefreshing = refreshing,
             isSelectionMode = selectionMode,

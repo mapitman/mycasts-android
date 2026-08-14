@@ -171,6 +171,33 @@ class FeedListViewModelTest {
     }
 
     @Test
+    fun uiState_marksFeedsWithNewEpisodesSinceLastOpen() = runTest(testDispatcher) {
+        // issue #161: highlighted directly in the podcast list rather than routed through a
+        // separate screen, so it's visible whether or not the user ever taps a notification.
+        val highlightedFeedId = repository.subscribe(Feed(title = "Has New Episode"))
+        val otherFeedId = repository.subscribe(Feed(title = "No New Episode"))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "new-ep", feedId = highlightedFeedId, itemGuid = "g1"),
+                FeedItem(id = "old-ep", feedId = otherFeedId, itemGuid = "g2"),
+            ),
+        )
+        settingsDataStore.addPendingNewEpisodeIds(listOf("new-ep"))
+        settingsDataStore.markAppOpened()
+
+        // Waits specifically for the highlight to land, not just for both feeds to appear
+        // (issue #161's feedIdsWithNewEpisodes branch is a separate, independently-scheduled
+        // child of the same combine() as the feeds themselves, so "feeds.size == 2" alone can
+        // settle before this branch has caught up with the settings write above).
+        val state = viewModel.uiState.first { it.feeds.size == 2 && it.feeds.any { f -> f.hasNewEpisodes } }
+
+        val highlighted = state.feeds.single { it.feed.id == highlightedFeedId }
+        val other = state.feeds.single { it.feed.id == otherFeedId }
+        assertTrue(highlighted.hasNewEpisodes)
+        assertFalse(other.hasNewEpisodes)
+    }
+
+    @Test
     fun refresh_autoQueueEnabledFeed_queuesNewEpisode() = runTest(testDispatcher) {
         // issue #88: manual pull-to-refresh should trigger auto-queue, not just the background worker.
         val server = MockWebServer()
