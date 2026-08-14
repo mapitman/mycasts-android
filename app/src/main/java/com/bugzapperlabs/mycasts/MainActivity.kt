@@ -90,11 +90,17 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** The four bottom-nav destinations (issue #96) -- the nav bar and pinned mini-player strip only
- *  show on these; every other route (episode list/details, feed properties, add feed, podcast
- *  details) is a detail screen pushed on top, where a nav bar showing four unrelated tabs would
- *  be more confusing than useful. */
+/** The four bottom-nav destinations (issue #96) -- used for tab-selection state and as the
+ *  target set for [navigateToTopLevel]'s popUpTo/saveState/restoreState behavior. */
 private val TOP_LEVEL_ROUTES = setOf("feedList", "downloads", "queue", "settings")
+
+/** Routes where the nav bar and pinned mini-player strip show. Everywhere else (episode
+ *  details, feed properties, add feed, podcast details) is a detail screen pushed on top, where
+ *  a nav bar showing four unrelated tabs would be more confusing than useful. The episode list
+ *  is the one non-top-level route that keeps the bar (issue #146): it's still one tap away from
+ *  every tab, and losing bottom-nav access every time a feed is opened previously meant using
+ *  the system back button/gesture just to reach another tab. */
+private val BOTTOM_NAV_ROUTES = TOP_LEVEL_ROUTES + "episodeList/{feedId}"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @AndroidEntryPoint
@@ -313,14 +319,34 @@ class MainActivity : ComponentActivity() {
                                     onSkipForward = miniPlayerViewModel::skipForward,
                                     // Only the true bottom edge (detail routes, no NavigationBar
                                     // below) needs this padding itself -- see the param's own doc.
-                                    applyNavigationBarsPadding = currentRoute !in TOP_LEVEL_ROUTES,
+                                    applyNavigationBarsPadding = currentRoute !in BOTTOM_NAV_ROUTES,
                                 )
                             }
-                            if (currentRoute in TOP_LEVEL_ROUTES) {
+                            if (currentRoute in BOTTOM_NAV_ROUTES) {
                                 NavigationBar {
                                     NavigationBarItem(
-                                        selected = currentRoute == "feedList",
-                                        onClick = { navigateToTopLevel("feedList") },
+                                        // Highlighted from the episode list too (issue #146):
+                                        // that screen is reached from -- and returned to -- the
+                                        // Feeds tab, so it reads as that tab's own content.
+                                        selected = currentRoute == "feedList" || currentRoute == "episodeList/{feedId}",
+                                        onClick = {
+                                            // From the episode list (issue #146), pop straight
+                                            // back to feedList -- which is always already sitting
+                                            // right below it in the back stack, since
+                                            // openEpisodeDetails/onFeedClick only ever push
+                                            // episodeList on top of it -- rather than reusing
+                                            // navigateToTopLevel's popUpTo/saveState/restoreState
+                                            // dance, which is unreliable when the destination it
+                                            // targets is also the popUpTo anchor and isn't already
+                                            // at the top of the stack. Falls back to a normal
+                                            // top-level navigation if there's nothing to pop to
+                                            // (e.g. the app was opened straight to an episode list
+                                            // via a widget/deep link, leaving feedList off the
+                                            // stack entirely).
+                                            val poppedToFeedList = currentRoute == "episodeList/{feedId}" &&
+                                                navController.popBackStack("feedList", inclusive = false)
+                                            if (!poppedToFeedList) navigateToTopLevel("feedList")
+                                        },
                                         icon = { Icon(Icons.Filled.RssFeed, contentDescription = null) },
                                         label = { Text(stringResource(R.string.feed_list_feeds_tab)) },
                                     )
