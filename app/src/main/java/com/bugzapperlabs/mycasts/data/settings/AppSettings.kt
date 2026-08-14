@@ -85,4 +85,15 @@ data class AppSettings(
      *  fixed MyCasts brand colors. Defaults to on; a user who prefers the brand colors can turn it
      *  back off. Has no effect below Android 12 (see [com.bugzapperlabs.mycasts.ui.theme.MyCastsTheme]). */
     val useDeviceThemeColors: Boolean = true,
+    /** Episode ids the background refresh worker has found since the app was last opened in the
+     *  foreground (issue #161) -- accumulates across multiple scheduled refreshes so the "new
+     *  episodes" notification reflects everything missed since the user last opened the app, not
+     *  just the most recent refresh. Flushed into [newEpisodeIdsToShow] and cleared the next time
+     *  the app is actually foregrounded, see [SettingsDataStore.markAppOpened]. */
+    val pendingNewEpisodeIds: Set<String> = emptySet(),
+    /** Snapshot of [pendingNewEpisodeIds] captured at the moment the app was last opened (issue
+     *  #161) -- drives which feeds the podcast list highlights as having a new episode. Frozen at
+     *  open time rather than read live, so it doesn't change under the user's feet as a new batch
+     *  starts accumulating in [pendingNewEpisodeIds] behind it. */
+    val newEpisodeIdsToShow: Set<String> = emptySet(),
 )

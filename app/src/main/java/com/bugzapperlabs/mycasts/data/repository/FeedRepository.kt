@@ -8,6 +8,7 @@ import com.bugzapperlabs.mycasts.data.local.FeedItemDao
 import com.bugzapperlabs.mycasts.data.local.QueueDao
 import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -90,6 +91,17 @@ class FeedRepository @Inject constructor(
 
     /** Every episode with a download in progress or completed, across all feeds (issue #69). */
     fun observeDownloadedItems(): Flow<List<DownloadedEpisode>> = feedItemDao.observeDownloadedItems()
+
+    /** The distinct feed ids among episodes found since the app was last opened (issue #161),
+     *  for highlighting those feeds in the podcast list -- see
+     *  [com.bugzapperlabs.mycasts.data.settings.AppSettings.newEpisodeIdsToShow]. */
+    fun observeFeedIdsWithNewEpisodes(itemIds: List<String>): Flow<Set<Long>> =
+        if (itemIds.isEmpty()) flowOf(emptySet()) else feedItemDao.observeFeedIdsForItemIds(itemIds).map { it.toSet() }
+
+    /** Which of [itemIds] still correspond to a real row (issue #166) -- see
+     *  [FeedItemDao.existingIds]. */
+    suspend fun existingItemIds(itemIds: Collection<String>): Set<String> =
+        if (itemIds.isEmpty()) emptySet() else feedItemDao.existingIds(itemIds.toList()).toSet()
 
     /** A feed's auto-downloaded, completed episodes, newest first (issue #250) -- see
      *  [FeedItemDao.autoDownloadedItemsForFeed]. */

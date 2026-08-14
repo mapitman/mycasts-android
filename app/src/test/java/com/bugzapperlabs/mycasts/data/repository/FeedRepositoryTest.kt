@@ -110,6 +110,31 @@ class FeedRepositoryTest {
     }
 
     @Test
+    fun observeFeedIdsWithNewEpisodes_returnsDistinctFeedIdsForRequestedItems() = runTest {
+        val feedIdA = repository.subscribe(Feed(title = "Feed A"))
+        val feedIdB = repository.subscribe(Feed(title = "Feed B"))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "item-1", feedId = feedIdA, itemGuid = "guid-1"),
+                FeedItem(id = "item-2", feedId = feedIdA, itemGuid = "guid-2"),
+                FeedItem(id = "item-3", feedId = feedIdB, itemGuid = "guid-3"),
+            ),
+        )
+
+        val feedIds = repository.observeFeedIdsWithNewEpisodes(listOf("item-1", "item-2")).first()
+
+        assertEquals(setOf(feedIdA), feedIds)
+    }
+
+    @Test
+    fun observeFeedIdsWithNewEpisodes_emptyIds_returnsEmptyWithoutQuerying() = runTest {
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        repository.insertItems(listOf(FeedItem(id = "item-1", feedId = feedId, itemGuid = "guid-1")))
+
+        assertTrue(repository.observeFeedIdsWithNewEpisodes(emptyList()).first().isEmpty())
+    }
+
+    @Test
     fun findByItemGuid_locatesExistingItemForDedup() = runTest {
         val feedId = repository.subscribe(Feed(title = "A Feed"))
         repository.insertItems(listOf(FeedItem(id = "item-1", feedId = feedId, itemGuid = "guid-1")))

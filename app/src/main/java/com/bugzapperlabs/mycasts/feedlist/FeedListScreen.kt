@@ -226,6 +226,7 @@ fun FeedListScreen(
                                 imageUrl = item.feed.imageUrl,
                                 unreadCount = item.unreadCount,
                                 titleFontScale = feedListFontSize,
+                                highlighted = item.hasNewEpisodes,
                                 selectionMode = uiState.isSelectionMode,
                                 selected = isSelected,
                                 onClick = {

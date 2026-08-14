@@ -75,9 +75,30 @@ class FeedRefreshWorker @AssistedInject constructor(
 
             UnreadWidget().updateAll(applicationContext)
 
-            val newItemCount = results.filterIsInstance<FeedUpdateResult.Success>().sumOf { it.newItemCount }
-            if (newItemCount > 0 && settingsDataStore.settings.first().notifyOnNewItems) {
-                notifyNewItems(newItemCount)
+            // Cumulative since the app was last opened (issue #161), not just this run's own new
+            // items -- several scheduled refreshes can land in a row before the user ever opens the
+            // app, and the notification/podcast-list highlighting should reflect all of them, not
+            // just the most recent refresh's count. See SettingsDataStore.markAppOpened for where
+            // this resets.
+            val newItemIds = results.filterIsInstance<FeedUpdateResult.Success>().flatMap { it.newItemIds }
+            if (newItemIds.isNotEmpty()) {
+                settingsDataStore.addPendingNewEpisodeIds(newItemIds)
+            }
+            val pendingIds = settingsDataStore.settings.first().pendingNewEpisodeIds
+            if (pendingIds.isNotEmpty()) {
+                // Pruned against what's actually still in the database (issue #166): a feed's
+                // first fetch (or one with itemsToKeep set to unlimited) can report hundreds of
+                // ids here as newly inserted, only for trimToItemsToKeep to delete most of them
+                // again within that same refresh, before this pool is ever read -- an unpruned
+                // raw Set.size would then wildly overstate the actual number of surviving new
+                // episodes, both in the notification and (left uncorrected) forever after.
+                val prunedPendingIds = feedRepository.existingItemIds(pendingIds)
+                if (prunedPendingIds.size != pendingIds.size) {
+                    settingsDataStore.setPendingNewEpisodeIds(prunedPendingIds)
+                }
+                if (newItemIds.isNotEmpty() && prunedPendingIds.isNotEmpty() && settingsDataStore.settings.first().notifyOnNewItems) {
+                    notifyNewItems(prunedPendingIds.size)
+                }
             }
 
             Result.success()
@@ -136,11 +157,10 @@ class FeedRefreshWorker @AssistedInject constructor(
             .setAutoCancel(true)
             .build()
 
-        NotificationManagerCompat.from(applicationContext).notify(NEW_ITEMS_NOTIFICATION_ID, notification)
+        NotificationManagerCompat.from(applicationContext).notify(MyCastsApp.NEW_ITEMS_NOTIFICATION_ID, notification)
     }
 
     companion object {
-        private const val NEW_ITEMS_NOTIFICATION_ID = 1
         private const val FEED_REFRESH_NOTIFICATION_ID = 2
         private const val TAG = "FeedRefreshWorker"
     }
