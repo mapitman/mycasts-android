@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.download.DownloadWorkStatus
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +28,14 @@ data class DownloadedEpisodeUiState(
 data class DownloadsUiState(
     val episodes: List<DownloadedEpisodeUiState> = emptyList(),
     val totalBytes: Long = 0L,
+)
+
+/** A single row in the active-download-jobs list (issue #156) -- distinct from
+ *  [DownloadedEpisodeUiState], which can't represent a job that's never recorded any progress. */
+data class ActiveDownloadUiState(
+    val itemId: String,
+    val title: String,
+    val status: DownloadWorkStatus,
 )
 
 /** Unified downloads/episode management screen (issue #69), pairs with #71's auto-cleanup. */
@@ -54,7 +63,31 @@ class DownloadsViewModel @Inject constructor(
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DownloadsUiState())
 
+    // issue #156: surfaces every active download job by itself, including ones stuck retrying
+    // that observeDownloadedItems (above) can never see -- it filters on downloadedFilePath/
+    // downloadedBytes, both still null for a job that's failed before writing a first byte.
+    val activeDownloads: StateFlow<List<ActiveDownloadUiState>> = downloadRepository.observeDownloadWorkInfo()
+        .map { infos ->
+            infos.map { info ->
+                ActiveDownloadUiState(
+                    itemId = info.itemId,
+                    title = feedRepository.getItem(info.itemId)?.title.orEmpty(),
+                    status = info.status,
+                )
+            }
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     fun delete(item: FeedItem) {
         viewModelScope.launch { downloadRepository.deleteDownload(item) }
+    }
+
+    fun cancelAllDownloads() {
+        viewModelScope.launch { downloadRepository.cancelAllDownloads() }
+    }
+
+    fun cancelDownload(itemId: String) {
+        viewModelScope.launch { downloadRepository.cancelDownload(itemId) }
     }
 }

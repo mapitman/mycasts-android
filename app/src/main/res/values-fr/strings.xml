@@ -98,6 +98,16 @@
     <string name="unit_kilobytes">KB</string>
     <string name="unit_megabytes">MB</string>
     <string name="unit_gigabytes">GB</string>
+    <string name="cd_cancel_all_downloads">Annuler tous les téléchargements</string>
+    <string name="downloads_cancel_all_title">Annuler tous les téléchargements ?</string>
+    <string name="downloads_cancel_all_message">Cela arrête tous les téléchargements en cours, y compris ceux bloqués en réessayant en arrière-plan. Les épisodes déjà téléchargés ne sont pas affectés.</string>
+    <string name="downloads_cancel_all_confirm">Annuler les téléchargements</string>
+    <string name="downloads_active_section_title">En cours</string>
+    <string name="downloads_status_queued">En attente</string>
+    <string name="downloads_status_running">Téléchargement</string>
+    <string name="downloads_status_retrying">Nouvelle tentative</string>
+    <string name="downloads_status_blocked">En pause</string>
+    <string name="cd_cancel_download">Annuler le téléchargement</string>
 
     <!-- Reader -->
     <string name="reader_no_content_to_show">Aucun contenu à afficher</string>

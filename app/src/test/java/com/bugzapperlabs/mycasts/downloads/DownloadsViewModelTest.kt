@@ -16,6 +16,9 @@ import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -55,6 +58,7 @@ class DownloadsViewModelTest {
     private lateinit var repository: FeedRepository
     private lateinit var viewModel: DownloadsViewModel
     private var feedId: Long = 0
+    private var cancelAllCallCount = 0
 
     @Before
     fun setUp() = runTest(testDispatcher) {
@@ -70,6 +74,10 @@ class DownloadsViewModelTest {
             downloadScheduling = object : DownloadScheduling {
                 override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
                 override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {
+                    cancelAllCallCount++
+                }
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
             },
             settingsDataStore = SettingsDataStore(dataStore),
         )
@@ -129,5 +137,12 @@ class DownloadsViewModelTest {
 
         assertTrue(repository.observeDownloadedItems().first { it.isEmpty() }.isEmpty())
         assertFalse(file.exists())
+    }
+
+    @Test
+    fun cancelAllDownloads_delegatesToScheduler() = runTest(testDispatcher) {
+        viewModel.cancelAllDownloads()
+
+        assertEquals(1, cancelAllCallCount)
     }
 }

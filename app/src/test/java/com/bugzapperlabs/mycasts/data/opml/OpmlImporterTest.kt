@@ -17,6 +17,9 @@ import com.bugzapperlabs.mycasts.download.DownloadScheduling
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -118,6 +121,8 @@ class OpmlImporterTest {
             downloadScheduling = object : DownloadScheduling {
                 override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
                 override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
             },
             settingsDataStore = settingsDataStore,
         )

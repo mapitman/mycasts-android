@@ -4,6 +4,7 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.io.File
 import javax.inject.Inject
@@ -48,6 +49,43 @@ class EnclosureDownloadRepository @Inject constructor(
         downloadScheduling.cancelDownload(item.id)
         item.downloadedFilePath?.let { File(it).delete() }
         feedRepository.setDownloadedFilePath(item.id, null)
+        // Also clears downloadedBytes (issue #156), not just downloadedFilePath -- a cancelled
+        // in-progress download otherwise keeps whatever partial byte count it last persisted,
+        // which observeDownloadedItems still treats as "has a download" (isInProgress checks
+        // only downloadedFilePath == null), leaving a phantom row that looks stuck downloading
+        // forever even though its worker was genuinely cancelled.
+        feedRepository.setDownloadedBytes(item.id, null)
+    }
+
+    /** Cancels every in-flight/retrying download (issue #156), including ones stuck retrying
+     *  indefinitely after failing before ever writing a byte -- those never show up in
+     *  [com.bugzapperlabs.mycasts.data.repository.FeedRepository.observeDownloadedItems] (it
+     *  filters on downloadedFilePath/downloadedBytes, both still null for them), so there's no
+     *  per-item UI to cancel them individually. [observeDownloadWorkInfo] surfaces those same
+     *  jobs individually instead, for cancelling one at a time.
+     *
+     *  Also clears downloadedBytes for every item still showing as in-progress -- cancelling the
+     *  WorkManager job alone leaves that column exactly as it was, so an item that had already
+     *  recorded some progress would otherwise keep showing as "in progress" forever, same as
+     *  [deleteDownload] and [cancelDownload] both already have to guard against individually. */
+    suspend fun cancelAllDownloads() {
+        downloadScheduling.cancelAllDownloads()
+        feedRepository.observeDownloadedItems().first()
+            .filter { it.item.downloadedFilePath == null }
+            .forEach { feedRepository.setDownloadedBytes(it.item.id, null) }
+    }
+
+    /** Every active (not yet finished) download job (issue #156), regardless of whether it's
+     *  ever recorded any progress -- unlike [com.bugzapperlabs.mycasts.data.repository.FeedRepository.observeDownloadedItems],
+     *  which can't see a job stuck retrying before writing a first byte. */
+    fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = downloadScheduling.observeDownloadWorkInfo()
+
+    /** Cancels a single download job by item id (issue #156), for [observeDownloadWorkInfo]'s
+     *  per-row cancel -- clears any partial-progress byte count too, since a cancelled job leaves
+     *  none of [deleteDownload]'s usual downloadedFilePath to signal "nothing to see here". */
+    suspend fun cancelDownload(itemId: String) {
+        downloadScheduling.cancelDownload(itemId)
+        feedRepository.setDownloadedBytes(itemId, null)
     }
 
     /**
