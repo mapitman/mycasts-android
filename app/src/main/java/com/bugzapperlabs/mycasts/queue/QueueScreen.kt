@@ -3,12 +3,15 @@ package com.bugzapperlabs.mycasts.queue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -143,6 +146,13 @@ fun QueueScreen(
                 // the top instead of reaching it. MiniPlayerBar below takes the weight(1f) leftover
                 // once the strip's fixed height is subtracted, so it's the one that stretches.
                 Column(modifier = Modifier.fillMaxHeight()) {
+                    // Keeps the strip/player's own content from sliding up under the status bar
+                    // (notification icons, clock) once the sheet is dragged/expanded fully open --
+                    // fillMaxHeight above still has to measure the Column at the scaffold's full
+                    // height for BottomSheetScaffold's Expanded anchor to reach the true top
+                    // (issue #130's fix, still needed), so this reserves the inset as blank space
+                    // at the top of that same fixed-height Column instead of shrinking it.
+                    Spacer(modifier = Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
                     NowPlayingMiniStrip(
                         playbackState = playbackState,
                         onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.expand() } },
