@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,7 +24,6 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +43,7 @@ import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import com.bugzapperlabs.mycasts.playback.MiniPlayerBar
 import com.bugzapperlabs.mycasts.playback.MiniPlayerViewModel
 import com.bugzapperlabs.mycasts.playback.NowPlayingMiniStrip
+import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
 import kotlinx.coroutines.launch
 
 /** Height of the player sheet's peeked state -- sized to [NowPlayingMiniStrip], the sheet's own
@@ -173,26 +174,26 @@ fun QueueScreen(
         },
         topBar = {
             // No title (issue #127): the bottom nav's highlighted "Next Up" tab already conveys
-            // this is the queue screen.
-            TopAppBar(
-                title = {},
-                actions = {
-                    if (queue.size > 1) {
-                        IconButton(onClick = viewModel::sortByPublishDate) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Sort,
-                                contentDescription = stringResource(
-                                    if (sortAscending) {
-                                        R.string.cd_sort_queue_oldest_first
-                                    } else {
-                                        R.string.cd_sort_queue_newest_first
-                                    },
-                                ),
-                            )
-                        }
+            // this is the queue screen. CompactTopBar replaces TopAppBar here too, so the sort
+            // action's own ~48dp touch target governs this bar's height instead of Material's
+            // taller ~64dp component height on top of it.
+            CompactTopBar {
+                Spacer(modifier = Modifier.weight(1f))
+                if (queue.size > 1) {
+                    IconButton(onClick = viewModel::sortByPublishDate) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = stringResource(
+                                if (sortAscending) {
+                                    R.string.cd_sort_queue_oldest_first
+                                } else {
+                                    R.string.cd_sort_queue_newest_first
+                                },
+                            ),
+                        )
                     }
-                },
-            )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { innerPadding ->
