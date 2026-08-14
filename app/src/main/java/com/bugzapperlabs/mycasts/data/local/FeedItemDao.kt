@@ -99,7 +99,7 @@ interface FeedItemDao {
     // set, see setDownloadedFilePath) -- either one present means "has a download" (issue #69).
     @Query(
         """
-        SELECT feed_items.*, COALESCE(feeds.userTitle, feeds.title) AS feedTitle
+        SELECT feed_items.*, COALESCE(feeds.userTitle, feeds.title) AS feedTitle, feeds.imageUrl AS feedImageUrl
         FROM feed_items
         INNER JOIN feeds ON feeds.id = feed_items.feedId
         WHERE feed_items.downloadedFilePath IS NOT NULL OR feed_items.downloadedBytes IS NOT NULL

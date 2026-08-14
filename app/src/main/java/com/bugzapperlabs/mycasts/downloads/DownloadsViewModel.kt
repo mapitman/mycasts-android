@@ -19,6 +19,7 @@ import javax.inject.Inject
 data class DownloadedEpisodeUiState(
     val item: FeedItem,
     val feedTitle: String,
+    val feedImageUrl: String?,
     val isInProgress: Boolean,
     val sizeBytes: Long,
 )
@@ -36,7 +37,7 @@ class DownloadsViewModel @Inject constructor(
 ) : ViewModel() {
     val uiState: StateFlow<DownloadsUiState> = feedRepository.observeDownloadedItems()
         .map { episodes ->
-            val rows = episodes.map { (item, feedTitle) ->
+            val rows = episodes.map { (item, feedTitle, feedImageUrl) ->
                 val isInProgress = item.downloadedFilePath == null
                 // downloadedBytes is cleared once a download completes (see
                 // FeedItemDao.setDownloadedFilePath), so a completed episode's size comes from the
@@ -46,7 +47,7 @@ class DownloadsViewModel @Inject constructor(
                 } else {
                     item.downloadedFilePath?.let { File(it).length() } ?: 0L
                 }
-                DownloadedEpisodeUiState(item, feedTitle.orEmpty(), isInProgress, sizeBytes)
+                DownloadedEpisodeUiState(item, feedTitle.orEmpty(), feedImageUrl, isInProgress, sizeBytes)
             }
             DownloadsUiState(episodes = rows, totalBytes = rows.sumOf { it.sizeBytes })
         }
