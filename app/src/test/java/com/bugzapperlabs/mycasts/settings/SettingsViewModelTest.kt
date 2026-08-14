@@ -188,7 +188,7 @@ class SettingsViewModelTest {
             opmlExporter = OpmlExporter(db.feedDao()),
             appBackupRepository = AppBackupRepository(repository, queueRepository, settingsDataStore),
             feedRefreshScheduler = object : FeedRefreshScheduling {
-                override fun schedule(intervalMinutes: Long) {}
+                override suspend fun schedule(intervalMinutes: Long) {}
             },
             context = context,
         )
