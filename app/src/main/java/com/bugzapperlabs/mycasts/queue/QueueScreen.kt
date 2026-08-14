@@ -125,6 +125,30 @@ fun QueueScreen(
         }
     }
 
+    // Collapses the player sheet back down whenever it lands here having been left expanded
+    // (issue #148) -- see MainActivity's "leaving queue" LaunchedEffect for why this is needed
+    // instead of just relying on the sheet's own remembered state.
+    val pendingCollapse by miniPlayerViewModel.pendingCollapse.collectAsState()
+    LaunchedEffect(pendingCollapse) {
+        if (pendingCollapse) {
+            scaffoldState.bottomSheetState.partialExpand()
+            miniPlayerViewModel.consumeCollapseRequest()
+        }
+    }
+
+    // Flips the sheet between peeked and expanded on each repeated Next Up tab tap (issue #148)
+    // -- MainActivity's NavigationBarItem fires this instead of navigating again once already on
+    // this screen, since re-navigating to the already-current destination is a no-op.
+    LaunchedEffect(Unit) {
+        miniPlayerViewModel.toggleSheetRequests.collect {
+            if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+                scaffoldState.bottomSheetState.partialExpand()
+            } else {
+                scaffoldState.bottomSheetState.expand()
+            }
+        }
+    }
+
     BottomSheetScaffold(
         modifier = modifier,
         scaffoldState = scaffoldState,
