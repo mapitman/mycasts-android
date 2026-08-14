@@ -24,6 +24,7 @@ import com.bugzapperlabs.mycasts.data.feed.FeedUpdateResult
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.widget.UnreadWidget
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 
 /**
@@ -57,28 +58,43 @@ class FeedRefreshWorker @AssistedInject constructor(
     private val feedRefreshState: FeedRefreshState,
 ) : CoroutineWorker(context, workerParams) {
     override suspend fun doWork(): Result = feedRefreshState.track {
-        val feeds = feedRepository.observeAllFeeds().first()
-        if (feeds.isNotEmpty()) setForeground(createForegroundInfo(completedCount = 0, totalCount = feeds.size))
-        val results = feedUpdateEngine.updateFeeds(feeds) { completedCount, totalCount ->
-            setForeground(createForegroundInfo(completedCount, totalCount))
+        try {
+            val feeds = feedRepository.observeAllFeeds().first()
+            if (feeds.isNotEmpty()) setForeground(createForegroundInfo(completedCount = 0, totalCount = feeds.size))
+            val results = feedUpdateEngine.updateFeeds(feeds) { completedCount, totalCount ->
+                setForeground(createForegroundInfo(completedCount, totalCount))
+            }
+
+            // Per-feed failures don't fail the whole run (see class doc), but they shouldn't be
+            // silently invisible either -- at minimum, surface them in logcat for debugging (issue #27).
+            results.filterIsInstance<FeedUpdateResult.Failure>().forEach { failure ->
+                Log.w(TAG, "Feed refresh failed: ${failure.message}")
+            }
+
+            autoQueueAndDownloadEnforcer.apply(results)
+
+            UnreadWidget().updateAll(applicationContext)
+
+            val newItemCount = results.filterIsInstance<FeedUpdateResult.Success>().sumOf { it.newItemCount }
+            if (newItemCount > 0 && settingsDataStore.settings.first().notifyOnNewItems) {
+                notifyNewItems(newItemCount)
+            }
+
+            Result.success()
+        } catch (e: CancellationException) {
+            // Genuine cancellation must keep propagating, not get reported as a success below.
+            throw e
+        } catch (e: Exception) {
+            // issue #164: an uncaught exception here otherwise fails this whole periodic run --
+            // WorkManager then leaves the entire periodic schedule permanently in a terminal
+            // FAILED state, which (per FeedRefreshScheduler's own doc) nothing short of a
+            // REPLACE-driven reschedule ever revives, silently killing background refresh for the
+            // rest of the install. Logging and reporting success instead means this just tries
+            // again on the next scheduled interval, the same tolerance already given to an
+            // individual feed's own fetch failure above.
+            Log.e(TAG, "Feed refresh run failed unexpectedly", e)
+            Result.success()
         }
-
-        // Per-feed failures don't fail the whole run (see class doc), but they shouldn't be
-        // silently invisible either -- at minimum, surface them in logcat for debugging (issue #27).
-        results.filterIsInstance<FeedUpdateResult.Failure>().forEach { failure ->
-            Log.w(TAG, "Feed refresh failed: ${failure.message}")
-        }
-
-        autoQueueAndDownloadEnforcer.apply(results)
-
-        UnreadWidget().updateAll(applicationContext)
-
-        val newItemCount = results.filterIsInstance<FeedUpdateResult.Success>().sumOf { it.newItemCount }
-        if (newItemCount > 0 && settingsDataStore.settings.first().notifyOnNewItems) {
-            notifyNewItems(newItemCount)
-        }
-
-        Result.success()
     }
 
     private fun createForegroundInfo(completedCount: Int, totalCount: Int): ForegroundInfo {
