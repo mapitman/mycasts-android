@@ -125,6 +125,40 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it.clear() }
     }
 
+    /** Overwrites every setting with [settings] wholesale (issue #157), for a full backup
+     *  restore -- clears first rather than merging, so a setting absent from an older backup
+     *  (a field added since) falls back to [AppSettings]'s own default instead of leaving
+     *  whatever this device already had lying around underneath it. */
+    suspend fun restore(settings: AppSettings) {
+        dataStore.edit { prefs ->
+            prefs.clear()
+            prefs[Keys.UPDATE_INTERVAL_MINUTES] = settings.updateIntervalMinutes
+            prefs[Keys.FONT_SIZE_SCALE] = settings.fontSize
+            prefs[Keys.ENABLE_IMAGE_DISPLAY] = settings.enableImageDisplay
+            prefs[Keys.MAX_ARTICLES] = settings.maxItemsPerFeed
+            prefs[Keys.FEED_REFRESH_CONCURRENCY] = settings.feedRefreshConcurrency
+            prefs[Keys.DEFAULT_TO_ALL_ARTICLE_VIEW] = settings.defaultToAllItemsView
+            prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_BATTERY] = settings.allowPodcastDownloadOnBattery
+            prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR] = settings.allowPodcastDownloadOnCellular
+            prefs[Keys.ALLOW_PODCAST_STREAMING] = settings.allowPodcastStreaming
+            prefs[Keys.AUTO_DELETE_FINISHED_DOWNLOADS] = settings.autoDeleteFinishedDownloads
+            prefs[Keys.NOTIFY_ON_NEW_ITEMS] = settings.notifyOnNewItems
+            settings.lastImportUrl?.let { prefs[Keys.LAST_IMPORT_URL] = it }
+            settings.lastFeedUpdateEpochMillis?.let { prefs[Keys.LAST_FEED_UPDATE_EPOCH_MILLIS] = it }
+            settings.lastPlayingFeedId?.let { prefs[Keys.LAST_PLAYING_FEED_ID] = it }
+            settings.lastPlayingItemId?.let { prefs[Keys.LAST_PLAYING_ITEM_ID] = it }
+            prefs[Keys.BATTERY_OPTIMIZATION_PROMPT_SHOWN] = settings.batteryOptimizationPromptShown
+            prefs[Keys.NOTIFICATION_PERMISSION_PROMPT_SHOWN] = settings.notificationPermissionPromptShown
+            prefs[Keys.ADD_DEFAULT_FEEDS_PROMPT_SHOWN] = settings.addDefaultFeedsPromptShown
+            settings.podcastIndexApiKey?.let { prefs[Keys.PODCAST_INDEX_API_KEY] = it }
+            settings.podcastIndexApiSecret?.let { prefs[Keys.PODCAST_INDEX_API_SECRET] = it }
+            prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT] = settings.autoDownloadNewFeedsByDefault
+            prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT] =
+                settings.autoDownloadNewFeedsMaxCount ?: UNLIMITED_MAX_DOWNLOADS_SENTINEL
+            prefs[Keys.USE_DEVICE_THEME_COLORS] = settings.useDeviceThemeColors
+        }
+    }
+
     suspend fun setBatteryOptimizationPromptShown(shown: Boolean) {
         dataStore.edit { it[Keys.BATTERY_OPTIMIZATION_PROMPT_SHOWN] = shown }
     }

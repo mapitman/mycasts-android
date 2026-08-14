@@ -98,6 +98,14 @@ fun SettingsScreen(
         }
     }
 
+    val backupMessage by viewModel.backupMessage.collectAsState()
+    LaunchedEffect(backupMessage) {
+        backupMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.consumeBackupMessage()
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
@@ -503,6 +511,17 @@ private fun FontSizeRow(scale: Float, onScaleChange: (Float) -> Unit) {
 private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: SnackbarHostState) {
     var confirmAction by remember { mutableStateOf<ConfirmableAction?>(null) }
     var showExportDialog by remember { mutableStateOf(false) }
+    // The chosen file is held here rather than acted on immediately (issue #157) -- restoring is
+    // destructive (replaces every podcast/episode/queue entry/setting on the device), so it still
+    // needs the same confirm step ConfirmableAction's other destructive actions already get,
+    // just carrying a Uri the enum-based pattern above has no room for.
+    var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
+    val saveBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) viewModel.writeBackupTo(uri)
+    }
+    val restoreBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) pendingRestoreUri = uri
+    }
 
     Column {
         OutlinedButton(
@@ -531,6 +550,30 @@ private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: Snac
         Button(onClick = { confirmAction = ConfirmableAction.Reset }, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Text(stringResource(R.string.settings_reset_settings))
         }
+
+        Text(
+            text = stringResource(R.string.settings_backup_title),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+        )
+        Text(
+            text = stringResource(R.string.settings_backup_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        OutlinedButton(
+            onClick = { saveBackupLauncher.launch("mycasts-backup.json") },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        ) {
+            Text(stringResource(R.string.settings_backup_export))
+        }
+        OutlinedButton(
+            onClick = { restoreBackupLauncher.launch(arrayOf("application/json")) },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        ) {
+            Text(stringResource(R.string.settings_backup_import))
+        }
     }
 
     if (showExportDialog) {
@@ -555,6 +598,25 @@ private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: Snac
             },
             dismissButton = {
                 TextButton(onClick = { confirmAction = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
+
+    pendingRestoreUri?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { pendingRestoreUri = null },
+            title = { Text(stringResource(R.string.settings_confirm_restore_backup_title)) },
+            text = { Text(stringResource(R.string.settings_confirm_restore_backup_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.restoreBackupFrom(uri)
+                    pendingRestoreUri = null
+                }) {
+                    Text(stringResource(R.string.action_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRestoreUri = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }

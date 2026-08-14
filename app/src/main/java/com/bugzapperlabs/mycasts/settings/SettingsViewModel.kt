@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.backup.AppBackupRepository
 import com.bugzapperlabs.mycasts.data.opml.ImportProgress
 import com.bugzapperlabs.mycasts.data.opml.OpmlExporter
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.json.JSONException
 import java.io.File
 import javax.inject.Inject
 
@@ -30,6 +32,7 @@ class SettingsViewModel @Inject constructor(
     private val feedRepository: FeedRepository,
     private val opmlImportCoordinator: OpmlImportCoordinator,
     private val opmlExporter: OpmlExporter,
+    private val appBackupRepository: AppBackupRepository,
     private val feedRefreshScheduler: FeedRefreshScheduling,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -168,5 +171,54 @@ class SettingsViewModel @Inject constructor(
     suspend fun writeOpmlTo(uri: Uri) {
         val opml = opmlExporter.export()
         context.contentResolver.openOutputStream(uri)?.use { it.write(opml.toByteArray()) }
+    }
+
+    private val _backupMessage = MutableStateFlow<String?>(null)
+
+    /** One-shot export/import result for a Snackbar (issue #157); cleared via [consumeBackupMessage]. */
+    val backupMessage: StateFlow<String?> = _backupMessage
+
+    fun consumeBackupMessage() {
+        _backupMessage.value = null
+    }
+
+    /**
+     * Writes a full local-state backup (issue #157) directly to a user-chosen destination, e.g.
+     * from [androidx.activity.result.contract.ActivityResultContracts.CreateDocument] -- mirrors
+     * [writeOpmlTo], no storage permission needed since the system picker itself grants access to
+     * the chosen [uri].
+     */
+    fun writeBackupTo(uri: Uri) {
+        viewModelScope.launch {
+            val json = appBackupRepository.export()
+            context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+            _backupMessage.value = context.getString(R.string.settings_backup_exported)
+        }
+    }
+
+    /**
+     * Restores a full local-state backup (issue #157) from a user-chosen file, e.g. from
+     * [androidx.activity.result.contract.ActivityResultContracts.OpenDocument] -- replaces every
+     * feed/item/queue entry and every setting wholesale, so the caller should confirm with the
+     * user before calling this.
+     */
+    fun restoreBackupFrom(uri: Uri) {
+        viewModelScope.launch {
+            val json = try {
+                context.contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+            } catch (_: Exception) {
+                null
+            }
+            if (json == null) {
+                _backupMessage.value = context.getString(R.string.settings_backup_restore_failed)
+                return@launch
+            }
+            try {
+                appBackupRepository.import(json)
+                _backupMessage.value = context.getString(R.string.settings_backup_restored)
+            } catch (_: JSONException) {
+                _backupMessage.value = context.getString(R.string.settings_backup_restore_failed)
+            }
+        }
     }
 }

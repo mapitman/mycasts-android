@@ -16,6 +16,11 @@ interface FeedItemDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(items: List<FeedItem>)
 
+    /** A one-shot snapshot of every item across every feed (issue #157), for a full backup
+     *  export. */
+    @Query("SELECT * FROM feed_items")
+    suspend fun getAll(): List<FeedItem>
+
     @Update
     suspend fun update(item: FeedItem)
 
