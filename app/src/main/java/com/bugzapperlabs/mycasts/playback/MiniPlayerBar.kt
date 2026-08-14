@@ -15,12 +15,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -188,8 +188,8 @@ fun MiniPlayerBar(
                     )
                 }
                 // Same control layout as ExpandedPlayerBar/the reader's inline player (issue #194):
-                // main row is always just rewind/play/forward/stop, chapter nav flanks the speed
-                // selector on its own row below.
+                // main row is always just rewind/play/stop/forward (issue #132), chapter nav flanks
+                // the speed selector on its own row below.
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
@@ -213,18 +213,20 @@ fun MiniPlayerBar(
                             )
                         }
                     }
+                    // issue #132: stop sits right after play/pause rather than at the end of the
+                    // row, and uses a proper stop-square icon instead of the previous close "X".
+                    IconButton(onClick = onStop, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
+                        Icon(
+                            Icons.Filled.Stop,
+                            contentDescription = stringResource(R.string.cd_stop_playback),
+                            modifier = Modifier.size(TRANSPORT_ICON_SIZE),
+                        )
+                    }
                     IconButton(onClick = onSkipForward, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
                         Icon(
                             Icons.Filled.Replay,
                             contentDescription = stringResource(R.string.cd_forward),
                             modifier = Modifier.size(TRANSPORT_ICON_SIZE).graphicsLayer(scaleX = -1f),
-                        )
-                    }
-                    IconButton(onClick = onStop, modifier = Modifier.size(TRANSPORT_BUTTON_SIZE)) {
-                        Icon(
-                            Icons.Filled.Close,
-                            contentDescription = stringResource(R.string.cd_stop_playback),
-                            modifier = Modifier.size(TRANSPORT_ICON_SIZE),
                         )
                     }
                 }
