@@ -12,6 +12,7 @@ import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
 import com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
+import com.bugzapperlabs.mycasts.data.backup.AppBackupRepository
 import com.bugzapperlabs.mycasts.data.opml.OpmlExporter
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlImporter
@@ -173,7 +174,8 @@ class SettingsViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, QueueRepository(db.queueDao()))
+        val queueRepository = QueueRepository(db.queueDao())
+        val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository)
         val opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer)
         opmlImportCoordinator = OpmlImportCoordinator(opmlImporter, context)
         // Real WorkManager deadlocked when touched from Robolectric-hosted ViewModel tests (see
@@ -184,6 +186,7 @@ class SettingsViewModelTest {
             feedRepository = repository,
             opmlImportCoordinator = opmlImportCoordinator,
             opmlExporter = OpmlExporter(db.feedDao()),
+            appBackupRepository = AppBackupRepository(repository, queueRepository, settingsDataStore),
             feedRefreshScheduler = object : FeedRefreshScheduling {
                 override fun schedule(intervalMinutes: Long) {}
             },

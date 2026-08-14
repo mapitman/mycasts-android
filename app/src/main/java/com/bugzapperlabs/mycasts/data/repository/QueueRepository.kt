@@ -81,4 +81,14 @@ class QueueRepository @Inject constructor(
         if (excess <= 0) return
         ordered.take(excess).forEach { queueDao.remove(it) }
     }
+
+    /** A one-shot snapshot of the whole queue, position order (issue #157), for a full backup
+     *  export. */
+    suspend fun getAllEntries(): List<QueueEntry> = queueDao.getAll()
+
+    /** Replaces the whole queue with [entries] wholesale (issue #157), for a full backup restore
+     *  -- the entries themselves are inserted separately by [com.bugzapperlabs.mycasts.data.repository.FeedRepository.replaceAllFeeds]'s
+     *  cascade-delete of the previous feeds/items/queue, so this only needs to insert the backup's
+     *  own queue rows back afterward. */
+    suspend fun replaceAllEntries(entries: List<QueueEntry>) = queueDao.insertAll(entries)
 }

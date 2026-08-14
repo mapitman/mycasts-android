@@ -160,6 +160,15 @@
     <string name="settings_copy_opml_to_clipboard">Copia OPML negli appunti</string>
     <string name="settings_opml_copied_to_clipboard">OPML copiato negli appunti</string>
     <string name="settings_export_feeds_chooser_title">Esporta feed</string>
+    <string name="settings_backup_title">Backup e ripristino</string>
+    <string name="settings_backup_description">Un backup completo include stato letto/riprodotto, ordine della coda, dati sugli episodi scaricati e impostazioni per podcast e dell\'app -- non solo i feed sottoscritti come nell\'esportazione OPML.</string>
+    <string name="settings_backup_export">Salva backup su file</string>
+    <string name="settings_backup_import">Ripristina da file di backup</string>
+    <string name="settings_backup_exported">Backup salvato</string>
+    <string name="settings_backup_restored">Backup ripristinato</string>
+    <string name="settings_backup_restore_failed">Impossibile ripristinare questo file di backup</string>
+    <string name="settings_confirm_restore_backup_title">Ripristinare questo backup?</string>
+    <string name="settings_confirm_restore_backup_message">Questo sostituisce ogni podcast, episodio, elemento in coda e impostazione presenti su questo dispositivo con il contenuto del file di backup. L\'operazione non può essere annullata.</string>
     <string name="settings_add_default_feeds">Aggiungi podcast iniziali</string>
     <string name="settings_reset_settings">Ripristina impostazioni</string>
     <string name="settings_confirm_add_default_feeds_title">Aggiungere i podcast iniziali?</string>

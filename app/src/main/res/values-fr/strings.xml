@@ -160,6 +160,15 @@
     <string name="settings_copy_opml_to_clipboard">Copier l\'OPML dans le presse-papiers</string>
     <string name="settings_opml_copied_to_clipboard">OPML copié dans le presse-papiers</string>
     <string name="settings_export_feeds_chooser_title">Exporter les flux</string>
+    <string name="settings_backup_title">Sauvegarde et restauration</string>
+    <string name="settings_backup_description">Une sauvegarde complète inclut l\'état lu/écouté, l\'ordre de la file d\'attente, les enregistrements des épisodes téléchargés, ainsi que les paramètres par podcast et de l\'application -- pas seulement vos flux abonnés comme l\'export OPML.</string>
+    <string name="settings_backup_export">Enregistrer la sauvegarde dans un fichier</string>
+    <string name="settings_backup_import">Restaurer depuis un fichier de sauvegarde</string>
+    <string name="settings_backup_exported">Sauvegarde enregistrée</string>
+    <string name="settings_backup_restored">Sauvegarde restaurée</string>
+    <string name="settings_backup_restore_failed">Impossible de restaurer ce fichier de sauvegarde</string>
+    <string name="settings_confirm_restore_backup_title">Restaurer cette sauvegarde ?</string>
+    <string name="settings_confirm_restore_backup_message">Cela remplace tous les podcasts, épisodes, éléments de file d\'attente et paramètres actuellement sur cet appareil par le contenu du fichier de sauvegarde. Cette action est irréversible.</string>
     <string name="settings_add_default_feeds">Ajouter des podcasts de démarrage</string>
     <string name="settings_reset_settings">Réinitialiser les paramètres</string>
     <string name="settings_confirm_add_default_feeds_title">Ajouter des podcasts de démarrage ?</string>

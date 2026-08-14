@@ -160,6 +160,15 @@
     <string name="settings_copy_opml_to_clipboard">Copiar OPML al portapapeles</string>
     <string name="settings_opml_copied_to_clipboard">OPML copiado al portapapeles</string>
     <string name="settings_export_feeds_chooser_title">Exportar fuentes</string>
+    <string name="settings_backup_title">Copia de seguridad y restauración</string>
+    <string name="settings_backup_description">Una copia de seguridad completa incluye el estado de lectura/reproducción, el orden de la cola, los registros de episodios descargados y los ajustes por podcast y de la aplicación, no solo tus fuentes suscritas como la exportación OPML.</string>
+    <string name="settings_backup_export">Guardar copia de seguridad en archivo</string>
+    <string name="settings_backup_import">Restaurar desde archivo de copia de seguridad</string>
+    <string name="settings_backup_exported">Copia de seguridad guardada</string>
+    <string name="settings_backup_restored">Copia de seguridad restaurada</string>
+    <string name="settings_backup_restore_failed">No se pudo restaurar ese archivo de copia de seguridad</string>
+    <string name="settings_confirm_restore_backup_title">¿Restaurar esta copia de seguridad?</string>
+    <string name="settings_confirm_restore_backup_message">Esto reemplaza todos los podcasts, episodios, elementos de la cola y ajustes de este dispositivo con lo que hay en el archivo de copia de seguridad. Esta acción no se puede deshacer.</string>
     <string name="settings_add_default_feeds">Añadir podcasts iniciales</string>
     <string name="settings_reset_settings">Restablecer configuración</string>
     <string name="settings_confirm_add_default_feeds_title">¿Añadir podcasts iniciales?</string>

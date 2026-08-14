@@ -11,11 +11,21 @@ interface QueueDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entry: QueueEntry)
 
+    /** Restoring a full backup's queue order (issue #157) in one call, rather than [insert]-ing
+     *  one entry at a time. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(entries: List<QueueEntry>)
+
     @Query("DELETE FROM queue_entries WHERE itemId = :itemId")
     suspend fun remove(itemId: String)
 
     @Query("DELETE FROM queue_entries")
     suspend fun clear()
+
+    /** A one-shot snapshot of the whole queue in position order (issue #157), for a full backup
+     *  export. */
+    @Query("SELECT * FROM queue_entries ORDER BY position")
+    suspend fun getAll(): List<QueueEntry>
 
     @Query("SELECT COALESCE(MIN(position), 0) FROM queue_entries")
     suspend fun minPosition(): Int

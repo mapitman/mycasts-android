@@ -164,6 +164,15 @@
     <string name="settings_copy_opml_to_clipboard">Copy OPML to clipboard</string>
     <string name="settings_opml_copied_to_clipboard">OPML copied to clipboard</string>
     <string name="settings_export_feeds_chooser_title">Export feeds</string>
+    <string name="settings_backup_title">Backup &amp; Restore</string>
+    <string name="settings_backup_description">A full backup includes read/played state, queue order, downloaded-episode records, and per-podcast and app settings -- not just your subscribed feeds like OPML export.</string>
+    <string name="settings_backup_export">Save backup to file</string>
+    <string name="settings_backup_import">Restore from backup file</string>
+    <string name="settings_backup_exported">Backup saved</string>
+    <string name="settings_backup_restored">Backup restored</string>
+    <string name="settings_backup_restore_failed">Couldn\'t restore that backup file</string>
+    <string name="settings_confirm_restore_backup_title">Restore this backup?</string>
+    <string name="settings_confirm_restore_backup_message">This replaces every podcast, episode, queue entry, and setting currently on this device with what\'s in the backup file. This can\'t be undone.</string>
     <string name="settings_add_default_feeds">Add starter podcasts</string>
     <string name="settings_reset_settings">Reset settings</string>
     <string name="settings_confirm_add_default_feeds_title">Add starter podcasts?</string>

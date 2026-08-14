@@ -99,6 +99,19 @@ class FeedRepository @Inject constructor(
      *  reused from [trimToItemsToKeep]'s queue exemption for the same purpose against downloads. */
     suspend fun queuedItemIdsForFeed(feedId: Long): Set<String> = queueDao.orderedItemIdsForFeed(feedId).toSet()
 
+    /** A one-shot snapshot of every feed and item, for a full backup export (issue #157). */
+    suspend fun getAllFeeds(): List<Feed> = feedDao.getAll()
+    suspend fun getAllItems(): List<FeedItem> = feedItemDao.getAll()
+
+    /** Replaces every feed with [feeds] wholesale (issue #157), for a full backup restore --
+     *  cascade-deletes every item and queue entry along with its parent feed first, then inserts
+     *  the backup's feeds back with their original ids preserved so the backup's own items/queue
+     *  entries (inserted separately, referencing those same ids) resolve correctly. */
+    suspend fun replaceAllFeeds(feeds: List<Feed>) {
+        feedDao.deleteAll()
+        feedDao.insertAll(feeds)
+    }
+
     /**
      * Consolidates duplicate rows sharing the same `itemGuid` within a feed down to one canonical
      * row per episode (issue #70 follow-up): a since-fixed race between concurrent refreshes of
