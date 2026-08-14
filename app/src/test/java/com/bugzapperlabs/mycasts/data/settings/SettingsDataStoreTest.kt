@@ -35,7 +35,7 @@ class SettingsDataStoreTest {
 
         assertEquals(AppSettings(), settings)
         assertEquals(30L, settings.updateIntervalMinutes)
-        assertEquals(FontSize.NORMAL, settings.fontSize)
+        assertEquals(FONT_SCALE_DEFAULT, settings.fontSize)
         assertTrue(settings.enableImageDisplay)
         assertEquals(20, settings.maxItemsPerFeed)
         assertFalse(settings.defaultToAllItemsView)
@@ -49,7 +49,7 @@ class SettingsDataStoreTest {
     @Test
     fun writingEachSetting_roundTripsThroughSettingsFlow() = runTest {
         settingsDataStore.setUpdateIntervalMinutes(60)
-        settingsDataStore.setFontSize(FontSize.SMALL)
+        settingsDataStore.setFontSize(0.85f)
         settingsDataStore.setEnableImageDisplay(false)
         settingsDataStore.setMaxItemsPerFeed(50)
         settingsDataStore.setDefaultToAllItemsView(true)
@@ -63,7 +63,7 @@ class SettingsDataStoreTest {
         val settings = settingsDataStore.settings.first()
 
         assertEquals(60L, settings.updateIntervalMinutes)
-        assertEquals(FontSize.SMALL, settings.fontSize)
+        assertEquals(0.85f, settings.fontSize)
         assertFalse(settings.enableImageDisplay)
         assertEquals(50, settings.maxItemsPerFeed)
         assertTrue(settings.defaultToAllItemsView)

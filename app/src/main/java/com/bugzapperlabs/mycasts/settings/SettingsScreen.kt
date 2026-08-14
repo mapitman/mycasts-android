@@ -62,12 +62,16 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.bugzapperlabs.mycasts.BuildConfig
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
-import com.bugzapperlabs.mycasts.data.settings.FontSize
+import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_MAX
+import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_MIN
+import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_STEP
 import com.bugzapperlabs.mycasts.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POSITION
 import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import com.bugzapperlabs.mycasts.data.settings.itemsToKeepFromSliderPosition
 import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
+import com.bugzapperlabs.mycasts.ui.components.ReaderText
 import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,7 +144,7 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_fonts))
-            FontSizeRow(stringResource(R.string.settings_font_size), settings.fontSize, viewModel::setFontSize)
+            FontSizeRow(settings.fontSize, viewModel::setFontSize)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_podcasts))
@@ -469,19 +473,29 @@ private fun PodcastSearchDialog(settings: AppSettings, viewModel: SettingsViewMo
 }
 
 @Composable
-private fun FontSizeRow(label: String, selected: FontSize, onSelect: (FontSize) -> Unit) {
+private fun FontSizeRow(scale: Float, onScaleChange: (Float) -> Unit) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        Row(modifier = Modifier.padding(top = 4.dp)) {
-            FontSize.entries.forEach { size ->
-                FilterChip(
-                    selected = selected == size,
-                    onClick = { onSelect(size) },
-                    label = { Text(size.name) },
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-            }
-        }
+        Text(
+            stringResource(R.string.settings_font_size, (scale * 100).roundToInt()),
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Slider(
+            value = scale,
+            onValueChange = onScaleChange,
+            valueRange = FONT_SCALE_MIN..FONT_SCALE_MAX,
+            // FONT_SCALE_STEP-increment stops (issue #125) so 100%/125%/200% land exactly on a
+            // stop rather than needing a pixel-precise drag -- Slider's `steps` counts only the
+            // stops strictly between the two endpoints it already renders on its own.
+            steps = ((FONT_SCALE_MAX - FONT_SCALE_MIN) / FONT_SCALE_STEP).roundToInt() - 1,
+            // See MaxItemsPerFeedSetting's identical use (issue #302) -- otherwise a drag starting
+            // at either edge of this slider gets intercepted as system back-gesture navigation.
+            modifier = Modifier.excludeFromSystemGestures(),
+        )
+        ReaderText(
+            text = stringResource(R.string.settings_font_size_preview),
+            fontScale = scale,
+            modifier = Modifier.padding(top = 4.dp),
+        )
     }
 }
 

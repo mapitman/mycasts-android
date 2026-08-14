@@ -61,7 +61,6 @@ import coil.compose.AsyncImage
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
-import com.bugzapperlabs.mycasts.data.settings.scaleFactor
 import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
 import com.bugzapperlabs.mycasts.ui.components.SwipeToToggleReadBox
 
@@ -198,7 +197,7 @@ fun EpisodeListScreen(
                                     selected = episode.id in uiState.selectedIds,
                                     selectionMode = true,
                                     isQueued = episode.id in uiState.queuedIds,
-                                    titleFontScale = episodeListFontSize.scaleFactor,
+                                    titleFontScale = episodeListFontSize,
                                     onClick = { viewModel.toggleSelection(episode.id) },
                                     onLongClick = { viewModel.toggleSelection(episode.id) },
                                     onAddToQueue = { viewModel.addToQueue(episode.id) },
@@ -213,7 +212,7 @@ fun EpisodeListScreen(
                                         selected = false,
                                         selectionMode = false,
                                         isQueued = episode.id in uiState.queuedIds,
-                                        titleFontScale = episodeListFontSize.scaleFactor,
+                                        titleFontScale = episodeListFontSize,
                                         onClick = { onEpisodeClick(episode.id) },
                                         onLongClick = { viewModel.toggleSelection(episode.id) },
                                         onAddToQueue = { viewModel.addToQueue(episode.id) },

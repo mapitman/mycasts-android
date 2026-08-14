@@ -122,7 +122,8 @@
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_items_per_feed">Episodes to keep per podcast: %1$d</string>
     <string name="settings_max_items_per_feed_unlimited">Episodes to keep per podcast: All</string>
-    <string name="settings_font_size">Font size</string>
+    <string name="settings_font_size">Font size: %1$d%%</string>
+    <string name="settings_font_size_preview">The quick brown fox jumps over the lazy dog.</string>
     <string name="settings_download_on_battery">Download on battery</string>
     <string name="settings_download_on_cellular">Download on cellular</string>
     <string name="settings_allow_streaming">Allow streaming</string>

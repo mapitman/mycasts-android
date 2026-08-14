@@ -17,7 +17,6 @@ import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlImporter
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
-import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.DownloadScheduling
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
@@ -217,10 +216,10 @@ class SettingsViewModelTest {
 
     @Test
     fun setFontSize_persists() = runTest(testDispatcher, timeout = 120.seconds) {
-        viewModel.setFontSize(FontSize.LARGE)
+        viewModel.setFontSize(1.3f)
 
-        val settings = viewModel.settings.first { it.fontSize == FontSize.LARGE }
-        assertEquals(FontSize.LARGE, settings.fontSize)
+        val settings = viewModel.settings.first { it.fontSize == 1.3f }
+        assertEquals(1.3f, settings.fontSize)
     }
 
     @Test

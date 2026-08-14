@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -15,8 +16,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
     val settings: Flow<AppSettings> = dataStore.data.map { prefs ->
         AppSettings(
             updateIntervalMinutes = prefs[Keys.UPDATE_INTERVAL_MINUTES] ?: AppSettings().updateIntervalMinutes,
-            fontSize = prefs[Keys.FONT_SIZE]?.let { FontSize.entries[it] }
-                ?: AppSettings().fontSize,
+            fontSize = prefs[Keys.FONT_SIZE_SCALE] ?: AppSettings().fontSize,
             enableImageDisplay = prefs[Keys.ENABLE_IMAGE_DISPLAY] ?: AppSettings().enableImageDisplay,
             maxItemsPerFeed = prefs[Keys.MAX_ARTICLES] ?: AppSettings().maxItemsPerFeed,
             feedRefreshConcurrency = prefs[Keys.FEED_REFRESH_CONCURRENCY] ?: AppSettings().feedRefreshConcurrency,
@@ -57,8 +57,8 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.UPDATE_INTERVAL_MINUTES] = minutes }
     }
 
-    suspend fun setFontSize(size: FontSize) {
-        dataStore.edit { it[Keys.FONT_SIZE] = size.ordinal }
+    suspend fun setFontSize(scale: Float) {
+        dataStore.edit { it[Keys.FONT_SIZE_SCALE] = scale }
     }
 
     suspend fun setEnableImageDisplay(enabled: Boolean) {
@@ -172,7 +172,10 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         // feed_list_font_size/article_font_size) -- those stay as unread dead keys on an existing
         // install rather than being repurposed, since this is a new (merged) setting, not a rename
         // of one of the old three.
-        val FONT_SIZE = intPreferencesKey("font_size")
+        // issue #125: another fresh key (float, not the old int ordinal) rather than reusing
+        // "font_size" -- DataStore's Preferences proto tags each entry with its type, so reading
+        // an existing int-typed value back out as a float throws at runtime instead of migrating.
+        val FONT_SIZE_SCALE = floatPreferencesKey("font_size_scale")
         val ENABLE_IMAGE_DISPLAY = booleanPreferencesKey("enable_image_display")
         val MAX_ARTICLES = intPreferencesKey("max_articles")
         val FEED_REFRESH_CONCURRENCY = intPreferencesKey("feed_refresh_concurrency")

@@ -40,7 +40,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.bugzapperlabs.mycasts.R
-import com.bugzapperlabs.mycasts.data.settings.scaleFactor
 import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
 import com.bugzapperlabs.mycasts.ui.components.ListItemRow
 
@@ -179,7 +178,7 @@ fun FeedListScreen(
                                 subtitle = item.feed.description,
                                 imageUrl = item.feed.imageUrl,
                                 unreadCount = item.unreadCount,
-                                titleFontScale = feedListFontSize.scaleFactor,
+                                titleFontScale = feedListFontSize,
                                 onClick = { onFeedClick(item.feed.id) },
                                 onLongClick = { onFeedLongClick(item.feed.id) },
                             )
