@@ -13,7 +13,6 @@ import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
-import com.bugzapperlabs.mycasts.data.settings.FontSize
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,8 +80,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setFeedRefreshConcurrency(count) }
     }
 
-    fun setFontSize(size: FontSize) {
-        viewModelScope.launch { settingsDataStore.setFontSize(size) }
+    fun setFontSize(scale: Float) {
+        viewModelScope.launch { settingsDataStore.setFontSize(scale) }
     }
 
     fun setAllowPodcastDownloadOnBattery(value: Boolean) {

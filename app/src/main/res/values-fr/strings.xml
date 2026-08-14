@@ -118,7 +118,8 @@
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_items_per_feed">Épisodes à conserver par podcast : %1$d</string>
     <string name="settings_max_items_per_feed_unlimited">Épisodes à conserver par podcast : Tous</string>
-    <string name="settings_font_size">Taille de police</string>
+    <string name="settings_font_size">Taille de police : %1$d%%</string>
+    <string name="settings_font_size_preview">Portez ce vieux whisky au juge blond qui fume.</string>
     <string name="settings_download_on_battery">Télécharger sur batterie</string>
     <string name="settings_download_on_cellular">Télécharger sur réseau mobile</string>
     <string name="settings_allow_streaming">Autoriser le streaming</string>

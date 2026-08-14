@@ -118,7 +118,8 @@
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_items_per_feed">Zu behaltende Episoden pro Podcast: %1$d</string>
     <string name="settings_max_items_per_feed_unlimited">Zu behaltende Episoden pro Podcast: Alle</string>
-    <string name="settings_font_size">Schriftgröße</string>
+    <string name="settings_font_size">Schriftgröße: %1$d%%</string>
+    <string name="settings_font_size_preview">Der schnelle braune Fuchs springt über den faulen Hund.</string>
     <string name="settings_download_on_battery">Download bei Akkubetrieb</string>
     <string name="settings_download_on_cellular">Download über Mobilfunk</string>
     <string name="settings_allow_streaming">Streaming erlauben</string>

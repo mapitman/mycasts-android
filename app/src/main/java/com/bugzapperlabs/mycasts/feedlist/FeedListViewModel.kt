@@ -14,7 +14,7 @@ import com.bugzapperlabs.mycasts.data.opml.ImportProgress
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
-import com.bugzapperlabs.mycasts.data.settings.FontSize
+import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_DEFAULT
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -172,9 +172,9 @@ class FeedListViewModel @Inject constructor(
         refreshing = false,
     )
 
-    val feedListFontSize: StateFlow<FontSize> = settingsDataStore.settings
+    val feedListFontSize: StateFlow<Float> = settingsDataStore.settings
         .map { it.fontSize }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FONT_SCALE_DEFAULT)
 
     fun refresh() {
         viewModelScope.launch {

@@ -31,8 +31,9 @@ data class AppSettings(
     val updateIntervalMinutes: Long = 30,
     /** Text size across episode details, episode lists, and the podcast list (issue #119) -- a
      *  single setting rather than three independent ones per screen, which mostly just meant
-     *  setting each to the same value anyway. */
-    val fontSize: FontSize = FontSize.NORMAL,
+     *  setting each to the same value anyway. A continuous scale factor (issue #125) rather than
+     *  a fixed small/normal/large step, see [FONT_SCALE_MIN]/[FONT_SCALE_MAX]. */
+    val fontSize: Float = FONT_SCALE_DEFAULT,
     val enableImageDisplay: Boolean = true,
     val maxItemsPerFeed: Int = 20,
     /** How many feeds FeedUpdateEngine refreshes at once (issue #177), trading refresh speed

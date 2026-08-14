@@ -10,7 +10,7 @@ import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
-import com.bugzapperlabs.mycasts.data.settings.FontSize
+import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_DEFAULT
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.DownloadFeedbackCoordinator
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
@@ -82,9 +82,9 @@ class EpisodeDetailsViewModel @Inject constructor(
         .map { queued -> queued.map { it.item.id }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
-    val episodeDetailsFontSize: StateFlow<FontSize> = settingsDataStore.settings
+    val episodeDetailsFontSize: StateFlow<Float> = settingsDataStore.settings
         .map { it.fontSize }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FONT_SCALE_DEFAULT)
 
     /** Item IDs whose download was just requested but hasn't shown real progress yet (issue #84) --
      *  drives an immediate spinner on the download button, rather than waiting on

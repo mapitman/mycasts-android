@@ -14,7 +14,7 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
-import com.bugzapperlabs.mycasts.data.settings.FontSize
+import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_DEFAULT
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -196,9 +196,9 @@ class EpisodeListViewModel @Inject constructor(
         _refreshError.value = null
     }
 
-    val episodeListFontSize: StateFlow<FontSize> = settingsDataStore.settings
+    val episodeListFontSize: StateFlow<Float> = settingsDataStore.settings
         .map { it.fontSize }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FontSize.NORMAL)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FONT_SCALE_DEFAULT)
 
     fun setShowUnreadOnly(unreadOnly: Boolean) {
         showUnreadOnly.value = unreadOnly

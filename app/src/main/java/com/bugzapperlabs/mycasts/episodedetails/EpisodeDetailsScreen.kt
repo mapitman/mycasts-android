@@ -72,7 +72,6 @@ import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.episodelist.EpisodeDateFormatter
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
-import com.bugzapperlabs.mycasts.data.settings.scaleFactor
 import com.bugzapperlabs.mycasts.playback.PlaybackUiState
 import com.bugzapperlabs.mycasts.ui.components.ReaderText
 
@@ -169,7 +168,7 @@ fun EpisodeDetailsScreen(
                 EpisodePage(
                     item = uiState.items[page],
                     onImageClick = { zoomedImageUrl = it },
-                    fontScale = episodeDetailsFontSize.scaleFactor,
+                    fontScale = episodeDetailsFontSize,
                     playbackState = playbackState,
                     feedImageUrl = uiState.feedImageUrl,
                     onTogglePlayPause = { viewModel.togglePlayPause(uiState.items[page]) },

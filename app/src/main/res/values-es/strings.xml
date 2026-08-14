@@ -118,7 +118,8 @@
     <string name="settings_update_interval_minutes_chip">%1$dm</string>
     <string name="settings_max_items_per_feed">Episodios a conservar por podcast: %1$d</string>
     <string name="settings_max_items_per_feed_unlimited">Episodios a conservar por podcast: Todos</string>
-    <string name="settings_font_size">Tamaño de fuente</string>
+    <string name="settings_font_size">Tamaño de fuente: %1$d%%</string>
+    <string name="settings_font_size_preview">El veloz murciélago hindú comía feliz cardillo y kiwi.</string>
     <string name="settings_download_on_battery">Descargar con la batería</string>
     <string name="settings_download_on_cellular">Descargar con datos móviles</string>
     <string name="settings_allow_streaming">Permitir streaming</string>
