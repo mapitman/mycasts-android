@@ -329,7 +329,24 @@ class MainActivity : ComponentActivity() {
                                         // that screen is reached from -- and returned to -- the
                                         // Feeds tab, so it reads as that tab's own content.
                                         selected = currentRoute == "feedList" || currentRoute == "episodeList/{feedId}",
-                                        onClick = { navigateToTopLevel("feedList") },
+                                        onClick = {
+                                            // From the episode list (issue #146), pop straight
+                                            // back to feedList -- which is always already sitting
+                                            // right below it in the back stack, since
+                                            // openEpisodeDetails/onFeedClick only ever push
+                                            // episodeList on top of it -- rather than reusing
+                                            // navigateToTopLevel's popUpTo/saveState/restoreState
+                                            // dance, which is unreliable when the destination it
+                                            // targets is also the popUpTo anchor and isn't already
+                                            // at the top of the stack. Falls back to a normal
+                                            // top-level navigation if there's nothing to pop to
+                                            // (e.g. the app was opened straight to an episode list
+                                            // via a widget/deep link, leaving feedList off the
+                                            // stack entirely).
+                                            val poppedToFeedList = currentRoute == "episodeList/{feedId}" &&
+                                                navController.popBackStack("feedList", inclusive = false)
+                                            if (!poppedToFeedList) navigateToTopLevel("feedList")
+                                        },
                                         icon = { Icon(Icons.Filled.RssFeed, contentDescription = null) },
                                         label = { Text(stringResource(R.string.feed_list_feeds_tab)) },
                                     )
