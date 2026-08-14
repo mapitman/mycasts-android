@@ -223,6 +223,7 @@
     <string name="feed_properties_title">Propriétés du flux</string>
     <string name="feed_properties_title_label">Titre</string>
     <string name="feed_properties_save_title">Enregistrer le titre</string>
+    <string name="feed_properties_edit_title">Modifier le titre</string>
     <string name="feed_properties_url_label">URL du flux (appuyer pour copier)</string>
     <string name="feed_properties_url_copied">URL du flux copiée dans le presse-papiers</string>
     <string name="feed_properties_use_global_max">Utiliser le réglage global du nombre max. d\'épisodes (%1$d)</string>

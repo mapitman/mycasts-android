@@ -223,6 +223,7 @@
     <string name="feed_properties_title">Feedeigenschaften</string>
     <string name="feed_properties_title_label">Titel</string>
     <string name="feed_properties_save_title">Titel speichern</string>
+    <string name="feed_properties_edit_title">Titel bearbeiten</string>
     <string name="feed_properties_url_label">Feed-URL (zum Kopieren tippen)</string>
     <string name="feed_properties_url_copied">Feed-URL in die Zwischenablage kopiert</string>
     <string name="feed_properties_use_global_max">Globale Einstellung für maximale Episoden verwenden (%1$d)</string>
