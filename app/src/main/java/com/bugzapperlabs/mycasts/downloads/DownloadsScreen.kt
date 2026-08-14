@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -45,7 +44,6 @@ import kotlin.math.pow
 fun DownloadsScreen(
     modifier: Modifier = Modifier,
     viewModel: DownloadsViewModel = hiltViewModel(),
-    onBack: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var pendingDelete by remember { mutableStateOf<FeedItem?>(null) }
@@ -53,20 +51,15 @@ fun DownloadsScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
+            // No "Downloads" label (issue #127): the bottom nav's highlighted tab already conveys
+            // that. The byte total is real content, not a redundant screen name, so it stays as
+            // the title. No back arrow either (issue #128) -- this is a bottom-nav destination.
             TopAppBar(
                 title = {
-                    Column {
-                        Text(stringResource(R.string.downloads_title))
-                        Text(
-                            text = formatBytes(uiState.totalBytes),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
+                    Text(
+                        text = formatBytes(uiState.totalBytes),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
                 },
             )
         },

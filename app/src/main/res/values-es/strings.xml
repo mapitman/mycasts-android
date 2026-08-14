@@ -13,7 +13,6 @@
     <string name="delete_confirm_message">Esta acción no se puede deshacer.</string>
 
     <!-- Content descriptions -->
-    <string name="cd_back">Atrás</string>
     <string name="cd_settings">Configuración</string>
     <string name="cd_add_feed">Añadir fuente</string>
     <string name="cd_clear_selection">Borrar selección</string>

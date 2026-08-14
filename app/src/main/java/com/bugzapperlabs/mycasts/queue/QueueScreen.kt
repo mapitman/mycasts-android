@@ -172,8 +172,10 @@ fun QueueScreen(
             }
         },
         topBar = {
+            // No title (issue #127): the bottom nav's highlighted "Next Up" tab already conveys
+            // this is the queue screen.
             TopAppBar(
-                title = { Text(stringResource(R.string.queue_title)) },
+                title = {},
                 actions = {
                     if (queue.size > 1) {
                         IconButton(onClick = viewModel::sortByPublishDate) {

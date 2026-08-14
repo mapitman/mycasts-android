@@ -360,7 +360,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable("downloads") {
-                            DownloadsScreen(onBack = { navController.popBackStack() })
+                            DownloadsScreen()
                         }
                         composable("queue") {
                             QueueScreen(
@@ -376,7 +376,7 @@ class MainActivity : ComponentActivity() {
                             FeedPropertiesScreen(onBack = { navController.popBackStack() })
                         }
                         composable("settings") {
-                            SettingsScreen(onBack = { navController.popBackStack() })
+                            SettingsScreen()
                         }
                         composable(
                             "addFeed?sharedUrl={sharedUrl}",
@@ -391,7 +391,6 @@ class MainActivity : ComponentActivity() {
                             AddFeedScreen(
                                 initialUrl = backStackEntry.arguments?.getString("sharedUrl"),
                                 onDone = { navController.popBackStack() },
-                                onBack = { navController.popBackStack() },
                                 onNavigateToSettings = { navController.navigate("settings") },
                                 onPodcastClick = { entry ->
                                     navController.navigate(
@@ -415,7 +414,6 @@ class MainActivity : ComponentActivity() {
                             // beneath it (issue #300) rather than leaving the user on a details
                             // page for a podcast they already left behind.
                             PodcastDetailsScreen(
-                                onBack = { navController.popBackStack() },
                                 onDone = { navController.popBackStack("feedList", inclusive = false) },
                             )
                         }
@@ -425,7 +423,6 @@ class MainActivity : ComponentActivity() {
                         ) { backStackEntry ->
                             val feedId = backStackEntry.arguments?.getLong("feedId") ?: 0L
                             EpisodeListScreen(
-                                onBack = { navController.popBackStack() },
                                 onEpisodeClick = { itemId -> openEpisodeDetails(feedId, itemId) },
                                 onQueueClick = onQueueClick,
                                 onFeedSettingsClick = { navController.navigate("feedProperties/$feedId") },
@@ -446,12 +443,6 @@ class MainActivity : ComponentActivity() {
                             popExitTransition = { shrinkVertically(tween(300), shrinkTowards = Alignment.Bottom) + fadeOut(tween(300)) },
                         ) {
                             EpisodeDetailsScreen(
-                                // A plain pop is enough (issue #55): openEpisodeDetails above
-                                // guarantees the stack is always exactly
-                                // feedList -> episodeList/{feedId} -> episodeDetails/{feedId}/{itemId}
-                                // by the time this screen is reached, regardless of entry point,
-                                // so popping always lands on this episode's own episode list.
-                                onBack = { navController.popBackStack() },
                                 onQueueClick = onQueueClick,
                             )
                         }

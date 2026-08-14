@@ -14,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,7 +52,6 @@ private const val MAX_EPISODES_SHOWN = 20
 fun PodcastDetailsScreen(
     modifier: Modifier = Modifier,
     viewModel: PodcastDetailsViewModel = hiltViewModel(),
-    onBack: () -> Unit = {},
     onDone: () -> Unit = {},
 ) {
     val previewState by viewModel.previewState.collectAsState()
@@ -68,17 +66,11 @@ fun PodcastDetailsScreen(
         ?: viewModel.initialTitle
         ?: stringResource(R.string.podcast_details_title)
 
+    // No back arrow (issue #128): system back gestures/buttons cover navigating away.
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
-                    }
-                },
-            )
+            TopAppBar(title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) })
         },
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding).fillMaxSize()) {

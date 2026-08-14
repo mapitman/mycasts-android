@@ -93,9 +93,13 @@ fun FeedListScreen(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-            )
+            // No title (issue #127): the bottom nav's highlighted "Feeds" tab already conveys
+            // this is the feed list, so a repeated "MyCasts" label here was redundant. The bar
+            // itself stays -- MainActivity's outer Scaffold deliberately excludes the status-bar
+            // inset from its own contentWindowInsets, relying on each inner screen's own TopAppBar
+            // to reserve it (see that comment); removing this bar entirely would leave content
+            // drawn under the status bar.
+            TopAppBar(title = {})
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddFeedClick) {
