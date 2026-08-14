@@ -17,6 +17,7 @@
     <string name="cd_add_feed">Feed hinzufügen</string>
     <string name="cd_clear_selection">Auswahl aufheben</string>
     <string name="cd_select_all">Alle auswählen</string>
+    <string name="cd_deselect_all">Auswahl aufheben</string>
     <string name="cd_mark_read">Als gelesen markieren</string>
     <string name="cd_mark_unread">Als ungelesen markieren</string>
     <string name="played_label">Gespielt</string>

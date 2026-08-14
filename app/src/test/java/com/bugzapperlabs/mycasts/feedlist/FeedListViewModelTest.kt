@@ -435,4 +435,107 @@ class FeedListViewModelTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun toggleSelection_entersSelectionMode() = runTest(testDispatcher) {
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        viewModel.uiState.first { it.feeds.isNotEmpty() }
+
+        viewModel.toggleSelection(feedId)
+
+        val selected = viewModel.uiState.first { it.isSelectionMode }
+        assertEquals(setOf(feedId), selected.selectedIds)
+    }
+
+    @Test
+    fun toggleSelection_deselectingTheOnlySelectedFeedStaysInSelectionMode() = runTest(testDispatcher) {
+        // Selection mode only ends via clearSelection() (the top bar's close icon), not merely by
+        // the selection becoming empty -- otherwise unchecking the last row would unexpectedly
+        // kick the user back to the normal top bar/FAB mid-selection.
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        viewModel.uiState.first { it.feeds.isNotEmpty() }
+        viewModel.toggleSelection(feedId)
+        viewModel.uiState.first { it.isSelectionMode }
+
+        viewModel.toggleSelection(feedId)
+
+        val deselected = viewModel.uiState.first { it.selectedIds.isEmpty() }
+        assertTrue(deselected.isSelectionMode)
+    }
+
+    @Test
+    fun selectAll_selectsEveryCurrentFeed() = runTest(testDispatcher) {
+        val firstFeedId = repository.subscribe(Feed(title = "First Feed"))
+        val secondFeedId = repository.subscribe(Feed(title = "Second Feed"))
+        viewModel.uiState.first { it.feeds.size == 2 }
+
+        viewModel.selectAll()
+
+        val selected = viewModel.uiState.first { it.selectedIds.size == 2 }
+        assertEquals(setOf(firstFeedId, secondFeedId), selected.selectedIds)
+    }
+
+    @Test
+    fun selectAll_calledAgainWithEveryFeedAlreadySelected_deselectsAllButStaysInSelectionMode() = runTest(testDispatcher) {
+        repository.subscribe(Feed(title = "First Feed"))
+        repository.subscribe(Feed(title = "Second Feed"))
+        viewModel.uiState.first { it.feeds.size == 2 }
+        viewModel.selectAll()
+        viewModel.uiState.first { it.selectedIds.size == 2 }
+
+        viewModel.selectAll()
+
+        val deselected = viewModel.uiState.first { it.selectedIds.isEmpty() }
+        assertTrue(deselected.isSelectionMode)
+    }
+
+    @Test
+    fun clearSelection_exitsSelectionMode() = runTest(testDispatcher) {
+        val feedId = repository.subscribe(Feed(title = "A Feed"))
+        viewModel.uiState.first { it.feeds.isNotEmpty() }
+        viewModel.toggleSelection(feedId)
+        viewModel.uiState.first { it.isSelectionMode }
+
+        viewModel.clearSelection()
+
+        viewModel.uiState.first { !it.isSelectionMode }
+    }
+
+    @Test
+    fun markSelectedRead_marksOnlySelectedFeedsAndExitsSelectionMode() = runTest(testDispatcher) {
+        val readFeedId = repository.subscribe(Feed(title = "To Mark Read"))
+        val untouchedFeedId = repository.subscribe(Feed(title = "Untouched"))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "ep-1", feedId = readFeedId, itemGuid = "g1"),
+                FeedItem(id = "ep-2", feedId = untouchedFeedId, itemGuid = "g2"),
+            ),
+        )
+        viewModel.uiState.first { it.feeds.size == 2 }
+        viewModel.toggleSelection(readFeedId)
+        viewModel.uiState.first { it.isSelectionMode }
+
+        viewModel.markSelectedRead()
+        viewModel.uiState.first { !it.isSelectionMode }
+
+        val items = repository.observeItems(readFeedId).first { items -> items.all { it.isRead } }
+        assertTrue(items.first { it.id == "ep-1" }.isRead)
+        assertFalse(repository.observeItems(untouchedFeedId).first().first { it.id == "ep-2" }.isRead)
+    }
+
+    @Test
+    fun deleteSelected_unsubscribesOnlySelectedFeedsAndExitsSelectionMode() = runTest(testDispatcher) {
+        val toDeleteId = repository.subscribe(Feed(title = "To Delete"))
+        val keptId = repository.subscribe(Feed(title = "Kept"))
+        viewModel.uiState.first { it.feeds.size == 2 }
+        viewModel.toggleSelection(toDeleteId)
+        viewModel.uiState.first { it.isSelectionMode }
+
+        viewModel.deleteSelected()
+        advanceUntilIdle()
+
+        val remaining = viewModel.uiState.first { it.feeds.size == 1 }
+        assertEquals(listOf(keptId), remaining.feeds.map { it.feed.id })
+        assertFalse(remaining.isSelectionMode)
+    }
 }

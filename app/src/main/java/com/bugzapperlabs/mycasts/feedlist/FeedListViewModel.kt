@@ -33,6 +33,13 @@ data class FeedListUiState(
     val feeds: List<FeedListItemUiState> = emptyList(),
     val totalUnread: Int = 0,
     val isRefreshing: Boolean = false,
+    /** Multi-select management (issue #124). Unlike EpisodeListUiState's selection mode (implicit
+     *  from a non-empty selection), this is tracked explicitly: deselecting everything via
+     *  [FeedListViewModel.selectAll]'s toggle should uncheck every row without also kicking the
+     *  user back out of selection mode -- only [FeedListViewModel.clearSelection] (the top bar's
+     *  close icon) does that. */
+    val isSelectionMode: Boolean = false,
+    val selectedIds: Set<Long> = emptySet(),
 )
 
 private data class FeedListSourceData(
@@ -110,14 +117,21 @@ class FeedListViewModel @Inject constructor(
     // straight to the correct settled numbers in one step rather than trickling there.
     private val stableSource = MutableStateFlow(FeedListSourceData(emptyList(), emptyMap(), 0, false))
 
+    private val isSelectionModeActive = MutableStateFlow(false)
+    private val selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+
     val uiState: StateFlow<FeedListUiState> = combine(
         stableSource,
         isRefreshing,
-    ) { source, refreshing ->
+        isSelectionModeActive,
+        selectedIds,
+    ) { source, refreshing, selectionMode, selected ->
         FeedListUiState(
             feeds = source.feeds.map { feed -> FeedListItemUiState(feed, source.unreadCounts[feed.id] ?: 0) },
             totalUnread = source.totalUnread,
             isRefreshing = refreshing,
+            isSelectionMode = selectionMode,
+            selectedIds = selected,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FeedListUiState())
 
@@ -191,5 +205,49 @@ class FeedListViewModel @Inject constructor(
 
     fun consumeRefreshError() {
         _refreshError.value = null
+    }
+
+    // Multi-select management (issue #124), replacing Settings' old blunt "Remove all feeds"
+    // with per-feed selection here.
+    fun toggleSelection(feedId: Long) {
+        isSelectionModeActive.value = true
+        selectedIds.value = if (feedId in selectedIds.value) {
+            selectedIds.value - feedId
+        } else {
+            selectedIds.value + feedId
+        }
+    }
+
+    /** The only path back to the non-selection top bar/FAB -- unlike [selectAll]'s toggle, which
+     *  only ever empties the selection, leaving selection mode itself active. */
+    fun clearSelection() {
+        isSelectionModeActive.value = false
+        selectedIds.value = emptySet()
+    }
+
+    /** Toggles between everything selected and nothing selected, rather than only ever selecting
+     *  everything -- tapping it a second time once the whole list is already selected unchecks
+     *  every row without leaving selection mode (that's [clearSelection]'s job, via the top bar's
+     *  close icon). */
+    fun selectAll() {
+        val allIds = uiState.value.feeds.map { it.feed.id }.toSet()
+        isSelectionModeActive.value = true
+        selectedIds.value = if (selectedIds.value == allIds) emptySet() else allIds
+    }
+
+    fun markSelectedRead() {
+        val ids = selectedIds.value
+        viewModelScope.launch {
+            ids.forEach { feedRepository.markAllRead(it) }
+            clearSelection()
+        }
+    }
+
+    fun deleteSelected() {
+        val feeds = uiState.value.feeds.filter { it.feed.id in selectedIds.value }.map { it.feed }
+        viewModelScope.launch {
+            feeds.forEach { feedRepository.unsubscribe(it) }
+            clearSelection()
+        }
     }
 }
