@@ -11,6 +11,9 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -59,6 +62,8 @@ class DownloadFeedbackCoordinatorTest {
             downloadScheduling = object : DownloadScheduling {
                 override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
                 override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
             },
             settingsDataStore = settingsDataStore,
         )

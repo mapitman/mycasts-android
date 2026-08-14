@@ -22,6 +22,9 @@ import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -116,6 +119,8 @@ class EpisodeListViewModelTest {
                     enqueuedDownloadItemIds += itemId
                 }
                 override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
             },
             settingsDataStore = settingsDataStore,
         )

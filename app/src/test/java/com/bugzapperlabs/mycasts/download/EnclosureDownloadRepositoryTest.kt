@@ -11,6 +11,8 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.QueueEntry
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -39,6 +41,7 @@ class EnclosureDownloadRepositoryTest {
     private lateinit var downloadRepository: EnclosureDownloadRepository
     private val enqueuedCalls = mutableListOf<Triple<String, Boolean, Boolean>>()
     private val cancelledCalls = mutableListOf<String>()
+    private var cancelAllCallCount = 0
     private var feedId: Long = 0
 
     @Before
@@ -60,6 +63,12 @@ class EnclosureDownloadRepositoryTest {
                 override fun cancelDownload(itemId: String) {
                     cancelledCalls += itemId
                 }
+
+                override fun cancelAllDownloads() {
+                    cancelAllCallCount++
+                }
+
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
             },
             settingsDataStore = settingsDataStore,
         )
@@ -132,6 +141,51 @@ class EnclosureDownloadRepositoryTest {
         assertEquals(listOf("item-1"), cancelledCalls)
         assertFalse(file.exists())
         assertNull(repository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun deleteDownload_inProgressDownload_clearsDownloadedBytesToo() = runTest {
+        // issue #156: without also clearing downloadedBytes, a cancelled in-progress download
+        // (no downloadedFilePath yet, but a partial byte count already persisted) would keep
+        // showing as "in progress" forever -- isInProgress only checks downloadedFilePath.
+        seedFeedAndItem("https://example.com/episode.mp3")
+        repository.setDownloadedBytes("item-1", 512L)
+        val item = repository.getItem("item-1")!!
+
+        downloadRepository.deleteDownload(item)
+
+        assertNull(repository.getItem("item-1")?.downloadedBytes)
+    }
+
+    @Test
+    fun cancelAllDownloads_delegatesToScheduler() = runTest {
+        downloadRepository.cancelAllDownloads()
+
+        assertEquals(1, cancelAllCallCount)
+    }
+
+    @Test
+    fun cancelAllDownloads_clearsDownloadedBytesForInProgressItems() = runTest {
+        // issue #156: cancelling the WorkManager job alone leaves downloadedBytes untouched, so
+        // an item that had already recorded some progress would otherwise keep showing as
+        // "in progress" forever even after every job is cancelled.
+        seedFeedAndItem("https://example.com/episode.mp3")
+        repository.setDownloadedBytes("item-1", 512L)
+
+        downloadRepository.cancelAllDownloads()
+
+        assertNull(repository.getItem("item-1")?.downloadedBytes)
+    }
+
+    @Test
+    fun cancelAllDownloads_leavesCompletedDownloadsAlone() = runTest {
+        val file = tempFolder.newFile("downloaded.mp3")
+        seedFeedAndItem("https://example.com/episode.mp3")
+        repository.setDownloadedFilePath("item-1", file.absolutePath)
+
+        downloadRepository.cancelAllDownloads()
+
+        assertEquals(file.absolutePath, repository.getItem("item-1")?.downloadedFilePath)
     }
 
     @Test
