@@ -58,7 +58,7 @@
     <string name="feed_list_section_unread">%1$d non lus</string>
     <string name="feed_list_section_unplayed">%1$d non écoutés</string>
     <string name="feed_list_refresh_error">Échec de l\'actualisation : vérifiez votre connexion</string>
-    <string name="feed_list_feeds_tab">Flux</string>
+    <string name="feed_list_feeds_tab">Podcasts</string>
 
     <!-- Article list -->
     <string name="article_list_selected">%1$d sélectionné(s)</string>
