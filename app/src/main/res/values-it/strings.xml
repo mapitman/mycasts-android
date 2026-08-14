@@ -58,7 +58,7 @@
     <string name="feed_list_section_unread">%1$d non letti</string>
     <string name="feed_list_section_unplayed">%1$d non riprodotti</string>
     <string name="feed_list_refresh_error">Aggiornamento non riuscito: controlla la connessione</string>
-    <string name="feed_list_feeds_tab">Feed</string>
+    <string name="feed_list_feeds_tab">Podcast</string>
 
     <!-- Article list -->
     <string name="article_list_selected">%1$d selezionati</string>

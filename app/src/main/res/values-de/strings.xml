@@ -58,7 +58,7 @@
     <string name="feed_list_section_unread">%1$d ungelesen</string>
     <string name="feed_list_section_unplayed">%1$d ungespielt</string>
     <string name="feed_list_refresh_error">Aktualisierung fehlgeschlagen: Verbindung prüfen</string>
-    <string name="feed_list_feeds_tab">Feeds</string>
+    <string name="feed_list_feeds_tab">Podcasts</string>
 
     <!-- Article list -->
     <string name="article_list_selected">%1$d ausgewählt</string>
