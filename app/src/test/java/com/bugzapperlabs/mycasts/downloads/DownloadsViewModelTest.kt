@@ -76,7 +76,7 @@ class DownloadsViewModelTest {
         viewModel = DownloadsViewModel(repository, downloadRepository)
         viewModelStore.put("downloads", viewModel)
 
-        feedId = repository.subscribe(Feed(title = "A Podcast"))
+        feedId = repository.subscribe(Feed(title = "A Podcast", imageUrl = "https://example.com/art.png"))
     }
 
     @After
@@ -101,6 +101,7 @@ class DownloadsViewModelTest {
         assertFalse(row.isInProgress)
         assertEquals(1024L, row.sizeBytes)
         assertEquals(1024L, state.totalBytes)
+        assertEquals("https://example.com/art.png", row.feedImageUrl)
     }
 
     @Test
