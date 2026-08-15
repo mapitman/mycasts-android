@@ -52,6 +52,7 @@ import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
 import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
 import com.bugzapperlabs.mycasts.ui.components.ListItemRow
+import com.bugzapperlabs.mycasts.ui.components.htmlToPlainText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -222,7 +223,11 @@ fun FeedListScreen(
                             val isSelected = item.feed.id in uiState.selectedIds
                             ListItemRow(
                                 title = item.feed.userTitle ?: item.feed.title.orEmpty(),
-                                subtitle = item.feed.description,
+                                // issue #167: some feeds embed raw HTML (e.g. <br>, <em>) in their
+                                // description -- shown here as a plain one-line subtitle, so it's
+                                // stripped to text rather than rendered (PodcastDetailsScreen does
+                                // the same for its own description preview).
+                                subtitle = item.feed.description?.let { htmlToPlainText(it) },
                                 imageUrl = item.feed.imageUrl,
                                 unreadCount = item.unreadCount,
                                 titleFontScale = feedListFontSize,
