@@ -1,12 +1,17 @@
 package com.bugzapperlabs.mycasts.queue
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.QueueEntry
 import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
+import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.playback.PlaybackController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +31,8 @@ class QueueViewModel @Inject constructor(
     private val queueRepository: QueueRepository,
     private val feedRepository: FeedRepository,
     private val playbackController: PlaybackController,
+    private val downloadRepository: EnclosureDownloadRepository,
+    @ApplicationContext private val context: Context,
 ) : ViewModel() {
     val queue: StateFlow<List<QueuedEpisode>> = queueRepository.observeQueue()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -115,5 +122,27 @@ class QueueViewModel @Inject constructor(
             val feed = feedRepository.getFeed(episode.item.feedId)
             playbackController.play(episode.item, feed?.userTitle ?: feed?.title)
         }
+    }
+
+    private val _downloadFeedback = MutableStateFlow<String?>(null)
+    val downloadFeedback: StateFlow<String?> = _downloadFeedback.asStateFlow()
+
+    /** Starts downloading every episode in Next Up that isn't already downloaded or downloading
+     *  (issue #188), mirroring [com.bugzapperlabs.mycasts.episodelist.EpisodeListViewModel.downloadSelected]. */
+    fun downloadAll() {
+        viewModelScope.launch {
+            val eligible = queue.value.map { it.item }
+                .filter { it.isPodcastEpisode && it.downloadedFilePath == null && it.downloadedBytes == null }
+            eligible.forEach { downloadRepository.startDownload(it) }
+            _downloadFeedback.value = when (eligible.size) {
+                0 -> context.getString(R.string.download_feedback_already_downloaded)
+                1 -> context.getString(R.string.download_feedback_started)
+                else -> context.getString(R.string.download_feedback_started_multiple, eligible.size)
+            }
+        }
+    }
+
+    fun consumeDownloadFeedback() {
+        _downloadFeedback.value = null
     }
 }

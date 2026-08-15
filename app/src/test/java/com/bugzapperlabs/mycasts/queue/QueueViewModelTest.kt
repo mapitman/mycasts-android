@@ -12,10 +12,15 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadScheduling
+import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.playback.ChaptersFetcher
 import com.bugzapperlabs.mycasts.playback.PlaybackController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -54,8 +59,10 @@ class QueueViewModelTest {
     private lateinit var feedRepository: FeedRepository
     private lateinit var queueRepository: QueueRepository
     private lateinit var playbackController: PlaybackController
+    private lateinit var downloadRepository: EnclosureDownloadRepository
     private lateinit var viewModel: QueueViewModel
     private var feedId: Long = 0
+    private val enqueuedDownloadItemIds = mutableListOf<String>()
 
     @Before
     fun setUp() = runTest(testDispatcher) {
@@ -74,6 +81,18 @@ class QueueViewModelTest {
             queueRepository,
             ChaptersFetcher(OkHttpClient()),
         )
+        downloadRepository = EnclosureDownloadRepository(
+            feedRepository = feedRepository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
+                    enqueuedDownloadItemIds += itemId
+                }
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+            },
+            settingsDataStore = SettingsDataStore(dataStore),
+        )
 
         feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         feedRepository.insertItems(
@@ -85,7 +104,7 @@ class QueueViewModelTest {
         queueRepository.addToEnd("ep-1")
         queueRepository.addToEnd("ep-2")
 
-        viewModel = QueueViewModel(queueRepository, feedRepository, playbackController)
+        viewModel = QueueViewModel(queueRepository, feedRepository, playbackController, downloadRepository, context)
             .also { viewModelStore.put("queue", it) }
     }
 
@@ -191,5 +210,53 @@ class QueueViewModelTest {
 
         val state = viewModel.queue.first { it.size == 1 }
         assertEquals(listOf("ep-2"), state.map { it.item.id })
+    }
+
+    @Test
+    fun downloadAll_startsDownloadForEveryEligibleQueuedEpisode() = runTest(testDispatcher) {
+        // issue #188: ep-1/ep-2 (from setUp) aren't podcast episodes (no enclosure), so only these
+        // two newly-added, genuinely downloadable episodes should be started.
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "ep-downloadable-1", feedId = feedId, title = "Downloadable 1", itemGuid = "g-dl-1",
+                    enclosureUrl = "https://example.com/1.mp3", enclosureType = "audio/mpeg",
+                ),
+                FeedItem(
+                    id = "ep-downloadable-2", feedId = feedId, title = "Downloadable 2", itemGuid = "g-dl-2",
+                    enclosureUrl = "https://example.com/2.mp3", enclosureType = "audio/mpeg",
+                ),
+                FeedItem(
+                    id = "ep-already-downloaded", feedId = feedId, title = "Already Downloaded", itemGuid = "g-dl-3",
+                    enclosureUrl = "https://example.com/3.mp3", enclosureType = "audio/mpeg",
+                    downloadedFilePath = "/tmp/already.mp3",
+                ),
+            ),
+        )
+        queueRepository.addToEnd("ep-downloadable-1")
+        queueRepository.addToEnd("ep-downloadable-2")
+        queueRepository.addToEnd("ep-already-downloaded")
+        viewModel.queue.first { it.size == 5 }
+
+        viewModel.downloadAll()
+
+        // Waiting on downloadFeedback first guarantees downloadAll's launch has actually run to
+        // completion -- it's the last thing that coroutine sets -- before enqueuedDownloadItemIds
+        // is checked below.
+        val feedback = viewModel.downloadFeedback.first { it != null }
+        assertEquals("2 downloads started", feedback)
+        assertEquals(setOf("ep-downloadable-1", "ep-downloadable-2"), enqueuedDownloadItemIds.toSet())
+    }
+
+    @Test
+    fun downloadAll_noEligibleEpisodes_reportsAlreadyDownloaded() = runTest(testDispatcher) {
+        // ep-1/ep-2 aren't podcast episodes, so nothing in the queue is eligible.
+        viewModel.queue.first { it.size == 2 }
+
+        viewModel.downloadAll()
+
+        assertTrue(enqueuedDownloadItemIds.isEmpty())
+        val feedback = viewModel.downloadFeedback.first { it != null }
+        assertEquals("Already downloaded", feedback)
     }
 }

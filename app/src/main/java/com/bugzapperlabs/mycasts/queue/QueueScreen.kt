@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -89,6 +90,7 @@ fun QueueScreen(
     val currentItemId by viewModel.currentItemId.collectAsState()
     val sortAscending by viewModel.sortAscending.collectAsState()
     val removedEpisode by viewModel.removedEpisode.collectAsState()
+    val downloadFeedback by viewModel.downloadFeedback.collectAsState()
     val playbackState by miniPlayerViewModel.playbackState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -110,6 +112,14 @@ fun QueueScreen(
             viewModel.undoRemove(removed)
         }
         viewModel.consumeRemovedEpisode()
+    }
+
+    // Feedback for the "download all" action (issue #188), mirroring EpisodeListScreen's own
+    // download-feedback snackbar.
+    LaunchedEffect(downloadFeedback) {
+        val message = downloadFeedback ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+        viewModel.consumeDownloadFeedback()
     }
 
     val hasCurrentItem = playbackState.currentItemId != null
@@ -225,6 +235,11 @@ fun QueueScreen(
             // taller ~64dp component height on top of it.
             CompactTopBar {
                 Spacer(modifier = Modifier.weight(1f))
+                if (queue.isNotEmpty()) {
+                    IconButton(onClick = viewModel::downloadAll) {
+                        Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_download_all_queued))
+                    }
+                }
                 if (queue.size > 1) {
                     IconButton(onClick = viewModel::sortByPublishDate) {
                         Icon(

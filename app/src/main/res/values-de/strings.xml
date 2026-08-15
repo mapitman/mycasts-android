@@ -88,6 +88,7 @@
     <string name="download_feedback_nothing_to_delete">Keine Downloads zum Löschen</string>
     <string name="download_feedback_not_started">Download für „%1$s“ konnte nicht gestartet werden</string>
     <string name="cd_download_selected">Ausgewählte Episoden herunterladen</string>
+    <string name="cd_download_all_queued">Alle Episoden in „Als Nächstes“ herunterladen</string>
     <string name="action_undo">Rückgängig</string>
 
     <!-- Downloads -->
