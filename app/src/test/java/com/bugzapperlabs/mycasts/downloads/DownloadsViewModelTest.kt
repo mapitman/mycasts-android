@@ -15,10 +15,12 @@ import com.bugzapperlabs.mycasts.download.DownloadScheduling
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
+import com.bugzapperlabs.mycasts.download.DownloadWorkStatus
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -144,5 +146,61 @@ class DownloadsViewModelTest {
         viewModel.cancelAllDownloads()
 
         assertEquals(1, cancelAllCallCount)
+    }
+
+    @Test
+    fun activeDownloads_excludesJobAlreadyVisibleInEpisodesList() = runTest(testDispatcher) {
+        // issue #173 follow-up: a job that's already written bytes shows up in uiState.episodes
+        // too -- without this exclusion it duplicated there until the job actually finished.
+        repository.insertItems(
+            listOf(FeedItem(id = "ep-1", feedId = feedId, title = "Episode 1", itemGuid = "g1", downloadedBytes = 512L)),
+        )
+        val workInfoFlow = MutableStateFlow(listOf(DownloadWorkInfo("ep-1", DownloadWorkStatus.RUNNING)))
+        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
+            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
+        )
+        val downloadRepository = EnclosureDownloadRepository(
+            feedRepository = repository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = workInfoFlow
+            },
+            settingsDataStore = SettingsDataStore(dataStore),
+        )
+        val dedupeViewModel = DownloadsViewModel(repository, downloadRepository)
+        viewModelStore.put("downloads-dedupe", dedupeViewModel)
+
+        dedupeViewModel.uiState.first { it.episodes.isNotEmpty() }
+        val active = dedupeViewModel.activeDownloads.first()
+
+        assertTrue("active downloads should not duplicate an already-visible episode", active.isEmpty())
+    }
+
+    @Test
+    fun activeDownloads_stillShowsJobNotYetVisibleInEpisodesList() = runTest(testDispatcher) {
+        // issue #156: a job stuck retrying before writing any bytes is invisible to
+        // observeDownloadedItems -- the dedupe above must not hide it too.
+        val workInfoFlow = MutableStateFlow(listOf(DownloadWorkInfo("ep-invisible", DownloadWorkStatus.RETRYING)))
+        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
+            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
+        )
+        val downloadRepository = EnclosureDownloadRepository(
+            feedRepository = repository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = workInfoFlow
+            },
+            settingsDataStore = SettingsDataStore(dataStore),
+        )
+        val dedupeViewModel = DownloadsViewModel(repository, downloadRepository)
+        viewModelStore.put("downloads-invisible", dedupeViewModel)
+
+        val active = dedupeViewModel.activeDownloads.first { it.isNotEmpty() }
+
+        assertEquals(listOf("ep-invisible"), active.map { it.itemId })
     }
 }
