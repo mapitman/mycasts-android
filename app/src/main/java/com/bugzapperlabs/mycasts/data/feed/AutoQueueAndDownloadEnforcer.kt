@@ -33,16 +33,17 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
             if (feed.autoDownloadEnabled) {
                 val podcastEpisodes = success.newItemIds.mapNotNull { feedRepository.getItem(it) }.filter { it.isPodcastEpisode }
                 // Only episodes newer than what's already auto-downloaded for this feed are
-                // candidates (issue #162) -- otherwise a batch of "new" items that happens to
-                // include something older than an existing download (a backfilled bonus episode,
-                // a reissued itemGuid) would get downloaded just because there was cap headroom,
-                // reaching back into the catalog instead of only ever moving forward in time.
-                // Manually-downloaded episodes don't count toward this threshold, matching
-                // enforceFeedDownloadCap below, which likewise only ever evicts autoDownloaded
-                // ones -- a manual download shouldn't silently block a newer episode's auto-download.
-                val newestAlreadyDownloaded = feed.maxDownloadsToKeep?.let {
-                    feedRepository.autoDownloadedItemsForFeed(feed.id).maxOfOrNull { item -> item.publishDate ?: 0L }
-                }
+                // candidates (issue #162), regardless of whether maxDownloadsToKeep is even set
+                // (issue #172 follow-up: this used to only compute when a finite cap was
+                // configured, so an unlimited-cap feed had no "don't reach backward" protection at
+                // all -- a batch of "new" items that happens to include something older than an
+                // existing download (a backfilled bonus episode, a reissued itemGuid, or simply a
+                // long-overdue refresh's huge backlog) would get downloaded outright, reaching back
+                // into the catalog instead of only ever moving forward in time. Manually-downloaded
+                // episodes don't count toward this threshold, matching enforceFeedDownloadCap
+                // below, which likewise only ever evicts autoDownloaded ones -- a manual download
+                // shouldn't silently block a newer episode's auto-download.
+                val newestAlreadyDownloaded = feedRepository.autoDownloadedItemsForFeed(feed.id).maxOfOrNull { it.publishDate ?: 0L }
                 val eligibleEpisodes = if (newestAlreadyDownloaded == null) {
                     podcastEpisodes
                 } else {

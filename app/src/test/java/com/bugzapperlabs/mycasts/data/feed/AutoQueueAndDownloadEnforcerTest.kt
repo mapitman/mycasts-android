@@ -404,4 +404,48 @@ class AutoQueueAndDownloadEnforcerTest {
 
         assertEquals(25, queueRepository.observeQueue().first().size)
     }
+
+    @Test
+    fun apply_autoDownload_unlimitedCap_doesNotDownloadEpisodeOlderThanAlreadyDownloaded() = runTest {
+        // issue #172 follow-up: the "don't reach backward" protection from issue #162 only ever
+        // computed newestAlreadyDownloaded when maxDownloadsToKeep was set -- an unlimited-cap feed
+        // had no such protection at all, so a batch containing an older item (a backfilled bonus
+        // episode, a reissued itemGuid, or a long-overdue refresh's backlog) would still download it.
+        val enqueuedItemIds = mutableListOf<String>()
+        val recordingDownloadRepository = EnclosureDownloadRepository(
+            feedRepository = feedRepository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
+                    enqueuedItemIds += itemId
+                }
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        val recordingEnforcer = AutoQueueAndDownloadEnforcer(feedRepository, recordingDownloadRepository, queueRepository)
+        val feedId = feedRepository.subscribe(Feed(title = "A Podcast", autoDownloadEnabled = true, maxDownloadsToKeep = null))
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(id = "ep-already-downloaded", feedId = feedId, itemGuid = "ep-already-downloaded", enclosureUrl = "https://example.com/already.mp3", enclosureType = "audio/mpeg", publishDate = 10L),
+                FeedItem(id = "ep-older-backfill", feedId = feedId, itemGuid = "ep-older-backfill", enclosureUrl = "https://example.com/older.mp3", enclosureType = "audio/mpeg", publishDate = 5L),
+                FeedItem(id = "ep-genuinely-new", feedId = feedId, itemGuid = "ep-genuinely-new", enclosureUrl = "https://example.com/new.mp3", enclosureType = "audio/mpeg", publishDate = 20L),
+            ),
+        )
+        feedRepository.setAutoDownloaded("ep-already-downloaded", true)
+        feedRepository.setDownloadedFilePath("ep-already-downloaded", "/fake/already.mp3")
+
+        recordingEnforcer.apply(
+            listOf(
+                FeedUpdateResult.Success(
+                    feedId = feedId,
+                    newItemIds = listOf("ep-older-backfill", "ep-genuinely-new"),
+                    evictedItemIds = emptyList(),
+                ),
+            ),
+        )
+
+        assertEquals(listOf("ep-genuinely-new"), enqueuedItemIds)
+    }
 }
