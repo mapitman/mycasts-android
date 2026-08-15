@@ -10,6 +10,7 @@ import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import java.io.File
 import javax.inject.Inject
 
 /**
@@ -36,7 +37,17 @@ class FeedRepository @Inject constructor(
      */
     suspend fun subscribe(feed: Feed): Long = feed.feedUrl?.let { feedDao.findByFeedUrl(it)?.id } ?: feedDao.insert(feed)
 
-    suspend fun unsubscribe(feed: Feed) = feedDao.delete(feed)
+    /**
+     * Deleting the feed cascades to `feed_items` via a raw SQL `ON DELETE CASCADE` foreign key at
+     * the database level (issue #183), bypassing all application code -- including the eviction
+     * cleanup in [com.bugzapperlabs.mycasts.data.feed.FeedUpdateEngine.persist] -- so any
+     * downloaded episode belonging to this feed must have its file deleted here first, mirroring
+     * that same cleanup, or it's orphaned on disk forever.
+     */
+    suspend fun unsubscribe(feed: Feed) {
+        feedItemDao.getByFeed(feed.id).forEach { item -> item.downloadedFilePath?.let { File(it).delete() } }
+        feedDao.delete(feed)
+    }
 
     suspend fun updateFeed(feed: Feed) = feedDao.update(feed)
 
