@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistAddCheck
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
@@ -70,7 +69,6 @@ fun EpisodeListScreen(
     modifier: Modifier = Modifier,
     viewModel: EpisodeListViewModel = hiltViewModel(),
     onEpisodeClick: (String) -> Unit = {},
-    onQueueClick: () -> Unit = {},
     onFeedSettingsClick: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -145,12 +143,12 @@ fun EpisodeListScreen(
                 )
             } else {
                 // No back arrow (issue #128): system back gestures/buttons cover navigating away.
+                // No "Up Next" button either (issue #175): the bottom nav's own Next Up tab, still
+                // showing on this screen (issue #146), already covers it -- a second entry point
+                // right next to it was redundant.
                 TopAppBar(
                     title = { Text(uiState.feedTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     actions = {
-                        IconButton(onClick = onQueueClick) {
-                            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = stringResource(R.string.cd_open_queue))
-                        }
                         IconButton(onClick = onFeedSettingsClick) {
                             Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_open_feed_settings))
                         }
