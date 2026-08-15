@@ -19,8 +19,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Downloading
+import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
@@ -287,7 +287,12 @@ private fun EpisodeRow(
                 val isDownloading = !isDownloaded && episode.downloadedBytes != null
                 if (isDownloaded || isDownloading) {
                     Icon(
-                        if (isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.Downloading,
+                        // OfflinePin (issue #174), not DownloadDone -- at this row's small icon
+                        // size, DownloadDone's arrow-plus-checkmark glyph read as an ambiguous
+                        // plain checkmark (easily mistaken for "read"/"played"). OfflinePin is
+                        // Material's own icon for "available offline," a distinct pin-with-check
+                        // shape that stays recognizable at 16dp.
+                        if (isDownloaded) Icons.Filled.OfflinePin else Icons.Filled.Downloading,
                         contentDescription = stringResource(
                             if (isDownloaded) R.string.cd_episode_downloaded else R.string.cd_episode_downloading,
                         ),
