@@ -196,8 +196,17 @@ private fun DownloadedEpisodeRow(episode: DownloadedEpisodeUiState, onDelete: ()
             if (episode.isInProgress) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             }
+            // "Cancel" (matching ActiveDownloadRow's own icon/label) while still downloading, not
+            // "Delete" -- there's nothing finished to delete yet, and the ambiguous trash icon here
+            // was reported as unclear about whether it actually stopped an in-progress download
+            // (it does -- EnclosureDownloadRepository.deleteDownload cancels the underlying
+            // WorkManager job before clearing state either way).
             IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete_download))
+                if (episode.isInProgress) {
+                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_cancel_download))
+                } else {
+                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete_download))
+                }
             }
         }
         if (episode.isInProgress) {

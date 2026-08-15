@@ -10,6 +10,7 @@ import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -66,16 +67,26 @@ class DownloadsViewModel @Inject constructor(
     // issue #156: surfaces every active download job by itself, including ones stuck retrying
     // that observeDownloadedItems (above) can never see -- it filters on downloadedFilePath/
     // downloadedBytes, both still null for a job that's failed before writing a first byte.
-    val activeDownloads: StateFlow<List<ActiveDownloadUiState>> = downloadRepository.observeDownloadWorkInfo()
-        .map { infos ->
-            infos.map { info ->
-                ActiveDownloadUiState(
-                    itemId = info.itemId,
-                    title = feedRepository.getItem(info.itemId)?.title.orEmpty(),
-                    status = info.status,
-                )
-            }
+    //
+    // Excludes anything already showing up in uiState.episodes above (issue #173 follow-up): once
+    // a job has written its first byte, it becomes visible there too (that query matches on
+    // downloadedBytes being non-null, not just downloadedFilePath), so without this exclusion the
+    // same download showed up twice -- once here, once below -- until the job actually finished and
+    // dropped out of observeDownloadWorkInfo. This list is only meant to surface jobs the other one
+    // can't see yet, not duplicate ones it already can.
+    val activeDownloads: StateFlow<List<ActiveDownloadUiState>> = combine(
+        downloadRepository.observeDownloadWorkInfo(),
+        feedRepository.observeDownloadedItems(),
+    ) { infos, downloaded ->
+        val alreadyVisibleIds = downloaded.map { it.item.id }.toSet()
+        infos.filterNot { it.itemId in alreadyVisibleIds }.map { info ->
+            ActiveDownloadUiState(
+                itemId = info.itemId,
+                title = feedRepository.getItem(info.itemId)?.title.orEmpty(),
+                status = info.status,
+            )
         }
+    }
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

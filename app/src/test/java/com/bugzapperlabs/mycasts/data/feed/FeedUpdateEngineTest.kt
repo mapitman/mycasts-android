@@ -823,4 +823,36 @@ class FeedUpdateEngineTest {
 
         if (caught != null) throw AssertionError("Concurrent deleteItems during refresh threw: $caught", caught)
     }
+
+    @Test
+    fun updateFeed_evictedItemWithDownload_deletesTheFileToo() = runTest {
+        // issue #176: trimToItemsToKeep deletes the FeedItem row, but a downloaded episode's file
+        // must also be deleted -- otherwise it's permanently orphaned on disk, invisible to every
+        // screen (the row it was ever attached to is gone) but never actually freed.
+        val feed = subscribeFeed(itemsToKeep = 1)
+        val downloadedFile = tempFolder.newFile("old-episode.mp3")
+        assertTrue(downloadedFile.exists())
+        repository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "old-item",
+                    feedId = feed.id,
+                    itemGuid = "old",
+                    publishDate = 1L,
+                    autoDownloaded = true,
+                    downloadedFilePath = downloadedFile.absolutePath,
+                ),
+            ),
+        )
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(Triple("new", "New", "Wed, 03 Jan 2024 00:00:00 GMT")),
+            ),
+        )
+
+        val result = engine.updateFeed(repository.getFeed(feed.id)!!) as FeedUpdateResult.Success
+
+        assertEquals(listOf("old-item"), result.evictedItemIds)
+        assertTrue("expected the orphaned file to be deleted", !downloadedFile.exists())
+    }
 }
