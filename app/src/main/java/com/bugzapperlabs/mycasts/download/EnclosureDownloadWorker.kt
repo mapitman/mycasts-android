@@ -13,13 +13,20 @@ import com.bugzapperlabs.mycasts.MyCastsApp
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.di.DownloadHttpClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * Downloads a single episode's enclosure to app-internal storage (issue #23), resuming a partial
@@ -41,7 +48,7 @@ class EnclosureDownloadWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val feedRepository: FeedRepository,
     private val downloadRepository: EnclosureDownloadRepository,
-    private val httpClient: OkHttpClient,
+    @DownloadHttpClient private val httpClient: OkHttpClient,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -60,7 +67,11 @@ class EnclosureDownloadWorker @AssistedInject constructor(
         }.build()
 
         try {
-            httpClient.newCall(request).execute().use { response ->
+            // Routed through this class's own async await() (below), not a plain execute(), since
+            // execute() runs synchronously on the calling thread and bypasses the client's
+            // Dispatcher entirely -- only enqueue()'d calls are subject to Dispatcher.maxRequests,
+            // which is the whole point of @DownloadHttpClient's dedicated dispatcher (see its doc).
+            httpClient.newCall(request).await().use { response ->
                 if (!response.isSuccessful) return@withContext Result.retry()
                 val body = response.body ?: return@withContext Result.retry()
                 val resumed = response.code == 206
@@ -127,5 +138,25 @@ class EnclosureDownloadWorker @AssistedInject constructor(
         private const val PROGRESS_PERSIST_INTERVAL_BYTES = 256 * 1024L
         private const val BYTES_PER_MB = 1024f * 1024f
         private const val PROGRESS_MAX = 100
+    }
+}
+
+/** Bridges [Call.execute]'s synchronous API to a suspend call that still goes through
+ *  [okhttp3.Dispatcher] -- [Call.execute] runs on the calling thread and is invisible to the
+ *  Dispatcher's own concurrency limits, which is exactly what @DownloadHttpClient's dispatcher
+ *  cap (see [com.bugzapperlabs.mycasts.di.NetworkModule.provideDownloadOkHttpClient]) depends on
+ *  [Call.enqueue] for. */
+private suspend fun Call.await(): Response = suspendCancellableCoroutine { continuation ->
+    enqueue(object : Callback {
+        override fun onResponse(call: Call, response: Response) {
+            continuation.resume(response)
+        }
+
+        override fun onFailure(call: Call, e: IOException) {
+            if (!continuation.isCancelled) continuation.resumeWithException(e)
+        }
+    })
+    continuation.invokeOnCancellation {
+        runCatching { cancel() }
     }
 }

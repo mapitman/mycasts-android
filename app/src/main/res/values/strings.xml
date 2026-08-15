@@ -92,6 +92,7 @@
     <string name="download_feedback_nothing_to_delete">No downloads to delete</string>
     <string name="download_feedback_not_started">Couldn\'t start download for \"%1$s\"</string>
     <string name="cd_download_selected">Download selected episodes</string>
+    <string name="cd_download_all_queued">Download all Next Up episodes</string>
     <string name="action_undo">Undo</string>
 
     <!-- Downloads -->

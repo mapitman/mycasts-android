@@ -88,6 +88,7 @@
     <string name="download_feedback_nothing_to_delete">No hay descargas que eliminar</string>
     <string name="download_feedback_not_started">No se pudo iniciar la descarga de \"%1$s\"</string>
     <string name="cd_download_selected">Descargar episodios seleccionados</string>
+    <string name="cd_download_all_queued">Descargar todos los episodios de \"Reproducir a continuación\"</string>
     <string name="action_undo">Deshacer</string>
 
     <!-- Downloads -->
