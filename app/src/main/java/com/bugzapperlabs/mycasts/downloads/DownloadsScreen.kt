@@ -188,13 +188,11 @@ private fun DownloadedEpisodeRow(episode: DownloadedEpisodeUiState, onDelete: ()
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                // issue #177: the episode's publish date, alongside the feed title and size --
-                // omitted entirely (rather than an empty "%1$s •  • %2$s") for the rare episode
-                // with no publishDate at all.
-                val dateText = EpisodeDateFormatter.format(episode.item.publishDate)
+                // issue #177: the episode's publish date, on its own line below the feed title and
+                // size -- omitted entirely (rather than an empty "%1$s • " or blank line) for the
+                // rare episode with no publishDate at all.
                 val subtitle = listOfNotNull(
                     episode.feedTitle.takeIf { it.isNotBlank() },
-                    dateText.takeIf { it.isNotBlank() },
                     formatBytes(episode.sizeBytes),
                 ).joinToString(" • ")
                 Text(
@@ -202,6 +200,14 @@ private fun DownloadedEpisodeRow(episode: DownloadedEpisodeUiState, onDelete: ()
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                val dateText = EpisodeDateFormatter.format(episode.item.publishDate)
+                if (dateText.isNotBlank()) {
+                    Text(
+                        text = dateText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             if (episode.isInProgress) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
