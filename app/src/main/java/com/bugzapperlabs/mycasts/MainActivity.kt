@@ -475,7 +475,6 @@ class MainActivity : ComponentActivity() {
                             val feedId = backStackEntry.arguments?.getLong("feedId") ?: 0L
                             EpisodeListScreen(
                                 onEpisodeClick = { itemId -> openEpisodeDetails(feedId, itemId) },
-                                onQueueClick = onQueueClick,
                                 onFeedSettingsClick = { navController.navigate("feedProperties/$feedId") },
                             )
                         }
