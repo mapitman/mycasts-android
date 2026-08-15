@@ -14,7 +14,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -23,6 +25,9 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class FeedRepositoryTest {
+    @get:Rule
+    val tempFolder = TemporaryFolder()
+
     private lateinit var db: AppDatabase
     private lateinit var repository: FeedRepository
 
@@ -76,6 +81,26 @@ class FeedRepositoryTest {
 
         assertNull(repository.getFeed(feedId))
         assertEquals(0, repository.observeItems(feedId).first().size)
+    }
+
+    @Test
+    fun unsubscribe_deletesDownloadedFilesForFeedsItems() = runTest {
+        // issue #183: the row-level cascade that unsubscribe() relies on to clean up feed_items
+        // bypasses application code entirely, so a downloaded episode's file must be deleted here
+        // explicitly or it's orphaned on disk forever, same class of bug as issue #176.
+        val feed = Feed(title = "A Feed")
+        val feedId = repository.subscribe(feed)
+        val downloadedFile = tempFolder.newFile("downloaded-episode.mp3")
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "downloaded", feedId = feedId, itemGuid = "g1", downloadedFilePath = downloadedFile.absolutePath),
+                FeedItem(id = "not-downloaded", feedId = feedId, itemGuid = "g2"),
+            ),
+        )
+
+        repository.unsubscribe(feed.copy(id = feedId))
+
+        assertTrue(!downloadedFile.exists())
     }
 
     @Test
