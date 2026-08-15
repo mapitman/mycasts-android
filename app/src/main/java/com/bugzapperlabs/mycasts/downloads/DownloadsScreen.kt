@@ -44,6 +44,7 @@ import coil.compose.AsyncImage
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.download.DownloadWorkStatus
+import com.bugzapperlabs.mycasts.episodelist.EpisodeDateFormatter
 import com.bugzapperlabs.mycasts.ui.components.CompactTopBar
 import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
 import java.util.Locale
@@ -187,8 +188,17 @@ private fun DownloadedEpisodeRow(episode: DownloadedEpisodeUiState, onDelete: ()
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // issue #177: the episode's publish date, alongside the feed title and size --
+                // omitted entirely (rather than an empty "%1$s •  • %2$s") for the rare episode
+                // with no publishDate at all.
+                val dateText = EpisodeDateFormatter.format(episode.item.publishDate)
+                val subtitle = listOfNotNull(
+                    episode.feedTitle.takeIf { it.isNotBlank() },
+                    dateText.takeIf { it.isNotBlank() },
+                    formatBytes(episode.sizeBytes),
+                ).joinToString(" • ")
                 Text(
-                    text = stringResource(R.string.downloads_item_subtitle, episode.feedTitle, formatBytes(episode.sizeBytes)),
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
