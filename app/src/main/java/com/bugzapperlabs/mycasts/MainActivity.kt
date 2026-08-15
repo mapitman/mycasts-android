@@ -424,7 +424,11 @@ class MainActivity : ComponentActivity() {
                             "feedProperties/{feedId}",
                             arguments = listOf(navArgument("feedId") { type = NavType.LongType }),
                         ) {
-                            FeedPropertiesScreen(onBack = { navController.popBackStack() })
+                            // Pops both this screen and the episode list beneath it (issue #185)
+                            // -- onBack only ever fires once unsubscribe has completed (see its
+                            // doc), so popping just one level would land back on an episode list
+                            // for a feed that no longer exists.
+                            FeedPropertiesScreen(onBack = { navController.popBackStack("feedList", inclusive = false) })
                         }
                         composable("settings") {
                             SettingsScreen()
