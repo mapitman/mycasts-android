@@ -348,4 +348,104 @@ class AutoQueueAndDownloadEnforcerTest {
 
         assertEquals(null, feedRepository.getItem("ep-old")?.downloadedFilePath)
     }
+
+    @Test
+    fun apply_autoDownload_unlimitedCap_stillBoundsSingleRefreshBurst() = runTest {
+        // issue #172: a real incident showed a long-delayed refresh (the periodic job had been
+        // stuck, issue #164) hitting a feed with an unlimited download cap and starting thousands
+        // of downloads in one shot. maxDownloadsToKeep = null must still bound a single burst.
+        val enqueuedItemIds = mutableListOf<String>()
+        val recordingDownloadRepository = EnclosureDownloadRepository(
+            feedRepository = feedRepository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
+                    enqueuedItemIds += itemId
+                }
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        val recordingEnforcer = AutoQueueAndDownloadEnforcer(feedRepository, recordingDownloadRepository, queueRepository)
+        val feedId = feedRepository.subscribe(Feed(title = "A Podcast", autoDownloadEnabled = true, maxDownloadsToKeep = null))
+        val itemIds = (1..30).map { "ep-$it" }
+        feedRepository.insertItems(
+            itemIds.mapIndexed { index, id ->
+                FeedItem(id = id, feedId = feedId, itemGuid = id, enclosureUrl = "https://example.com/$id.mp3", enclosureType = "audio/mpeg", publishDate = index.toLong())
+            },
+        )
+
+        recordingEnforcer.apply(
+            listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = itemIds, evictedItemIds = emptyList())),
+        )
+
+        assertEquals(25, enqueuedItemIds.size)
+    }
+
+    @Test
+    fun apply_autoQueue_unlimitedCap_stillBoundsSingleRefreshBurst() = runTest {
+        // issue #172: same burst-bounding as the auto-download case above, for auto-queue -- queued
+        // items are also permanently exempt from the episode-count trim, so an unbounded burst here
+        // would make itself permanently un-trimmable too.
+        val feedId = feedRepository.subscribe(
+            Feed(title = "A Podcast", autoQueueEnabled = true, autoQueueMaxCount = null, autoQueuePosition = AutoQueuePosition.BOTTOM),
+        )
+        val itemIds = (1..30).map { "ep-$it" }
+        feedRepository.insertItems(
+            itemIds.mapIndexed { index, id ->
+                FeedItem(id = id, feedId = feedId, itemGuid = id, enclosureUrl = "https://example.com/$id.mp3", enclosureType = "audio/mpeg", publishDate = index.toLong())
+            },
+        )
+
+        enforcer.apply(
+            listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = itemIds, evictedItemIds = emptyList())),
+        )
+
+        assertEquals(25, queueRepository.observeQueue().first().size)
+    }
+
+    @Test
+    fun apply_autoDownload_unlimitedCap_doesNotDownloadEpisodeOlderThanAlreadyDownloaded() = runTest {
+        // issue #172 follow-up: the "don't reach backward" protection from issue #162 only ever
+        // computed newestAlreadyDownloaded when maxDownloadsToKeep was set -- an unlimited-cap feed
+        // had no such protection at all, so a batch containing an older item (a backfilled bonus
+        // episode, a reissued itemGuid, or a long-overdue refresh's backlog) would still download it.
+        val enqueuedItemIds = mutableListOf<String>()
+        val recordingDownloadRepository = EnclosureDownloadRepository(
+            feedRepository = feedRepository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
+                    enqueuedItemIds += itemId
+                }
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        val recordingEnforcer = AutoQueueAndDownloadEnforcer(feedRepository, recordingDownloadRepository, queueRepository)
+        val feedId = feedRepository.subscribe(Feed(title = "A Podcast", autoDownloadEnabled = true, maxDownloadsToKeep = null))
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(id = "ep-already-downloaded", feedId = feedId, itemGuid = "ep-already-downloaded", enclosureUrl = "https://example.com/already.mp3", enclosureType = "audio/mpeg", publishDate = 10L),
+                FeedItem(id = "ep-older-backfill", feedId = feedId, itemGuid = "ep-older-backfill", enclosureUrl = "https://example.com/older.mp3", enclosureType = "audio/mpeg", publishDate = 5L),
+                FeedItem(id = "ep-genuinely-new", feedId = feedId, itemGuid = "ep-genuinely-new", enclosureUrl = "https://example.com/new.mp3", enclosureType = "audio/mpeg", publishDate = 20L),
+            ),
+        )
+        feedRepository.setAutoDownloaded("ep-already-downloaded", true)
+        feedRepository.setDownloadedFilePath("ep-already-downloaded", "/fake/already.mp3")
+
+        recordingEnforcer.apply(
+            listOf(
+                FeedUpdateResult.Success(
+                    feedId = feedId,
+                    newItemIds = listOf("ep-older-backfill", "ep-genuinely-new"),
+                    evictedItemIds = emptyList(),
+                ),
+            ),
+        )
+
+        assertEquals(listOf("ep-genuinely-new"), enqueuedItemIds)
+    }
 }

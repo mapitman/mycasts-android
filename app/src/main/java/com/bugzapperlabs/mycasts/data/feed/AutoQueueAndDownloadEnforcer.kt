@@ -33,16 +33,17 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
             if (feed.autoDownloadEnabled) {
                 val podcastEpisodes = success.newItemIds.mapNotNull { feedRepository.getItem(it) }.filter { it.isPodcastEpisode }
                 // Only episodes newer than what's already auto-downloaded for this feed are
-                // candidates (issue #162) -- otherwise a batch of "new" items that happens to
-                // include something older than an existing download (a backfilled bonus episode,
-                // a reissued itemGuid) would get downloaded just because there was cap headroom,
-                // reaching back into the catalog instead of only ever moving forward in time.
-                // Manually-downloaded episodes don't count toward this threshold, matching
-                // enforceFeedDownloadCap below, which likewise only ever evicts autoDownloaded
-                // ones -- a manual download shouldn't silently block a newer episode's auto-download.
-                val newestAlreadyDownloaded = feed.maxDownloadsToKeep?.let {
-                    feedRepository.autoDownloadedItemsForFeed(feed.id).maxOfOrNull { item -> item.publishDate ?: 0L }
-                }
+                // candidates (issue #162), regardless of whether maxDownloadsToKeep is even set
+                // (issue #172 follow-up: this used to only compute when a finite cap was
+                // configured, so an unlimited-cap feed had no "don't reach backward" protection at
+                // all -- a batch of "new" items that happens to include something older than an
+                // existing download (a backfilled bonus episode, a reissued itemGuid, or simply a
+                // long-overdue refresh's huge backlog) would get downloaded outright, reaching back
+                // into the catalog instead of only ever moving forward in time. Manually-downloaded
+                // episodes don't count toward this threshold, matching enforceFeedDownloadCap
+                // below, which likewise only ever evicts autoDownloaded ones -- a manual download
+                // shouldn't silently block a newer episode's auto-download.
+                val newestAlreadyDownloaded = feedRepository.autoDownloadedItemsForFeed(feed.id).maxOfOrNull { it.publishDate ?: 0L }
                 val eligibleEpisodes = if (newestAlreadyDownloaded == null) {
                     podcastEpisodes
                 } else {
@@ -55,9 +56,17 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
                 // and starting that many downloads at once enqueues that many concurrent
                 // EnclosureDownloadWorkers, which was OOM-crashing the app. Newest-by-publishDate
                 // wins when there are more candidates than room, same as auto-queue.
-                val toDownload = feed.maxDownloadsToKeep?.let { cap ->
-                    eligibleEpisodes.sortedByDescending { it.publishDate ?: 0L }.take(cap)
-                } ?: eligibleEpisodes
+                //
+                // Still capped even when maxDownloadsToKeep itself is unlimited (issue #172): a
+                // real incident showed a long-delayed refresh (the app's own periodic job had been
+                // stuck, see issue #164) hitting a feed with an unlimited download cap and starting
+                // thousands of downloads in one shot. MAX_ITEMS_PER_REFRESH_WHEN_UNLIMITED only
+                // bounds how many can start from a *single* refresh's burst -- it doesn't evict
+                // anything already downloaded and doesn't apply at all once a real cap is set,
+                // preserving "unlimited" as "no ongoing cap," not "no burst limit."
+                val toDownload = eligibleEpisodes
+                    .sortedByDescending { it.publishDate ?: 0L }
+                    .take(feed.maxDownloadsToKeep ?: MAX_ITEMS_PER_REFRESH_WHEN_UNLIMITED)
                 toDownload.forEach { item -> downloadRepository.startDownload(item, autoDownloaded = true) }
                 // Makes room for what was just started above, evicting the feed's oldest
                 // auto-downloaded episodes beyond the cap (issue #162) -- also re-caught-up as
@@ -74,9 +83,16 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
                 // call is a real DB write, so adding all of them just to immediately delete most
                 // back out is both slow and leaves Next Up wildly over-cap for as long as that
                 // takes. Newest-by-publishDate wins when there are more candidates than room.
-                val toQueue = feed.autoQueueMaxCount?.let { cap ->
-                    podcastEpisodes.sortedByDescending { it.publishDate ?: 0L }.take(cap)
-                } ?: podcastEpisodes
+                //
+                // Still capped even when autoQueueMaxCount itself is unlimited (issue #172): queued
+                // items are permanently exempt from trimToItemsToKeep's episode-count cap (see
+                // FeedRepository.trimToItemsToKeep's doc), so an unbounded burst here doesn't just
+                // flood Next Up -- it also makes that whole burst permanently un-trimmable from the
+                // feed's own episode list, even after the user fixes their cap settings, until
+                // manually cleared from the queue. See MAX_ITEMS_PER_REFRESH_WHEN_UNLIMITED's doc.
+                val toQueue = podcastEpisodes
+                    .sortedByDescending { it.publishDate ?: 0L }
+                    .take(feed.autoQueueMaxCount ?: MAX_ITEMS_PER_REFRESH_WHEN_UNLIMITED)
                 toQueue.forEach { item ->
                     // issue #166: user chooses per-feed whether new episodes land at the top or
                     // bottom of Next Up.
@@ -90,5 +106,13 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
                 feed.autoQueueMaxCount?.let { queueRepository.enforceFeedCap(feed.id, it) }
             }
         }
+    }
+
+    companion object {
+        /** How many episodes a single refresh may auto-queue/auto-download when the user's own
+         *  cap is unlimited (issue #172) -- bounds only a single refresh's burst, not an ongoing
+         *  cap, so "unlimited" still means unlimited retention over time; see the two call sites'
+         *  own docs above for why an unbounded burst is worse than just "a lot of downloads." */
+        private const val MAX_ITEMS_PER_REFRESH_WHEN_UNLIMITED = 25
     }
 }
