@@ -204,6 +204,14 @@ class FeedUpdateEngine @Inject constructor(
             title = title,
             lastGet = Instant.now().toEpochMilli(),
             imageUrl = parsed.imageUrl ?: currentFeed.imageUrl,
+            // Kept in sync on every refresh, like imageUrl above -- not a one-time backfill like
+            // title (issue #170): unlike title, there's no user-editable equivalent to protect
+            // (no "userDescription" the way Feed.userTitle overrides title), so there's nothing to
+            // clobber by always taking the feed's latest value. This is also what actually fixes
+            // OPML-imported feeds (issue #167's follow-up), which previously had no description at
+            // all -- OPML outlines almost never carry one, so this was permanently null until the
+            // feed's first real refresh backfilled it here.
+            description = parsed.description.ifBlank { null } ?: currentFeed.description,
         )
         // New podcast subscriptions default to auto-queuing, capped at a small number of episodes
         // rather than unlimited (issue #137), so Next Up doesn't get flooded by a feed's entire

@@ -259,6 +259,35 @@ class FeedUpdateEngineTest {
     }
 
     @Test
+    fun updateFeed_backfillsBlankFeedDescriptionFromParsedFeed() = runTest {
+        // issue #170: an OPML-imported feed has no description at all (OPML outlines almost never
+        // carry one) -- the next refresh should fill it in from the fetched feed's own <description>.
+        val url = server.url("/feed.xml").toString()
+        val feedId = repository.subscribe(Feed(title = "Test Feed", feedUrl = url, description = null))
+        val feed = repository.getFeed(feedId)!!
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First")))
+
+        engine.updateFeed(feed)
+
+        assertEquals("desc", repository.getFeed(feed.id)!!.description)
+    }
+
+    @Test
+    fun updateFeed_keepsFeedDescriptionInSyncWithLatestFetch() = runTest {
+        // issue #170: unlike title (which only backfills a blank value, protecting a user-editable
+        // equivalent), there's no "userDescription" override to protect, so the stored description
+        // always tracks the feed's latest fetched value -- the same policy as imageUrl.
+        val url = server.url("/feed.xml").toString()
+        val feedId = repository.subscribe(Feed(title = "Test Feed", feedUrl = url, description = "Stale description"))
+        val feed = repository.getFeed(feedId)!!
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First")))
+
+        engine.updateFeed(feed)
+
+        assertEquals("desc", repository.getFeed(feed.id)!!.description)
+    }
+
+    @Test
     fun updateFeed_capsDescriptionLengthSoRowCannotExceedCursorWindowLimit() = runTest {
         // issue #234: a feed publishing a long-form full-text post large enough on its own made a
         // single row too big for Room/CursorWindow to read back, crashing the app.
