@@ -196,16 +196,22 @@ class PlaybackService : MediaSessionService() {
     }
 
     /**
-     * Keeps [preloadManager] warming up whatever's currently at the head of Next Up (issue #87),
-     * reacting to every mutation that can change it -- add/remove/reorder/auto-queue eviction all
-     * flow through [QueueRepository.observeQueue]. Runs for the service's whole lifetime, not
-     * gated on anything currently playing, so the head is already warm by the time an episode
-     * actually finishes and [playNextQueued] needs it.
+     * Keeps [preloadManager] warming up whatever's next in line after the episode currently
+     * playing (issue #87), reacting to every mutation that can change it -- add/remove/reorder/
+     * auto-queue eviction all flow through [QueueRepository.observeQueue]. Runs for the service's
+     * whole lifetime, not gated on anything currently playing, so the head is already warm by the
+     * time an episode actually finishes and [playNextQueued] needs it.
+     *
+     * Skips the queue's own front entry when it matches [Player.getCurrentMediaItem] (issue #196):
+     * the currently-playing episode is itself a real queue entry now, always at the front, so the
+     * "head" this preloads has to be the entry *after* it -- preloading the front entry itself
+     * would just be re-preloading whatever's already playing.
      */
     @OptIn(markerClass = [UnstableApi::class])
     private fun startPreloadingQueueHead() {
         serviceScope.launch {
-            queueRepository.observeQueue().map { it.firstOrNull() }.distinctUntilChanged { old, new -> old?.item?.id == new?.item?.id }
+            queueRepository.observeQueue().map { queue -> queue.firstOrNull { it.item.id != player.currentMediaItem?.mediaId } }
+                .distinctUntilChanged { old, new -> old?.item?.id == new?.item?.id }
                 .collect { head ->
                     preloadManager.reset()
                     preloadedNext = null
@@ -388,11 +394,19 @@ class PlaybackService : MediaSessionService() {
             // (setEnclosurePosition/markRead/auto-delete) below -- this episode never actually
             // completed, so none of that applies.
             if (advancingFromError) return
+            val itemId = player.currentMediaItem?.mediaId
             advancingFromError = true
             advanceWakeLock.acquire(ADVANCE_WAKE_LOCK_TIMEOUT_MS)
             serviceScope.launch {
                 try {
-                    playNextQueued()
+                    // issue #196: the failed episode is still the queue's own front entry (it
+                    // never stopped being "current" until now) -- move it out of the front before
+                    // peeking the next one, or playNextQueued would just find this same broken
+                    // episode again and loop on it forever. Moved to the back rather than removed
+                    // outright: unlike a finished episode, this one never actually played, so it's
+                    // still worth surfacing in Next Up for the user to retry later.
+                    itemId?.let { queueRepository.moveToEnd(it) }
+                    playNextQueued(excludeItemId = itemId)
                 } finally {
                     advancingFromError = false
                 }
@@ -411,7 +425,14 @@ class PlaybackService : MediaSessionService() {
                     // done beforehand was pure added silence between episodes, on top of whatever
                     // buffering the next episode's own prepare() needs (worse for a streamed
                     // episode than a downloaded one, since that also has to open a connection).
-                    playNextQueued()
+                    // issue #196: the finished episode is still the queue's own front entry (it
+                    // never stopped being "current" until now) -- excluded here rather than
+                    // removed upfront (which would reintroduce the silence gap issue #82 just
+                    // eliminated), since playNextQueued would otherwise just find this same
+                    // already-finished episode again. The row itself is dropped for real just
+                    // below, alongside the finished-episode bookkeeping it belongs next to.
+                    playNextQueued(excludeItemId = itemId)
+                    queueRepository.remove(itemId)
                     feedRepository.setEnclosurePosition(itemId, null)
                     feedRepository.markRead(itemId, true)
                     // Storage cap / auto-cleanup (issue #71): only ever deletes an episode that
@@ -437,9 +458,16 @@ class PlaybackService : MediaSessionService() {
      * issue #179: this has to keep working even with no UI/MediaController attached (backgrounded
      * or screen off), and this service is the one guaranteed to still be running when that happens.
      */
+    // issue #196: the currently-playing episode is now a real queue entry itself (the front one),
+    // kept there for as long as it's playing rather than popped off on advance the way the old
+    // pop-and-remove semantics did -- see peekFront()'s doc. [excludeItemId] covers the one case
+    // that still needs to look past the front entry regardless: a just-failed episode moved to the
+    // back of the queue (PlaybackService.onPlayerError's moveToEnd) has nowhere to actually move to
+    // if it was the queue's only entry, so it would otherwise still be sitting at the front here,
+    // and get "advanced" into again -- the exact same broken episode, looping forever.
     @OptIn(markerClass = [UnstableApi::class])
-    private suspend fun playNextQueued() {
-        val itemId = queueRepository.popNext()
+    private suspend fun playNextQueued(excludeItemId: String? = null) {
+        val itemId = queueRepository.peekFront()?.takeIf { it != excludeItemId }
         if (itemId == null) {
             player.clearMediaItems()
             settingsDataStore.setLastPlayingItem(null, null)

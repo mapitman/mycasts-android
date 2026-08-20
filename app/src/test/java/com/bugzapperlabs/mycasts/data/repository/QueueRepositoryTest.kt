@@ -128,19 +128,57 @@ class QueueRepositoryTest {
     }
 
     @Test
-    fun popNext_removesAndReturnsFrontOfQueue() = runTest {
+    fun peekFront_returnsFrontOfQueueWithoutRemovingIt() = runTest {
         queueRepository.addToEnd("ep-1")
         queueRepository.addToEnd("ep-2")
 
-        val next = queueRepository.popNext()
+        val next = queueRepository.peekFront()
 
         assertEquals("ep-1", next)
-        assertEquals(listOf("ep-2"), queueRepository.observeQueue().first().map { it.item.id })
+        assertEquals(listOf("ep-1", "ep-2"), queueRepository.observeQueue().first().map { it.item.id })
     }
 
     @Test
-    fun popNext_emptyQueue_returnsNull() = runTest {
-        assertNull(queueRepository.popNext())
+    fun peekFront_emptyQueue_returnsNull() = runTest {
+        assertNull(queueRepository.peekFront())
+    }
+
+    @Test
+    fun moveToFront_alreadyQueued_movesExistingEntryToFront() = runTest {
+        queueRepository.addToEnd("ep-1")
+        queueRepository.addToEnd("ep-2")
+
+        queueRepository.moveToFront("ep-2")
+
+        assertEquals(listOf("ep-2", "ep-1"), queueRepository.observeQueue().first().map { it.item.id })
+    }
+
+    @Test
+    fun moveToFront_notQueued_insertsAtFront() = runTest {
+        queueRepository.addToEnd("ep-1")
+
+        queueRepository.moveToFront("ep-2")
+
+        assertEquals(listOf("ep-2", "ep-1"), queueRepository.observeQueue().first().map { it.item.id })
+    }
+
+    @Test
+    fun moveToEnd_queuedEntry_movesToBackOfQueue() = runTest {
+        queueRepository.addToEnd("ep-1")
+        queueRepository.addToEnd("ep-2")
+
+        queueRepository.moveToEnd("ep-1")
+
+        assertEquals(listOf("ep-2", "ep-1"), queueRepository.observeQueue().first().map { it.item.id })
+    }
+
+    @Test
+    fun moveToEnd_notQueued_doesNothing() = runTest {
+        queueRepository.addToEnd("ep-1")
+
+        queueRepository.moveToEnd("ep-2")
+
+        assertEquals(listOf("ep-1"), queueRepository.observeQueue().first().map { it.item.id })
     }
 
     @Test

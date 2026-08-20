@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Downloading
 import androidx.compose.material.icons.filled.OfflinePin
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistRemove
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
@@ -611,12 +612,32 @@ private fun RowScope.QueueRowContent(
             )
         }
         androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = EpisodeDateFormatter.format(episode.item.publishDate),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
+            // issue #196: the currently-playing episode is a real (always-front) queue entry now,
+            // shown in this same list rather than hidden from it -- swaps the date for an explicit
+            // "Now Playing" label so that's unmistakable at a glance, not just inferable from the
+            // row's highlight color (issue #96) alone.
+            if (isCurrentlyPlaying) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = stringResource(R.string.now_playing_title),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    modifier = Modifier.padding(start = 2.dp),
+                )
+            } else {
+                Text(
+                    text = EpisodeDateFormatter.format(episode.item.publishDate),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
             // issue #192: EpisodeListScreen already shows this per-row (see its own doc for why
             // OfflinePin over DownloadDone), but the queue had no equivalent -- useful now that
             // issue #188 added a bulk "download all" action here, with no other way to see which

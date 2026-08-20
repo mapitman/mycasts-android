@@ -222,15 +222,16 @@ class PlaybackController @Inject constructor(
 
     /**
      * Returns false without starting playback if streaming is disallowed and nothing is
-     * downloaded. Removes [item] from the Next Up queue unconditionally, even when playback then
-     * fails to start -- issue #171: it's already shown pinned to the top of the Next Up screen via
-     * the current-playback player bar, so a leftover queue entry for it would just be a duplicate
-     * further down the list. Mirrors the dequeue-then-play behavior [QueueRepository] callers used
-     * to have to do themselves (e.g. the old `QueueViewModel.playNow`), but now for every path that
-     * starts playback.
+     * downloaded. Moves [item] to the front of the Next Up queue unconditionally, even when
+     * playback then fails to start (issue #196): the currently-playing episode is meant to be a
+     * real, visible queue entry -- always the front one -- rather than hidden from Next Up
+     * entirely, so it shows up there clearly marked as playing instead of only via the mini/expanded
+     * player. Mirrors the move-to-front-then-play behavior [QueueRepository] callers used to have
+     * to do themselves (e.g. the old `QueueViewModel.playNow`), but now for every path that starts
+     * playback.
      */
     suspend fun play(item: FeedItem, feedTitle: String?): Boolean {
-        queueRepository.remove(item.id)
+        queueRepository.moveToFront(item.id)
         return loadMedia(item, feedTitle, autoPlay = true)
     }
 
@@ -247,6 +248,11 @@ class PlaybackController @Inject constructor(
         val itemId = settings.lastPlayingItemId ?: return
         val item = feedRepository.getItem(itemId)?.takeIf { it.feedId == feedId && !it.isRead } ?: return
         val feed = feedRepository.getFeed(feedId)
+        // issue #196: keeps the restored episode as the queue's front entry too, the same as any
+        // other path that makes an episode "current" -- it may already be there (a normal resume),
+        // but a cold start after the app's own process died mid-playback is also how a
+        // still-current episode could end up missing from the queue table altogether.
+        queueRepository.moveToFront(itemId)
         loadMedia(item, feed?.userTitle ?: feed?.title, autoPlay = false)
     }
 
@@ -256,7 +262,7 @@ class PlaybackController @Inject constructor(
 
         val previousItemId = currentItemId
         if (previousItemId != null && previousItemId != item.id) {
-            requeuePreviousEpisode(previousItemId)
+            dropFromQueueIfFinished(previousItemId)
         }
 
         currentFeedId = item.feedId
@@ -304,12 +310,17 @@ class PlaybackController @Inject constructor(
 
     /**
      * Whatever was playing before a switch stays in "Next Up" as long as it wasn't finished
-     * (issue #106) -- mirrors [restoreLastPlayingItem]'s `!isRead` check for "not completed".
-     * A no-op if it's already queued (e.g. the user played straight from the queue).
+     * (issue #106) -- since issue #196, it's already a real queue entry the whole time it's
+     * playing (see [play]/[QueueRepository.moveToFront]), so there's nothing to *add* here; this
+     * only needs to drop it if it turns out to have actually finished (mirrors
+     * [restoreLastPlayingItem]'s `!isRead` check for "not completed") -- a finished episode
+     * shouldn't linger in Next Up just because it still happened to be the queue's front entry
+     * when playback moved on. A no-op if it was never queued in the first place, or the user
+     * already removed it from Next Up themselves while it was still playing.
      */
-    private suspend fun requeuePreviousEpisode(itemId: String) {
-        val previous = feedRepository.getItem(itemId)?.takeIf { !it.isRead } ?: return
-        queueRepository.addToFront(previous.id)
+    private suspend fun dropFromQueueIfFinished(itemId: String) {
+        val previous = feedRepository.getItem(itemId)?.takeIf { it.isRead } ?: return
+        queueRepository.remove(previous.id)
     }
 
     fun pause() {
@@ -408,9 +419,10 @@ class PlaybackController @Inject constructor(
         positionTickerScope.launch(Dispatchers.IO) {
             settingsDataStore.setLastPlayingItem(null, null)
             // Explicit stop just ends "now playing" -- unlike natural completion, the episode
-            // isn't finished, so it goes back into Next Up the same way switching to a different
-            // episode already does (issue #191), instead of disappearing from the app entirely.
-            itemId?.let { requeuePreviousEpisode(it) }
+            // isn't finished, so it stays in Next Up the same way switching to a different episode
+            // already does (issue #191); it's already there as the front entry (issue #196), so
+            // this is only a safety net for the edge case where it's since been marked read.
+            itemId?.let { dropFromQueueIfFinished(it) }
         }
     }
 
