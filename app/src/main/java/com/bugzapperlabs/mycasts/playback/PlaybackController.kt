@@ -154,6 +154,13 @@ class PlaybackController @Inject constructor(
                 if (newItemId != currentItemId) {
                     currentVolumeBoostMillibels = player.currentMediaItem?.mediaMetadata?.extras
                         ?.getInt(VOLUME_BOOST_EXTRA_KEY, 0) ?: 0
+                    // issue #202: this branch also covers a transition that didn't go through
+                    // loadMedia (PlaybackService's own backgrounded auto-advance, issue #179) --
+                    // without re-fetching here too, currentChapters kept showing the previous
+                    // episode's chapters (or none) for every episode Next Up advanced into on its
+                    // own, which in practice is most of them.
+                    currentChapters = emptyList()
+                    if (newItemId != null) loadChaptersById(newItemId)
                 }
                 currentItemId = newItemId
                 _uiState.value = snapshotState(player)
@@ -272,10 +279,24 @@ class PlaybackController @Inject constructor(
     /** Fetched asynchronously so a slow/unreachable chapters host never delays playback starting. */
     private fun loadChapters(item: FeedItem) {
         val chaptersUrl = item.chaptersUrl ?: return
+        fetchAndApplyChapters(item.id, chaptersUrl)
+    }
+
+    /** Same as [loadChapters], but for a transition PlaybackController only learned about via
+     *  [playerListener] (issue #202) -- e.g. [PlaybackService]'s own backgrounded auto-advance
+     *  (issue #179) -- so there's no already-in-hand [FeedItem] to read chaptersUrl off of. */
+    private fun loadChaptersById(itemId: String) {
+        positionTickerScope.launch {
+            val chaptersUrl = feedRepository.getItem(itemId)?.chaptersUrl ?: return@launch
+            fetchAndApplyChapters(itemId, chaptersUrl)
+        }
+    }
+
+    private fun fetchAndApplyChapters(itemId: String, chaptersUrl: String) {
         positionTickerScope.launch {
             val chapters = chaptersFetcher.fetch(chaptersUrl)
             // The user may have already switched to another episode by the time this resolves.
-            if (currentItemId != item.id) return@launch
+            if (currentItemId != itemId) return@launch
             currentChapters = chapters
             _uiState.value = _uiState.value.copy(chapters = chapters)
         }
