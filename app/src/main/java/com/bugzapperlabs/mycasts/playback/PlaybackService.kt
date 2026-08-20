@@ -115,6 +115,11 @@ class PlaybackService : MediaSessionService() {
     // coroutine handling the first call has advanced the player off STATE_ENDED.
     private var advancingFromEnded = false
 
+    // Same guard as advancingFromEnded, but for onPlayerError (issue #201) -- kept separate since
+    // the two can be in flight for entirely unrelated items (an error on a freshly-started episode
+    // while a previous STATE_ENDED advance's own bookkeeping coroutine hasn't finished yet).
+    private var advancingFromError = false
+
     @OptIn(markerClass = [UnstableApi::class])
     override fun onCreate() {
         super.onCreate()
@@ -375,6 +380,23 @@ class PlaybackService : MediaSessionService() {
             // Advance failed to start (issue #241) -- don't hold the wake lock for its full
             // timeout when we already know playback isn't coming.
             if (advanceWakeLock.isHeld) advanceWakeLock.release()
+            // issue #201: a broken episode (e.g. its downloaded file was deleted or corrupted, or
+            // a stream failed outright) otherwise leaves the player parked on it forever --
+            // isPlaying goes false, but currentMediaItem never changes, so the UI keeps showing it
+            // as merely "paused" rather than surfacing the failure or moving on. Skip it the same
+            // way a naturally-finished episode advances, minus the finished-episode bookkeeping
+            // (setEnclosurePosition/markRead/auto-delete) below -- this episode never actually
+            // completed, so none of that applies.
+            if (advancingFromError) return
+            advancingFromError = true
+            advanceWakeLock.acquire(ADVANCE_WAKE_LOCK_TIMEOUT_MS)
+            serviceScope.launch {
+                try {
+                    playNextQueued()
+                } finally {
+                    advancingFromError = false
+                }
+            }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
