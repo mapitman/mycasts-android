@@ -45,6 +45,34 @@ class QueueRepository @Inject constructor(
         )
     }
 
+    /**
+     * Ensures [itemId] is the queue's front entry (issue #196): moves it there if already queued,
+     * inserts it there (never as auto-queued) otherwise. This is how [com.bugzapperlabs.mycasts.playback.PlaybackController]
+     * marks an episode "now playing" -- the currently-playing episode is a real queue entry like
+     * any other, always at the front, rather than a special case hidden from the queue entirely,
+     * so it shows up in Next Up itself (clearly marked) instead of only via the mini/expanded player.
+     */
+    suspend fun moveToFront(itemId: String) {
+        val position = queueDao.minPosition() - 1
+        if (queueDao.findItemId(itemId) != null) {
+            queueDao.setPosition(itemId, position)
+        } else {
+            queueDao.insert(QueueEntry(itemId, position = position, addedAt = System.currentTimeMillis()))
+        }
+    }
+
+    /**
+     * Moves [itemId] to the back of the queue if it's currently queued; a no-op otherwise (issue
+     * #196). Used to get a just-failed episode out of the front slot so [PlaybackService] doesn't
+     * immediately trip over it again advancing to whatever's next, without discarding it outright
+     * the way a finished episode is -- it never actually played, so it's still worth surfacing in
+     * Next Up for the user to retry.
+     */
+    suspend fun moveToEnd(itemId: String) {
+        if (queueDao.findItemId(itemId) == null) return
+        queueDao.setPosition(itemId, queueDao.maxPosition() + 1)
+    }
+
     /** Returns the entry that was removed (for issue #284's undo), or null if it wasn't queued. */
     suspend fun remove(itemId: String): QueueEntry? {
         val entry = queueDao.getEntry(itemId) ?: return null
@@ -61,12 +89,10 @@ class QueueRepository @Inject constructor(
         orderedItemIds.forEachIndexed { index, itemId -> queueDao.setPosition(itemId, index) }
     }
 
-    /** Removes and returns the item at the front of the queue, or null if the queue is empty. */
-    suspend fun popNext(): String? {
-        val next = queueDao.firstItemId() ?: return null
-        queueDao.remove(next)
-        return next
-    }
+    /** The item at the front of the queue, without removing it (issue #196) -- the currently-playing
+     *  episode is meant to stay queued (as the front entry) for as long as it's playing, so
+     *  advancing to it shouldn't also dequeue it the way the old pop-and-remove semantics did. */
+    suspend fun peekFront(): String? = queueDao.firstItemId()
 
     /**
      * Evicts this feed's oldest *auto-queued* episodes (earliest added, not earliest published)

@@ -11,11 +11,13 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -100,12 +102,45 @@ class PlaybackControllerTest {
     }
 
     /**
-     * issue #171: the currently playing episode is already shown pinned to the top of the Next Up
-     * screen via the current-playback player bar, so a leftover Next Up queue entry for it would
-     * just be a duplicate -- playing an episode that's queued should dequeue it.
+     * issue #196: the currently-playing episode is a real Next Up queue entry itself -- always
+     * the front one, clearly marked as playing -- rather than hidden from the queue entirely, so
+     * playing an already-queued episode should move it to the front, not dequeue it.
      */
     @Test
-    fun play_episodeAlreadyQueued_removesItFromQueue() = runTest {
+    fun play_episodeAlreadyQueued_movesItToFrontOfQueue() = runTest {
+        val feedId = feedRepository.subscribe(Feed(title = "Feed"))
+        val item = FeedItem(
+            id = "episode-1",
+            feedId = feedId,
+            title = "Episode One",
+            itemGuid = "g-episode-1",
+            enclosureUrl = "https://example.com/ep1.mp3",
+            enclosureType = "audio/mpeg",
+        )
+        val otherItem = FeedItem(
+            id = "episode-2",
+            feedId = feedId,
+            title = "Episode Two",
+            itemGuid = "g-episode-2",
+            enclosureUrl = "https://example.com/ep2.mp3",
+            enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(item, otherItem))
+        queueRepository.addToEnd(otherItem.id)
+        queueRepository.addToEnd(item.id)
+
+        playbackController.play(item, "Feed")
+
+        assertTrue(queueRepository.isQueued(item.id))
+        assertEquals(listOf(item.id, otherItem.id), queueRepository.observeQueue().first().map { it.item.id })
+    }
+
+    /**
+     * issue #196: playing an episode that wasn't queued at all should insert it at the front, the
+     * same as moving an already-queued one there.
+     */
+    @Test
+    fun play_episodeNotQueued_insertsItAtFrontOfQueue() = runTest {
         val feedId = feedRepository.subscribe(Feed(title = "Feed"))
         val item = FeedItem(
             id = "episode-1",
@@ -116,10 +151,9 @@ class PlaybackControllerTest {
             enclosureType = "audio/mpeg",
         )
         feedRepository.insertItems(listOf(item))
-        queueRepository.addToEnd(item.id)
 
         playbackController.play(item, "Feed")
 
-        assertFalse(queueRepository.isQueued(item.id))
+        assertTrue(queueRepository.isQueued(item.id))
     }
 }

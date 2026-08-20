@@ -203,13 +203,16 @@ class QueueViewModelTest {
     }
 
     @Test
-    fun playNow_removesEpisodeFromQueue() = runTest(testDispatcher) {
-        val episode = viewModel.queue.first { it.size == 2 }.first()
+    fun playNow_movesEpisodeToFrontOfQueue() = runTest(testDispatcher) {
+        // issue #196: the currently-playing episode stays queued (as the front entry, clearly
+        // marked as playing) rather than being dequeued -- playing the queue's second episode
+        // should swap the two, not shrink the queue.
+        val episode = viewModel.queue.first { it.size == 2 }.last()
 
         viewModel.playNow(episode)
 
-        val state = viewModel.queue.first { it.size == 1 }
-        assertEquals(listOf("ep-2"), state.map { it.item.id })
+        val state = viewModel.queue.first { it.first().item.id == "ep-2" }
+        assertEquals(listOf("ep-2", "ep-1"), state.map { it.item.id })
     }
 
     @Test
