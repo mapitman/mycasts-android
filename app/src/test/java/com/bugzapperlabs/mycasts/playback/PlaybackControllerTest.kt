@@ -54,6 +54,7 @@ class PlaybackControllerTest {
             feedRepository,
             queueRepository,
             ChaptersFetcher(OkHttpClient()),
+            NetworkTypeChecker { false },
         )
     }
 

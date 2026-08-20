@@ -27,7 +27,11 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
                 ?: AppSettings().allowPodcastDownloadOnBattery,
             allowPodcastDownloadOnCellular = prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR]
                 ?: AppSettings().allowPodcastDownloadOnCellular,
-            allowPodcastStreaming = prefs[Keys.ALLOW_PODCAST_STREAMING] ?: AppSettings().allowPodcastStreaming,
+            // issue #123: reuses the same DataStore key the old blanket "allow streaming" toggle
+            // used -- an existing choice carries over as-is rather than resetting, just under
+            // narrower (cellular-only) semantics now.
+            allowPodcastStreamingOnCellular = prefs[Keys.ALLOW_PODCAST_STREAMING]
+                ?: AppSettings().allowPodcastStreamingOnCellular,
             autoDeleteFinishedDownloads = prefs[Keys.AUTO_DELETE_FINISHED_DOWNLOADS]
                 ?: AppSettings().autoDeleteFinishedDownloads,
             notifyOnNewItems = prefs[Keys.NOTIFY_ON_NEW_ITEMS] ?: AppSettings().notifyOnNewItems,
@@ -88,7 +92,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR] = value }
     }
 
-    suspend fun setAllowPodcastStreaming(value: Boolean) {
+    suspend fun setAllowPodcastStreamingOnCellular(value: Boolean) {
         dataStore.edit { it[Keys.ALLOW_PODCAST_STREAMING] = value }
     }
 
@@ -143,7 +147,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
             prefs[Keys.DEFAULT_TO_ALL_ARTICLE_VIEW] = settings.defaultToAllItemsView
             prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_BATTERY] = settings.allowPodcastDownloadOnBattery
             prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR] = settings.allowPodcastDownloadOnCellular
-            prefs[Keys.ALLOW_PODCAST_STREAMING] = settings.allowPodcastStreaming
+            prefs[Keys.ALLOW_PODCAST_STREAMING] = settings.allowPodcastStreamingOnCellular
             prefs[Keys.AUTO_DELETE_FINISHED_DOWNLOADS] = settings.autoDeleteFinishedDownloads
             prefs[Keys.NOTIFY_ON_NEW_ITEMS] = settings.notifyOnNewItems
             settings.lastImportUrl?.let { prefs[Keys.LAST_IMPORT_URL] = it }

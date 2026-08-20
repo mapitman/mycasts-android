@@ -95,8 +95,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setAllowPodcastDownloadOnCellular(value) }
     }
 
-    fun setAllowPodcastStreaming(value: Boolean) {
-        viewModelScope.launch { settingsDataStore.setAllowPodcastStreaming(value) }
+    fun setAllowPodcastStreamingOnCellular(value: Boolean) {
+        viewModelScope.launch { settingsDataStore.setAllowPodcastStreamingOnCellular(value) }
     }
 
     fun setAutoDeleteFinishedDownloads(value: Boolean) {

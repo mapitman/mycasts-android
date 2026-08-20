@@ -70,7 +70,7 @@ class AppBackupTest {
             defaultToAllItemsView = true,
             allowPodcastDownloadOnBattery = true,
             allowPodcastDownloadOnCellular = true,
-            allowPodcastStreaming = false,
+            allowPodcastStreamingOnCellular = false,
             autoDeleteFinishedDownloads = true,
             notifyOnNewItems = true,
             lastImportUrl = "https://example.com/import.opml",

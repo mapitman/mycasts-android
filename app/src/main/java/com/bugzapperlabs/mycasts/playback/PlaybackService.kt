@@ -89,6 +89,9 @@ class PlaybackService : MediaSessionService() {
     @Inject
     lateinit var queueRepository: QueueRepository
 
+    @Inject
+    lateinit var networkTypeChecker: NetworkTypeChecker
+
     private lateinit var player: ExoPlayer
 
     @UnstableApi
@@ -216,7 +219,7 @@ class PlaybackService : MediaSessionService() {
                     preloadManager.reset()
                     preloadedNext = null
                     if (head == null) return@collect
-                    val resolved = PlaybackMediaItemFactory.resolve(head.item, head.feedTitle, feedRepository, settingsDataStore)
+                    val resolved = PlaybackMediaItemFactory.resolve(head.item, head.feedTitle, feedRepository, settingsDataStore, networkTypeChecker)
                         ?: return@collect
                     preloadedNext = head.item.id to resolved
                     preloadManager.add(resolved.mediaItem, /* rankingData= */ 0)
@@ -486,7 +489,7 @@ class PlaybackService : MediaSessionService() {
         val resolved = cachedPreload ?: run {
             val item = feedRepository.getItem(itemId) ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
             val feed = feedRepository.getFeed(item.feedId)
-            PlaybackMediaItemFactory.resolve(item, feed?.userTitle ?: feed?.title, feedRepository, settingsDataStore)
+            PlaybackMediaItemFactory.resolve(item, feed?.userTitle ?: feed?.title, feedRepository, settingsDataStore, networkTypeChecker)
                 ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
         }
         val feedId = resolved.mediaItem.mediaMetadata.extras?.getLong(FEED_ID_EXTRA_KEY)

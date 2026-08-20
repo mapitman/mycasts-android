@@ -60,14 +60,23 @@ val NOTIFICATION_PLAYBACK_SPEEDS = listOf(1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
  * [PlaybackController]'s loadMedia).
  */
 object PlaybackMediaItemFactory {
-    /** Returns null without resolving anything if streaming is disallowed and nothing is downloaded. */
+    /**
+     * Returns null without resolving anything if streaming is disallowed and nothing is
+     * downloaded. Wi-Fi streaming is always allowed (issue #123); [networkTypeChecker] only gates
+     * the cellular case, checked once here at resolve (i.e. playback-start) time -- a stream
+     * already in progress is allowed to keep playing through a later network change, so this
+     * never needs rechecking mid-session. Defaults to "never cellular" since most callers (tests
+     * exercising unrelated behavior, primarily) don't care about this gating at all.
+     */
     suspend fun resolve(
         item: FeedItem,
         feedTitle: String?,
         feedRepository: FeedRepository,
         settingsDataStore: SettingsDataStore,
+        networkTypeChecker: NetworkTypeChecker = NetworkTypeChecker { false },
     ): ResolvedPlaybackMedia? {
-        val allowStreaming = settingsDataStore.settings.first().allowPodcastStreaming
+        val settings = settingsDataStore.settings.first()
+        val allowStreaming = !networkTypeChecker.isActiveNetworkCellular() || settings.allowPodcastStreamingOnCellular
         val downloadedFilePath = item.downloadedFilePath?.takeIf { File(it).exists() }
         val uri = PlaybackUrlResolver.resolve(item, downloadedFilePath, allowStreaming = allowStreaming)
             ?: return null

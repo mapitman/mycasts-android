@@ -18,6 +18,7 @@ import com.bugzapperlabs.mycasts.download.DownloadFeedbackCoordinator
 import com.bugzapperlabs.mycasts.download.DownloadScheduling
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.playback.ChaptersFetcher
+import com.bugzapperlabs.mycasts.playback.NetworkTypeChecker
 import com.bugzapperlabs.mycasts.playback.PlaybackController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -88,6 +89,7 @@ class EpisodeDetailsViewModelTest {
             repository,
             queueRepository,
             ChaptersFetcher(OkHttpClient()),
+            NetworkTypeChecker { false },
         )
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,

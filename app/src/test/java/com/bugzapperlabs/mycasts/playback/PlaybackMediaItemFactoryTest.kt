@@ -13,6 +13,7 @@ import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Rule
@@ -135,8 +136,10 @@ class PlaybackMediaItemFactoryTest {
     }
 
     @Test
-    fun resolve_streamingDisallowedAndNotDownloaded_returnsNull() = runTest {
-        settingsDataStore.setAllowPodcastStreaming(false)
+    fun resolve_cellularStreamingDisallowedAndOnCellularAndNotDownloaded_returnsNull() = runTest {
+        // issue #123: the renamed setting only gates the cellular case -- this needs an actually-
+        // cellular NetworkTypeChecker to trigger, unlike the old blanket toggle.
+        settingsDataStore.setAllowPodcastStreamingOnCellular(false)
         val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         val item = FeedItem(
             id = "episode-1",
@@ -148,8 +151,53 @@ class PlaybackMediaItemFactoryTest {
         )
         feedRepository.insertItems(listOf(item))
 
-        val resolved = PlaybackMediaItemFactory.resolve(item, "A Feed", feedRepository, settingsDataStore)
+        val resolved = PlaybackMediaItemFactory.resolve(
+            item, "A Feed", feedRepository, settingsDataStore, networkTypeChecker = NetworkTypeChecker { true },
+        )
 
         assertNull(resolved)
+    }
+
+    @Test
+    fun resolve_cellularStreamingDisallowedButOnWifi_stillStreams() = runTest {
+        // issue #123: Wi-Fi streaming is always allowed regardless of the cellular setting.
+        settingsDataStore.setAllowPodcastStreamingOnCellular(false)
+        val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
+        val item = FeedItem(
+            id = "episode-1",
+            feedId = feedId,
+            title = "Episode One",
+            itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3",
+            enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(item))
+
+        val resolved = PlaybackMediaItemFactory.resolve(
+            item, "A Feed", feedRepository, settingsDataStore, networkTypeChecker = NetworkTypeChecker { false },
+        )
+
+        assertNotNull(resolved)
+    }
+
+    @Test
+    fun resolve_onCellularWithCellularStreamingAllowed_stillStreams() = runTest {
+        settingsDataStore.setAllowPodcastStreamingOnCellular(true)
+        val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
+        val item = FeedItem(
+            id = "episode-1",
+            feedId = feedId,
+            title = "Episode One",
+            itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3",
+            enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(item))
+
+        val resolved = PlaybackMediaItemFactory.resolve(
+            item, "A Feed", feedRepository, settingsDataStore, networkTypeChecker = NetworkTypeChecker { true },
+        )
+
+        assertNotNull(resolved)
     }
 }
