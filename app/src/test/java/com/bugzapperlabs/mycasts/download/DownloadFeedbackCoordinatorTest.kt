@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedItem
@@ -12,6 +13,7 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
 import kotlinx.coroutines.test.runTest
@@ -46,6 +48,7 @@ class DownloadFeedbackCoordinatorTest {
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var downloadRepository: EnclosureDownloadRepository
     private lateinit var coordinator: DownloadFeedbackCoordinator
+    private val failureReason = MutableStateFlow<String?>(null)
     private var feedId: Long = 0
 
     @Before
@@ -64,6 +67,7 @@ class DownloadFeedbackCoordinatorTest {
                 override fun cancelDownload(itemId: String) {}
                 override fun cancelAllDownloads() {}
                 override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+                override fun observeFailureReason(itemId: String): Flow<String?> = failureReason
             },
             settingsDataStore = settingsDataStore,
         )
@@ -129,6 +133,25 @@ class DownloadFeedbackCoordinatorTest {
 
         val result = coordinator.result.first { it != null }
         assertTrue(result!!.contains(item.title.orEmpty()))
+        assertTrue(item.id !in coordinator.pendingItemIds.value)
+    }
+
+    @Test
+    fun startDownload_lowStorageFailure_setsSpecificMessageBeforeTimeout() = runTest {
+        // issue #209: a low-storage failure resolves almost immediately -- this uses a much
+        // longer timeout than the failure signal's own near-instant arrival to prove the specific
+        // message doesn't wait out the generic "didn't start" timeout at all.
+        val item = seedItem()
+        coordinator.downloadStartTimeoutMs = 5_000L
+
+        coordinator.startDownload(item)
+        failureReason.value = EnclosureDownloadWorker.FAILURE_REASON_LOW_STORAGE
+
+        val result = coordinator.result.first { it != null }
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        assertTrue(result!!.contains(item.title.orEmpty()))
+        assertTrue(result != context.getString(R.string.download_feedback_not_started, item.title.orEmpty()))
+        assertEquals(context.getString(R.string.download_feedback_failed_low_storage, item.title.orEmpty()), result)
         assertTrue(item.id !in coordinator.pendingItemIds.value)
     }
 

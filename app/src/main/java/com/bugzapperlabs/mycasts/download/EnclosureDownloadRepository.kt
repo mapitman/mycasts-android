@@ -80,6 +80,9 @@ class EnclosureDownloadRepository @Inject constructor(
      *  which can't see a job stuck retrying before writing a first byte. */
     fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = downloadScheduling.observeDownloadWorkInfo()
 
+    /** See [DownloadScheduling.observeFailureReason] (issue #209). */
+    fun observeFailureReason(itemId: String): Flow<String?> = downloadScheduling.observeFailureReason(itemId)
+
     /** Cancels a single download job by item id (issue #156), for [observeDownloadWorkInfo]'s
      *  per-row cancel -- clears any partial-progress byte count too, since a cancelled job leaves
      *  none of [deleteDownload]'s usual downloadedFilePath to signal "nothing to see here". */

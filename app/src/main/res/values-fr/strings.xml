@@ -87,6 +87,7 @@
     <string name="download_feedback_deleted_multiple">%1$d téléchargements supprimés</string>
     <string name="download_feedback_nothing_to_delete">Aucun téléchargement à supprimer</string>
     <string name="download_feedback_not_started">Impossible de démarrer le téléchargement de « %1$s »</string>
+    <string name="download_feedback_failed_low_storage">Espace de stockage insuffisant pour télécharger « %1$s »</string>
     <string name="cd_download_selected">Télécharger les épisodes sélectionnés</string>
     <string name="cd_download_all_queued">Télécharger tous les épisodes « À suivre »</string>
     <string name="action_undo">Annuler</string>

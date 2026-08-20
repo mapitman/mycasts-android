@@ -8,6 +8,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import com.bugzapperlabs.mycasts.MyCastsApp
@@ -70,7 +71,7 @@ class EnclosureDownloadWorker @AssistedInject constructor(
         // fails, so a download doesn't even begin when there's already nowhere for it to land.
         if (downloadDir.usableSpace < MIN_FREE_BYTES_TO_ATTEMPT) {
             Log.w(TAG, "Skipping download for $url -- only ${downloadDir.usableSpace} bytes free")
-            return@withContext Result.failure()
+            return@withContext Result.failure(lowStorageFailureData())
         }
 
         val request = Request.Builder().url(url).apply {
@@ -117,7 +118,7 @@ class EnclosureDownloadWorker @AssistedInject constructor(
             // the disk mid-write, after the earlier pre-flight check already passed.
             if (downloadDir.usableSpace < MIN_FREE_BYTES_TO_ATTEMPT) {
                 Log.w(TAG, "Giving up on $url -- ran out of storage mid-download", e)
-                return@withContext Result.failure()
+                return@withContext Result.failure(lowStorageFailureData())
             }
             Log.w(TAG, "Download failed for $url, will retry", e)
             return@withContext Result.retry()
@@ -126,6 +127,12 @@ class EnclosureDownloadWorker @AssistedInject constructor(
         downloadRepository.completeDownload(itemId, file.absolutePath)
         Result.success()
     }
+
+    /** Carries *why* a failure happened (issue #209) in the WorkInfo's outputData, so
+     *  [EnclosureDownloadRepository.observeFailureReason] can tell [DownloadFeedbackCoordinator]
+     *  something more useful than "didn't start" -- a plain Result.failure() with no data is
+     *  otherwise indistinguishable from any other permanent failure once observed as a WorkInfo. */
+    private fun lowStorageFailureData() = workDataOf(KEY_FAILURE_REASON to FAILURE_REASON_LOW_STORAGE)
 
     private fun createForegroundInfo(item: FeedItem, downloadedBytes: Long, totalBytes: Long?): ForegroundInfo {
         val downloadedMb = downloadedBytes / BYTES_PER_MB
@@ -155,6 +162,11 @@ class EnclosureDownloadWorker @AssistedInject constructor(
     companion object {
         const val KEY_ITEM_ID = "itemId"
         const val DOWNLOAD_DIR = "podcast_downloads"
+
+        /** outputData key/value pair (issue #209) a caller can read off a FAILED WorkInfo to tell
+         *  a low-storage failure apart from any other permanent one. */
+        const val KEY_FAILURE_REASON = "failureReason"
+        const val FAILURE_REASON_LOW_STORAGE = "low_storage"
         private const val BUFFER_SIZE = 8 * 1024
         private const val PROGRESS_PERSIST_INTERVAL_BYTES = 256 * 1024L
         private const val BYTES_PER_MB = 1024f * 1024f
