@@ -167,7 +167,9 @@ private fun AppSettings.toJson(): JSONObject = JSONObject().apply {
     put("defaultToAllItemsView", defaultToAllItemsView)
     put("allowPodcastDownloadOnBattery", allowPodcastDownloadOnBattery)
     put("allowPodcastDownloadOnCellular", allowPodcastDownloadOnCellular)
-    put("allowPodcastStreaming", allowPodcastStreaming)
+    // issue #123: JSON key kept as "allowPodcastStreaming" (not renamed to match the Kotlin
+    // property) so a backup exported before this change still restores correctly.
+    put("allowPodcastStreaming", allowPodcastStreamingOnCellular)
     put("autoDeleteFinishedDownloads", autoDeleteFinishedDownloads)
     put("notifyOnNewItems", notifyOnNewItems)
     putOpt("lastImportUrl", lastImportUrl)
@@ -203,7 +205,11 @@ private fun JSONObject.toAppSettings(): AppSettings {
         } else {
             defaults.allowPodcastDownloadOnCellular
         },
-        allowPodcastStreaming = if (has("allowPodcastStreaming")) getBoolean("allowPodcastStreaming") else defaults.allowPodcastStreaming,
+        allowPodcastStreamingOnCellular = if (has("allowPodcastStreaming")) {
+            getBoolean("allowPodcastStreaming")
+        } else {
+            defaults.allowPodcastStreamingOnCellular
+        },
         autoDeleteFinishedDownloads = if (has("autoDeleteFinishedDownloads")) {
             getBoolean("autoDeleteFinishedDownloads")
         } else {

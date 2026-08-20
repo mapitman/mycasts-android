@@ -137,7 +137,7 @@
     <string name="settings_font_size_preview">The quick brown fox jumps over the lazy dog.</string>
     <string name="settings_download_on_battery">Download on battery</string>
     <string name="settings_download_on_cellular">Download on cellular</string>
-    <string name="settings_allow_streaming">Allow streaming</string>
+    <string name="settings_allow_streaming_on_cellular">Allow streaming over cellular</string>
     <string name="settings_auto_delete_finished_downloads">Auto-delete downloads once played</string>
     <string name="settings_auto_download_new_feeds">Auto-download new subscriptions</string>
     <string name="settings_auto_download_max_count">Downloads to keep per podcast</string>

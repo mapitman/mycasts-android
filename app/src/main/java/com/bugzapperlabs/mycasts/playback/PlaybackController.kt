@@ -79,6 +79,7 @@ class PlaybackController @Inject constructor(
     private val feedRepository: FeedRepository,
     private val queueRepository: QueueRepository,
     private val chaptersFetcher: ChaptersFetcher,
+    private val networkTypeChecker: NetworkTypeChecker,
 ) {
     private var controller: MediaController? = null
 
@@ -257,7 +258,7 @@ class PlaybackController @Inject constructor(
     }
 
     private suspend fun loadMedia(item: FeedItem, feedTitle: String?, autoPlay: Boolean): Boolean {
-        val resolved = PlaybackMediaItemFactory.resolve(item, feedTitle, feedRepository, settingsDataStore)
+        val resolved = PlaybackMediaItemFactory.resolve(item, feedTitle, feedRepository, settingsDataStore, networkTypeChecker)
             ?: return false
 
         val previousItemId = currentItemId

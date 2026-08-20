@@ -41,7 +41,7 @@ class SettingsDataStoreTest {
         assertFalse(settings.defaultToAllItemsView)
         assertFalse(settings.allowPodcastDownloadOnBattery)
         assertFalse(settings.allowPodcastDownloadOnCellular)
-        assertTrue(settings.allowPodcastStreaming)
+        assertTrue(settings.allowPodcastStreamingOnCellular)
         assertFalse(settings.autoDeleteFinishedDownloads)
         assertNull(settings.lastImportUrl)
     }
@@ -55,7 +55,7 @@ class SettingsDataStoreTest {
         settingsDataStore.setDefaultToAllItemsView(true)
         settingsDataStore.setAllowPodcastDownloadOnBattery(true)
         settingsDataStore.setAllowPodcastDownloadOnCellular(true)
-        settingsDataStore.setAllowPodcastStreaming(false)
+        settingsDataStore.setAllowPodcastStreamingOnCellular(false)
         settingsDataStore.setAutoDeleteFinishedDownloads(true)
         settingsDataStore.setLastImportUrl("https://example.com/feeds.opml")
         settingsDataStore.setLastFeedUpdateEpochMillis(123456789L)
@@ -69,7 +69,7 @@ class SettingsDataStoreTest {
         assertTrue(settings.defaultToAllItemsView)
         assertTrue(settings.allowPodcastDownloadOnBattery)
         assertTrue(settings.allowPodcastDownloadOnCellular)
-        assertFalse(settings.allowPodcastStreaming)
+        assertFalse(settings.allowPodcastStreamingOnCellular)
         assertTrue(settings.autoDeleteFinishedDownloads)
         assertEquals("https://example.com/feeds.opml", settings.lastImportUrl)
         assertEquals(123456789L, settings.lastFeedUpdateEpochMillis)
@@ -136,7 +136,7 @@ class SettingsDataStoreTest {
     @Test
     fun reset_clearsBackToDefaults() = runTest {
         settingsDataStore.setMaxItemsPerFeed(999)
-        settingsDataStore.setAllowPodcastStreaming(false)
+        settingsDataStore.setAllowPodcastStreamingOnCellular(false)
 
         settingsDataStore.reset()
 

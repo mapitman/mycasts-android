@@ -175,7 +175,11 @@ fun SettingsScreen(
                 settings.allowPodcastDownloadOnCellular,
                 viewModel::setAllowPodcastDownloadOnCellular,
             )
-            SwitchRow(stringResource(R.string.settings_allow_streaming), settings.allowPodcastStreaming, viewModel::setAllowPodcastStreaming)
+            SwitchRow(
+                stringResource(R.string.settings_allow_streaming_on_cellular),
+                settings.allowPodcastStreamingOnCellular,
+                viewModel::setAllowPodcastStreamingOnCellular,
+            )
             SwitchRow(
                 stringResource(R.string.settings_auto_delete_finished_downloads),
                 settings.autoDeleteFinishedDownloads,
