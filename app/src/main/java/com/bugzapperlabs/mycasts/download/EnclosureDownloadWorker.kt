@@ -2,6 +2,7 @@ package com.bugzapperlabs.mycasts.download
 
 import android.content.Context
 import android.content.pm.ServiceInfo
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
@@ -62,6 +63,16 @@ class EnclosureDownloadWorker @AssistedInject constructor(
         val file = File(downloadDir, EnclosureFileNaming.fileNameFor(url, item.enclosureType))
         val existingBytes = if (file.exists()) file.length() else 0L
 
+        // issue #209: a persistent, unrecoverable failure (out of disk space) was previously
+        // indistinguishable from a transient one (a dropped connection) -- both just returned
+        // Result.retry(), so a device that had filled its own storage retried every download
+        // forever instead of ever giving up. Checked before starting, not just after a write
+        // fails, so a download doesn't even begin when there's already nowhere for it to land.
+        if (downloadDir.usableSpace < MIN_FREE_BYTES_TO_ATTEMPT) {
+            Log.w(TAG, "Skipping download for $url -- only ${downloadDir.usableSpace} bytes free")
+            return@withContext Result.failure()
+        }
+
         val request = Request.Builder().url(url).apply {
             if (existingBytes > 0) header("Range", "bytes=$existingBytes-")
         }.build()
@@ -72,7 +83,10 @@ class EnclosureDownloadWorker @AssistedInject constructor(
             // Dispatcher entirely -- only enqueue()'d calls are subject to Dispatcher.maxRequests,
             // which is the whole point of @DownloadHttpClient's dedicated dispatcher (see its doc).
             httpClient.newCall(request).await().use { response ->
-                if (!response.isSuccessful) return@withContext Result.retry()
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "Download failed for $url -- HTTP ${response.code}")
+                    return@withContext Result.retry()
+                }
                 val body = response.body ?: return@withContext Result.retry()
                 val resumed = response.code == 206
                 val contentLength = body.contentLength()
@@ -99,6 +113,13 @@ class EnclosureDownloadWorker @AssistedInject constructor(
                 }
             }
         } catch (e: IOException) {
+            // issue #209: re-checked here (not just before starting) since a download can fill
+            // the disk mid-write, after the earlier pre-flight check already passed.
+            if (downloadDir.usableSpace < MIN_FREE_BYTES_TO_ATTEMPT) {
+                Log.w(TAG, "Giving up on $url -- ran out of storage mid-download", e)
+                return@withContext Result.failure()
+            }
+            Log.w(TAG, "Download failed for $url, will retry", e)
             return@withContext Result.retry()
         }
 
@@ -138,6 +159,13 @@ class EnclosureDownloadWorker @AssistedInject constructor(
         private const val PROGRESS_PERSIST_INTERVAL_BYTES = 256 * 1024L
         private const val BYTES_PER_MB = 1024f * 1024f
         private const val PROGRESS_MAX = 100
+
+        // issue #209: a floor, not a per-episode size estimate (most enclosures are far smaller
+        // than this, but there's no reliable size to check against before the response headers
+        // arrive) -- below this, storage is treated as full enough that starting/continuing a
+        // download isn't worth attempting.
+        private const val MIN_FREE_BYTES_TO_ATTEMPT = 50L * 1024 * 1024
+        private const val TAG = "EnclosureDownloadWorker"
     }
 }
 
