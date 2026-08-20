@@ -825,10 +825,11 @@ class FeedUpdateEngineTest {
     }
 
     @Test
-    fun updateFeed_evictedItemWithDownload_deletesTheFileToo() = runTest {
-        // issue #176: trimToItemsToKeep deletes the FeedItem row, but a downloaded episode's file
-        // must also be deleted -- otherwise it's permanently orphaned on disk, invisible to every
-        // screen (the row it was ever attached to is gone) but never actually freed.
+    fun updateFeed_downloadedItem_isNotEvictedAndFileSurvives() = runTest {
+        // issue #200: trimToItemsToKeep now exempts downloaded episodes the same way it already
+        // exempted queued ones -- an aged-out downloaded item must survive the trim, and so must
+        // its file, rather than being silently evicted and orphaned/deleted (the prior behavior
+        // issue #176 only papered over by cleaning up the file after the fact).
         val feed = subscribeFeed(itemsToKeep = 1)
         val downloadedFile = tempFolder.newFile("old-episode.mp3")
         assertTrue(downloadedFile.exists())
@@ -852,7 +853,7 @@ class FeedUpdateEngineTest {
 
         val result = engine.updateFeed(repository.getFeed(feed.id)!!) as FeedUpdateResult.Success
 
-        assertEquals(listOf("old-item"), result.evictedItemIds)
-        assertTrue("expected the orphaned file to be deleted", !downloadedFile.exists())
+        assertEquals(emptyList<String>(), result.evictedItemIds)
+        assertTrue("expected the downloaded file to survive", downloadedFile.exists())
     }
 }

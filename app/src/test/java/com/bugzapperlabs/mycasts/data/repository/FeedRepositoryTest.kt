@@ -212,6 +212,47 @@ class FeedRepositoryTest {
     }
 
     @Test
+    fun trimToItemsToKeep_doesNotEvictDownloadedItems() = runTest {
+        // issue #200: a downloaded episode that had fallen out of the queue (e.g. after playback
+        // finished, issue #171) was being silently evicted -- and its file deleted -- once it aged
+        // out of itemsToKeep, the same way issue #125 fixed for queued episodes.
+        val feedId = repository.subscribe(Feed(title = "A Feed", itemsToKeep = 2))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "oldest", feedId = feedId, itemGuid = "g1", publishDate = 1L, downloadedFilePath = "/downloads/oldest"),
+                FeedItem(id = "middle", feedId = feedId, itemGuid = "g2", publishDate = 2L),
+                FeedItem(id = "newest", feedId = feedId, itemGuid = "g3", publishDate = 3L),
+            ),
+        )
+
+        val evicted = repository.trimToItemsToKeep(feedId, defaultItemsToKeep = 999)
+
+        assertEquals(emptyList<String>(), evicted.map { it.id })
+        val remaining = repository.observeItems(feedId).first().map { it.id }
+        assertTrue(remaining.containsAll(listOf("oldest", "middle", "newest")))
+    }
+
+    @Test
+    fun trimToItemsToKeep_doesNotEvictActivelyDownloadingItems() = runTest {
+        // issue #200: an episode mid-download (no file yet, but bytes already persisted) must
+        // survive the trim too, not just a fully-completed download.
+        val feedId = repository.subscribe(Feed(title = "A Feed", itemsToKeep = 2))
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "oldest", feedId = feedId, itemGuid = "g1", publishDate = 1L, downloadedBytes = 1024L),
+                FeedItem(id = "middle", feedId = feedId, itemGuid = "g2", publishDate = 2L),
+                FeedItem(id = "newest", feedId = feedId, itemGuid = "g3", publishDate = 3L),
+            ),
+        )
+
+        val evicted = repository.trimToItemsToKeep(feedId, defaultItemsToKeep = 999)
+
+        assertEquals(emptyList<String>(), evicted.map { it.id })
+        val remaining = repository.observeItems(feedId).first().map { it.id }
+        assertTrue(remaining.containsAll(listOf("oldest", "middle", "newest")))
+    }
+
+    @Test
     fun trimToItemsToKeep_alwaysExemptItemOutsideTrueTopN_isNotProtected() = runTest {
         // issue #137: alwaysExempt must not force-keep a candidate that's actually old once judged
         // against the feed's full item set, even though the caller believed it was "new".

@@ -163,8 +163,9 @@ class FeedRepository @Inject constructor(
 
     /**
      * Deletes the oldest items beyond the feed's `itemsToKeep`, mirroring the original
-     * FeedUpdater's trim-by-publish-date behavior. Returns the evicted items so callers can clean
-     * up associated enclosure files (issue #12).
+     * FeedUpdater's trim-by-publish-date behavior. Returns the evicted items for callers that need
+     * to know which ones were dropped (issue #12) -- none of them have a downloaded enclosure to
+     * clean up, since downloaded/downloading items are exempt from eviction (issue #200, below).
      *
      * A feed's `itemsToKeep` of `null` means "use the app-wide default" (see Feed Properties,
      * which falls back to [com.bugzapperlabs.mycasts.data.settings.AppSettings.maxItemsPerFeed] the same way)
@@ -175,6 +176,13 @@ class FeedRepository @Inject constructor(
      * Items currently in the Next Up queue are exempt, even if they'd otherwise be old enough to
      * evict -- deleting a queued [FeedItem] cascades to its `queue_entries` row (issue #125:
      * episodes a user had manually queued were being silently dropped from Next Up by this trim).
+     *
+     * Downloaded (or actively downloading) items are exempt too (issue #200): an episode a user
+     * had explicitly downloaded -- or that's mid-download -- was being silently evicted the same
+     * way once it aged out of [itemsToKeep] and was no longer queued, e.g. after finishing
+     * playback removed it from Next Up (issue #171). [FeedUpdateEngine] deletes an evicted item's
+     * downloaded file once its row is gone, so this row-level exemption is what actually protects
+     * the file too.
      *
      * [alwaysExempt] additionally protects specific items regardless of age (issue #83): when a
      * feed publishes more new episodes in one refresh than `itemsToKeep` allows, this trim (called
@@ -212,7 +220,9 @@ class FeedRepository @Inject constructor(
         if (items.size <= itemsToKeep) return emptyList()
 
         val queuedItemIds = queueDao.orderedItemIdsForFeed(feedId).toSet()
-        val (_, rest) = items.partition { it.id in queuedItemIds }
+        val (_, rest) = items.partition {
+            it.id in queuedItemIds || it.downloadedFilePath != null || it.downloadedBytes != null
+        }
         val trueTopIds = rest.take(itemsToKeep).map { it.id }.toSet()
         val (protectedNew, unprotected) = rest.partition { it.id in alwaysExempt && it.id in trueTopIds }
         val remainingBudget = (itemsToKeep - protectedNew.size).coerceAtLeast(0)

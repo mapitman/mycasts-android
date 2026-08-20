@@ -13,7 +13,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
-import java.io.File
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
@@ -251,13 +250,6 @@ class FeedUpdateEngine @Inject constructor(
             emptySet()
         }
         val evicted = feedRepository.trimToItemsToKeep(feed.id, defaultItemsToKeep, protectedNewItemIds)
-        // trimToItemsToKeep only deletes the FeedItem row -- an evicted episode that had been
-        // auto-downloaded otherwise leaves its file permanently orphaned on disk (issue #176): gone
-        // from every screen (the row it was ever attached to no longer exists), but never actually
-        // deleted, silently wasting storage forever. No DB flags need clearing here the way
-        // EnclosureDownloadRepository.deleteDownload does for a live row -- the row itself is
-        // already gone.
-        evicted.forEach { item -> item.downloadedFilePath?.let { File(it).delete() } }
 
         return FeedUpdateResult.Success(feedId = feed.id, newItemIds = newItemIds, evictedItemIds = evicted.map { it.id })
     }
