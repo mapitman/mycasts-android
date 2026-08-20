@@ -59,9 +59,19 @@ jobs:
         if: always()
         run: rm -f "${{ runner.temp }}/release.jks"
 
+      # AGP's default app-release.apk name (issue #199) doesn't say what app or version it is --
+      # every release would otherwise download to the same generic filename, colliding with (and
+      # silently shadowing) whichever earlier release the browser/OS already saved under it.
+      - name: Rename APK with app name and version
+        id: apk
+        run: |
+          RENAMED="app/build/outputs/apk/release/mycasts-v${{ steps.version.outputs.name }}.apk"
+          mv app/build/outputs/apk/release/app-release.apk "$RENAMED"
+          echo "path=$RENAMED" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release and upload APK
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/app-release.apk
+          files: ${{ steps.apk.outputs.path }}
           name: "v${{ steps.version.outputs.name }}"
           generate_release_notes: true
