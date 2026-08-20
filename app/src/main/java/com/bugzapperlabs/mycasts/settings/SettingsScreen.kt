@@ -13,8 +13,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -108,6 +112,10 @@ fun SettingsScreen(
 
     Scaffold(
         modifier = modifier,
+        // issue #193: reached only via MainActivity's bottom NavigationBar, whose outer Scaffold
+        // already reserves the navigation-bar inset -- see FeedListScreen's own copy of this
+        // comment for the full double-reservation explanation.
+        contentWindowInsets = WindowInsets.systemBars.exclude(WindowInsets.navigationBars),
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         // No title, no back arrow (issues #127/#128): the bottom nav's highlighted "Settings" tab
         // already conveys this screen, and system back gestures/buttons cover navigating away.
