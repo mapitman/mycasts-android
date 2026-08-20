@@ -13,7 +13,11 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -63,17 +67,39 @@ class DownloadFeedbackCoordinator @Inject constructor(
         _pendingItemIds.update { it + item.id }
         scope.launch {
             downloadRepository.startDownload(item)
-            // Real progress or outright completion both count as "started" -- a fast/small
-            // enclosure can finish downloading before this timeout would otherwise fire.
-            val started = withTimeoutOrNull(downloadStartTimeoutMs) {
-                feedRepository.observeDownloadedItems().first { downloaded -> downloaded.any { it.item.id == item.id } }
-                true
-            } ?: false
+            // Races real progress/completion against an outright permanent failure (issue #209)
+            // -- a fast/small enclosure can finish downloading before this timeout would otherwise
+            // fire, and a low-storage failure in particular resolves almost immediately, well
+            // before the timeout, so there's no reason to make the user wait it out just to see a
+            // generic "didn't start" instead of the specific reason.
+            val outcome = withTimeoutOrNull(downloadStartTimeoutMs) {
+                merge(
+                    feedRepository.observeDownloadedItems()
+                        .filter { downloaded -> downloaded.any { it.item.id == item.id } }
+                        .map { DownloadOutcome.Started },
+                    downloadRepository.observeFailureReason(item.id)
+                        .filterNotNull()
+                        .map { DownloadOutcome.Failed(it) },
+                ).first()
+            }
             _pendingItemIds.update { it - item.id }
-            if (!started) {
-                _result.value = context.getString(R.string.download_feedback_not_started, item.title.orEmpty())
+            _result.value = when (outcome) {
+                is DownloadOutcome.Failed -> failureMessage(item, outcome.reason)
+                DownloadOutcome.Started -> null
+                null -> context.getString(R.string.download_feedback_not_started, item.title.orEmpty())
             }
         }
+    }
+
+    private fun failureMessage(item: FeedItem, reason: String): String = when (reason) {
+        EnclosureDownloadWorker.FAILURE_REASON_LOW_STORAGE ->
+            context.getString(R.string.download_feedback_failed_low_storage, item.title.orEmpty())
+        else -> context.getString(R.string.download_feedback_not_started, item.title.orEmpty())
+    }
+
+    private sealed interface DownloadOutcome {
+        data object Started : DownloadOutcome
+        data class Failed(val reason: String) : DownloadOutcome
     }
 
     /**

@@ -33,6 +33,12 @@ interface DownloadScheduling {
     fun cancelDownload(itemId: String)
     fun cancelAllDownloads()
     fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>>
+
+    /** The reason code (see [EnclosureDownloadWorker.KEY_FAILURE_REASON]) of [itemId]'s most
+     *  recent download job if it ended in a permanent failure that recorded one, or null
+     *  otherwise -- issue #209, so a caller waiting on a just-enqueued download can tell the user
+     *  something more specific than a generic timeout once it fails outright. */
+    fun observeFailureReason(itemId: String): Flow<String?>
 }
 
 /**
@@ -107,6 +113,17 @@ class DownloadManager @Inject constructor(
                 }
                 DownloadWorkInfo(itemId, status)
             }
+        }
+
+    // Scoped via the unique work name, not WORKER_CLASS_TAG/itemTag (issue #209) -- those two
+    // reach every job ever enqueued for this item, including ones from long before this specific
+    // attempt, which getWorkInfosForUniqueWorkFlow doesn't: REPLACE (see enqueueDownload's own
+    // doc) means the unique name's history only ever reflects the current/latest generation, so
+    // there's no risk of surfacing a stale failure reason left over from an earlier attempt.
+    override fun observeFailureReason(itemId: String): Flow<String?> =
+        workManager.getWorkInfosForUniqueWorkFlow(workName(itemId)).map { infos ->
+            infos.firstOrNull { it.state == WorkInfo.State.FAILED }
+                ?.outputData?.getString(EnclosureDownloadWorker.KEY_FAILURE_REASON)
         }
 
     private fun workName(itemId: String) = "download-$itemId"

@@ -96,6 +96,7 @@ class OpmlImportCoordinatorTest {
                 override fun cancelDownload(itemId: String) {}
                 override fun cancelAllDownloads() {}
                 override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+                override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
             },
             settingsDataStore = settingsDataStore,
         )

@@ -87,6 +87,7 @@
     <string name="download_feedback_deleted_multiple">%1$d download eliminati</string>
     <string name="download_feedback_nothing_to_delete">Nessun download da eliminare</string>
     <string name="download_feedback_not_started">Impossibile avviare il download di "%1$s"</string>
+    <string name="download_feedback_failed_low_storage">Spazio di archiviazione insufficiente per scaricare "%1$s"</string>
     <string name="cd_download_selected">Scarica episodi selezionati</string>
     <string name="cd_download_all_queued">Scarica tutti gli episodi in \"In arrivo\"</string>
     <string name="action_undo">Annulla</string>
