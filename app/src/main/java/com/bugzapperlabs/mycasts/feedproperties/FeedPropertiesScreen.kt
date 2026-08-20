@@ -50,7 +50,13 @@ import com.bugzapperlabs.mycasts.data.settings.MAX_ARTICLES_SLIDER_UNLIMITED_POS
 import com.bugzapperlabs.mycasts.data.settings.UNLIMITED_ITEMS_TO_KEEP
 import com.bugzapperlabs.mycasts.data.settings.itemsToKeepFromSliderPosition
 import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+
+/** "Skip at start" slider bounds (issue #154), replacing the old fixed 0/15/30/45/60 chips. */
+private const val START_SKIP_SECONDS_MIN = 0f
+private const val START_SKIP_SECONDS_MAX = 60f
+private const val START_SKIP_STEP_SECONDS = 5f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -307,24 +313,28 @@ fun FeedPropertiesScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.padding(top = 24.dp),
             )
-            Row(modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
-                listOf(0, 15, 30, 45, 60).forEach { seconds ->
-                    FilterChip(
-                        selected = uiState.startSkipSeconds == seconds,
-                        onClick = { viewModel.setStartSkipSeconds(seconds) },
-                        label = {
-                            Text(
-                                if (seconds == 0) {
-                                    stringResource(R.string.feed_properties_start_skip_off)
-                                } else {
-                                    stringResource(R.string.feed_properties_start_skip_seconds, seconds)
-                                },
-                            )
-                        },
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
-                }
-            }
+            Text(
+                text = if (uiState.startSkipSeconds == 0) {
+                    stringResource(R.string.feed_properties_start_skip_off)
+                } else {
+                    stringResource(R.string.feed_properties_start_skip_seconds, uiState.startSkipSeconds)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Slider(
+                value = uiState.startSkipSeconds.toFloat(),
+                onValueChange = { viewModel.setStartSkipSeconds(it.roundToInt()) },
+                valueRange = START_SKIP_SECONDS_MIN..START_SKIP_SECONDS_MAX,
+                // START_SKIP_STEP_SECONDS-increment stops (issue #154), mirroring FontSizeRow's
+                // identical formula -- any of 0/5/10/.../60 can land exactly on a stop instead of
+                // needing a pixel-precise drag.
+                steps = ((START_SKIP_SECONDS_MAX - START_SKIP_SECONDS_MIN) / START_SKIP_STEP_SECONDS).roundToInt() - 1,
+                // See MaxItemsPerFeedSetting's identical use above (issue #302) -- otherwise a drag
+                // starting at either edge of this slider gets intercepted as system back-gesture
+                // navigation.
+                modifier = Modifier.excludeFromSystemGestures(),
+            )
 
             Button(
                 onClick = { showUnsubscribeConfirm = true },
