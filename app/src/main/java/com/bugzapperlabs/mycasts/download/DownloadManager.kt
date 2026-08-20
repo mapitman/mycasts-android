@@ -40,6 +40,17 @@ interface DownloadScheduling {
  * read fresh from settings at enqueue time rather than kept in sync like the periodic refresh
  * worker's interval -- a one-off download that's already running doesn't need to be rescheduled
  * just because a setting changed after it started.
+ *
+ * Uses [ExistingWorkPolicy.REPLACE], not [ExistingWorkPolicy.KEEP] (issue #195): every real call
+ * site only ever calls this for an item the UI itself believes isn't already downloading/downloaded
+ * (see e.g. [com.bugzapperlabs.mycasts.queue.QueueViewModel.downloadAll]'s eligibility filter), so
+ * a second enqueue for the same itemId only ever happens when the user is explicitly (re)starting a
+ * download the UI has no other way to represent as "in progress" -- most notably a job stuck
+ * endlessly retrying without ever having persisted a byte. KEEP silently no-opped in that case,
+ * since a same-named unique work item already existed, leaving the user with no way to recover a
+ * wedged download short of clearing all app storage. The enclosure file on disk (if any bytes were
+ * already written) survives a replace -- [EnclosureDownloadWorker] resumes from it via a Range
+ * request the same way it would after any other restart.
  */
 @Singleton
 class DownloadManager @Inject constructor(
@@ -58,7 +69,7 @@ class DownloadManager @Inject constructor(
             .addTag(itemTag(itemId))
             .build()
 
-        workManager.enqueueUniqueWork(workName(itemId), ExistingWorkPolicy.KEEP, request)
+        workManager.enqueueUniqueWork(workName(itemId), ExistingWorkPolicy.REPLACE, request)
     }
 
     override fun cancelDownload(itemId: String) {
