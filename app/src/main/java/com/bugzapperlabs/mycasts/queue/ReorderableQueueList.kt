@@ -24,6 +24,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Downloading
+import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.PlaylistRemove
 import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.filled.VerticalAlignTop
@@ -608,12 +610,30 @@ private fun RowScope.QueueRowContent(
                 maxLines = 1,
             )
         }
-        Text(
-            text = EpisodeDateFormatter.format(episode.item.publishDate),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-        )
+        androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = EpisodeDateFormatter.format(episode.item.publishDate),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+            // issue #192: EpisodeListScreen already shows this per-row (see its own doc for why
+            // OfflinePin over DownloadDone), but the queue had no equivalent -- useful now that
+            // issue #188 added a bulk "download all" action here, with no other way to see which
+            // episodes actually finished.
+            val isDownloaded = episode.item.downloadedFilePath != null
+            val isDownloading = !isDownloaded && episode.item.downloadedBytes != null
+            if (isDownloaded || isDownloading) {
+                Icon(
+                    if (isDownloaded) Icons.Filled.OfflinePin else Icons.Filled.Downloading,
+                    contentDescription = stringResource(
+                        if (isDownloaded) R.string.cd_episode_downloaded else R.string.cd_episode_downloading,
+                    ),
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(start = 4.dp).size(16.dp),
+                )
+            }
+        }
     }
     val durationMs = episode.item.enclosureDurationMs
     if (durationMs != null && durationMs > 0) {
