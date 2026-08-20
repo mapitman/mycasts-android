@@ -5,10 +5,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,6 +68,10 @@ fun DownloadsScreen(
 
     Scaffold(
         modifier = modifier,
+        // issue #193: reached only via MainActivity's bottom NavigationBar, whose outer Scaffold
+        // already reserves the navigation-bar inset -- see FeedListScreen's own copy of this
+        // comment for the full double-reservation explanation.
+        contentWindowInsets = WindowInsets.systemBars.exclude(WindowInsets.navigationBars),
         topBar = {
             // No "Downloads" label (issue #127): the bottom nav's highlighted tab already conveys
             // that. The byte total is real content, not a redundant screen name, so it stays.

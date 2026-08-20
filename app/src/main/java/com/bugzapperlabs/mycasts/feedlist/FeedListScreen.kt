@@ -2,9 +2,13 @@ package com.bugzapperlabs.mycasts.feedlist
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -101,6 +105,15 @@ fun FeedListScreen(
 
     Scaffold(
         modifier = modifier,
+        // issue #193: this screen is only ever reached via MainActivity's own bottom
+        // NavigationBar, whose outer Scaffold already reserves the navigation-bar inset as this
+        // screen's real on-screen bottom edge -- Scaffold's own default (systemBars) reserved that
+        // same inset a *second* time here, since this Scaffold has no bottomBar of its own for it
+        // to automatically exclude, leaving a blank gap above the real nav bar regardless of
+        // whether the mini player strip was showing. The status-bar (top) portion is left alone:
+        // CompactTopBar below already occupies real space for it, which Scaffold does correctly
+        // account for.
+        contentWindowInsets = WindowInsets.systemBars.exclude(WindowInsets.navigationBars),
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         topBar = {
             if (uiState.isSelectionMode) {
