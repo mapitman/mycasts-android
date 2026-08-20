@@ -90,4 +90,39 @@ class AppBackupRepositoryTest {
 
         assertEquals(1.5f, settingsDataStore.settings.first().fontSize)
     }
+
+    /**
+     * issue #197: the currently-playing episode needs no special handling of its own here --
+     * since issue #196, it's a real `queue_entries` row like any other (always the front one),
+     * and [FeedItem.enclosurePosition]/`lastPlayingFeedId`/`lastPlayingItemId` were already backed
+     * up. All three already round-trip through the existing export/import path, so restoring a
+     * backup resumes right where playback left off, not just with the episode back in Next Up.
+     */
+    @Test
+    fun export_import_roundTripsCurrentlyPlayingEpisode() = runTest {
+        val feedId = feedRepository.subscribe(Feed(title = "A Podcast"))
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(id = "now-playing", feedId = feedId, itemGuid = "g1", title = "Now Playing", enclosurePosition = 42.5),
+                FeedItem(id = "up-next", feedId = feedId, itemGuid = "g2", title = "Up Next"),
+            ),
+        )
+        queueRepository.addToEnd("up-next")
+        queueRepository.moveToFront("now-playing")
+        settingsDataStore.setLastPlayingItem(feedId, "now-playing")
+
+        val json = backupRepository.export()
+
+        val otherFeedId = feedRepository.subscribe(Feed(title = "Some Other Podcast"))
+        feedRepository.insertItems(listOf(FeedItem(id = "other-ep", feedId = otherFeedId, itemGuid = "g3")))
+        settingsDataStore.setLastPlayingItem(otherFeedId, "other-ep")
+
+        backupRepository.import(json)
+
+        assertEquals(listOf("now-playing", "up-next"), queueRepository.observeQueue().first().map { it.item.id })
+        assertEquals(42.5, feedRepository.getItem("now-playing")?.enclosurePosition)
+        val settings = settingsDataStore.settings.first()
+        assertEquals(feedId, settings.lastPlayingFeedId)
+        assertEquals("now-playing", settings.lastPlayingItemId)
+    }
 }
