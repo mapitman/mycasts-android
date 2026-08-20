@@ -65,6 +65,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.bugzapperlabs.mycasts.BuildConfig
 import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.backup.BackupFileNaming
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_MAX
 import com.bugzapperlabs.mycasts.data.settings.FONT_SCALE_MIN
@@ -571,7 +572,7 @@ private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: Snac
             modifier = Modifier.padding(bottom = 8.dp),
         )
         OutlinedButton(
-            onClick = { saveBackupLauncher.launch("mycasts-backup.json") },
+            onClick = { saveBackupLauncher.launch(BackupFileNaming.suggestedFileName()) },
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         ) {
             Text(stringResource(R.string.settings_backup_export))
