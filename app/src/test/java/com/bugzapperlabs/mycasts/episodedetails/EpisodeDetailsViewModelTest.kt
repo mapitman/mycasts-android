@@ -94,7 +94,7 @@ class EpisodeDetailsViewModelTest {
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
             downloadScheduling = object : DownloadScheduling {
-                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {}
+                override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {}
                 override fun cancelDownload(itemId: String) {}
                 override fun cancelAllDownloads() {}
                 override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()

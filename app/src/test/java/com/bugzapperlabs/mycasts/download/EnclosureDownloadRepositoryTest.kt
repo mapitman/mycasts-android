@@ -56,8 +56,8 @@ class EnclosureDownloadRepositoryTest {
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
             downloadScheduling = object : DownloadScheduling {
-                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
-                    enqueuedCalls += Triple(itemId, allowCellular, allowOnBattery)
+                override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {
+                    enqueuedCalls += Triple(itemId, allowMobileData, allowOnBattery)
                 }
 
                 override fun cancelDownload(itemId: String) {
@@ -101,7 +101,7 @@ class EnclosureDownloadRepositoryTest {
     @Test
     fun startDownload_passesCurrentSettingsToScheduler() = runTest {
         seedFeedAndItem("https://example.com/episode.mp3")
-        settingsDataStore.setAllowPodcastDownloadOnCellular(true)
+        settingsDataStore.setAllowPodcastDownloadOnMobileData(true)
         settingsDataStore.setAllowPodcastDownloadOnBattery(false)
         val item = repository.getItem("item-1")!!
 

@@ -133,8 +133,8 @@
     <string name="settings_font_size">Taille de police : %1$d%%</string>
     <string name="settings_font_size_preview">Portez ce vieux whisky au juge blond qui fume.</string>
     <string name="settings_download_on_battery">Télécharger sur batterie</string>
-    <string name="settings_download_on_cellular">Télécharger sur réseau mobile</string>
-    <string name="settings_allow_streaming_on_cellular">Autoriser le streaming sur réseau mobile</string>
+    <string name="settings_download_on_mobile_data">Télécharger avec les données mobiles</string>
+    <string name="settings_allow_streaming_on_mobile_data">Autoriser le streaming avec les données mobiles</string>
     <string name="settings_auto_delete_finished_downloads">Supprimer automatiquement les téléchargements écoutés</string>
     <string name="settings_auto_download_new_feeds">Télécharger automatiquement les nouveaux abonnements</string>
     <string name="settings_auto_download_max_count">Téléchargements à conserver par podcast</string>

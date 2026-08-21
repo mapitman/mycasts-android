@@ -166,10 +166,10 @@ private fun AppSettings.toJson(): JSONObject = JSONObject().apply {
     put("feedRefreshConcurrency", feedRefreshConcurrency)
     put("defaultToAllItemsView", defaultToAllItemsView)
     put("allowPodcastDownloadOnBattery", allowPodcastDownloadOnBattery)
-    put("allowPodcastDownloadOnCellular", allowPodcastDownloadOnCellular)
-    // issue #123: JSON key kept as "allowPodcastStreaming" (not renamed to match the Kotlin
-    // property) so a backup exported before this change still restores correctly.
-    put("allowPodcastStreaming", allowPodcastStreamingOnCellular)
+    // issue #221: JSON keys kept as their pre-rename "Cellular" names (not renamed to match the
+    // Kotlin properties) so a backup exported before this change still restores correctly.
+    put("allowPodcastDownloadOnCellular", allowPodcastDownloadOnMobileData)
+    put("allowPodcastStreaming", allowPodcastStreamingOnMobileData)
     put("autoDeleteFinishedDownloads", autoDeleteFinishedDownloads)
     put("notifyOnNewItems", notifyOnNewItems)
     putOpt("lastImportUrl", lastImportUrl)
@@ -200,15 +200,15 @@ private fun JSONObject.toAppSettings(): AppSettings {
         } else {
             defaults.allowPodcastDownloadOnBattery
         },
-        allowPodcastDownloadOnCellular = if (has("allowPodcastDownloadOnCellular")) {
+        allowPodcastDownloadOnMobileData = if (has("allowPodcastDownloadOnCellular")) {
             getBoolean("allowPodcastDownloadOnCellular")
         } else {
-            defaults.allowPodcastDownloadOnCellular
+            defaults.allowPodcastDownloadOnMobileData
         },
-        allowPodcastStreamingOnCellular = if (has("allowPodcastStreaming")) {
+        allowPodcastStreamingOnMobileData = if (has("allowPodcastStreaming")) {
             getBoolean("allowPodcastStreaming")
         } else {
-            defaults.allowPodcastStreamingOnCellular
+            defaults.allowPodcastStreamingOnMobileData
         },
         autoDeleteFinishedDownloads = if (has("autoDeleteFinishedDownloads")) {
             getBoolean("autoDeleteFinishedDownloads")

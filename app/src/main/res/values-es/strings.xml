@@ -133,8 +133,8 @@
     <string name="settings_font_size">Tamaño de fuente: %1$d%%</string>
     <string name="settings_font_size_preview">El veloz murciélago hindú comía feliz cardillo y kiwi.</string>
     <string name="settings_download_on_battery">Descargar con la batería</string>
-    <string name="settings_download_on_cellular">Descargar con datos móviles</string>
-    <string name="settings_allow_streaming_on_cellular">Permitir streaming con datos móviles</string>
+    <string name="settings_download_on_mobile_data">Descargar con datos móviles</string>
+    <string name="settings_allow_streaming_on_mobile_data">Permitir streaming con datos móviles</string>
     <string name="settings_auto_delete_finished_downloads">Eliminar descargas automáticamente tras reproducirlas</string>
     <string name="settings_auto_download_new_feeds">Descargar automáticamente las nuevas suscripciones</string>
     <string name="settings_auto_download_max_count">Descargas a conservar por podcast</string>

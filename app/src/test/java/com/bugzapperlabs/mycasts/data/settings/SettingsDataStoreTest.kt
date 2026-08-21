@@ -40,8 +40,8 @@ class SettingsDataStoreTest {
         assertEquals(20, settings.maxItemsPerFeed)
         assertFalse(settings.defaultToAllItemsView)
         assertFalse(settings.allowPodcastDownloadOnBattery)
-        assertFalse(settings.allowPodcastDownloadOnCellular)
-        assertTrue(settings.allowPodcastStreamingOnCellular)
+        assertFalse(settings.allowPodcastDownloadOnMobileData)
+        assertTrue(settings.allowPodcastStreamingOnMobileData)
         assertFalse(settings.autoDeleteFinishedDownloads)
         assertNull(settings.lastImportUrl)
     }
@@ -54,8 +54,8 @@ class SettingsDataStoreTest {
         settingsDataStore.setMaxItemsPerFeed(50)
         settingsDataStore.setDefaultToAllItemsView(true)
         settingsDataStore.setAllowPodcastDownloadOnBattery(true)
-        settingsDataStore.setAllowPodcastDownloadOnCellular(true)
-        settingsDataStore.setAllowPodcastStreamingOnCellular(false)
+        settingsDataStore.setAllowPodcastDownloadOnMobileData(true)
+        settingsDataStore.setAllowPodcastStreamingOnMobileData(false)
         settingsDataStore.setAutoDeleteFinishedDownloads(true)
         settingsDataStore.setLastImportUrl("https://example.com/feeds.opml")
         settingsDataStore.setLastFeedUpdateEpochMillis(123456789L)
@@ -68,8 +68,8 @@ class SettingsDataStoreTest {
         assertEquals(50, settings.maxItemsPerFeed)
         assertTrue(settings.defaultToAllItemsView)
         assertTrue(settings.allowPodcastDownloadOnBattery)
-        assertTrue(settings.allowPodcastDownloadOnCellular)
-        assertFalse(settings.allowPodcastStreamingOnCellular)
+        assertTrue(settings.allowPodcastDownloadOnMobileData)
+        assertFalse(settings.allowPodcastStreamingOnMobileData)
         assertTrue(settings.autoDeleteFinishedDownloads)
         assertEquals("https://example.com/feeds.opml", settings.lastImportUrl)
         assertEquals(123456789L, settings.lastFeedUpdateEpochMillis)
@@ -136,7 +136,7 @@ class SettingsDataStoreTest {
     @Test
     fun reset_clearsBackToDefaults() = runTest {
         settingsDataStore.setMaxItemsPerFeed(999)
-        settingsDataStore.setAllowPodcastStreamingOnCellular(false)
+        settingsDataStore.setAllowPodcastStreamingOnMobileData(false)
 
         settingsDataStore.reset()
 
