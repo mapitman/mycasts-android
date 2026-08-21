@@ -69,6 +69,12 @@ object PlaybackMediaItemFactory {
      * stream already in progress is allowed to keep playing through a later network change, so
      * this never needs rechecking mid-session. Defaults to "never on mobile data" since most
      * callers (tests exercising unrelated behavior, primarily) don't care about this gating at all.
+     *
+     * [forceAllowStreaming] bypasses the mobile-data gate outright (issue #222) -- set only by
+     * [PlaybackController] after the user has explicitly confirmed the play-time mobile-data
+     * warning for this one episode, never by [PlaybackService]'s non-interactive queue-driven
+     * auto-advance (issue #179), which has no UI to show that warning from and so always resolves
+     * with the default `false`, same gating as before this issue.
      */
     suspend fun resolve(
         item: FeedItem,
@@ -76,9 +82,12 @@ object PlaybackMediaItemFactory {
         feedRepository: FeedRepository,
         settingsDataStore: SettingsDataStore,
         networkTypeChecker: NetworkTypeChecker = NetworkTypeChecker { false },
+        forceAllowStreaming: Boolean = false,
     ): ResolvedPlaybackMedia? {
         val settings = settingsDataStore.settings.first()
-        val allowStreaming = !networkTypeChecker.isActiveNetworkCellular() || settings.allowPodcastStreamingOnMobileData
+        val allowStreaming = forceAllowStreaming ||
+            !networkTypeChecker.isActiveNetworkCellular() ||
+            settings.alwaysAllowPodcastStreamingOnMobileData
         val downloadedFilePath = item.downloadedFilePath?.takeIf { File(it).exists() }
         val uri = PlaybackUrlResolver.resolve(item, downloadedFilePath, allowStreaming = allowStreaming)
             ?: return null
@@ -117,5 +126,24 @@ object PlaybackMediaItemFactory {
             startPositionMs = startPositionMs,
             volumeBoostMillibels = volumeBoostMillibels,
         )
+    }
+
+    /**
+     * Whether starting [item] right now would need to stream it over mobile data without the
+     * user having said "always allow" (issue #222) -- [PlaybackController] checks this before
+     * [resolve] to decide whether to show a confirmation prompt instead of just playing (or, for
+     * an item that's downloaded or reachable over Wi-Fi, playing immediately with no prompt at
+     * all, same as before this issue).
+     */
+    suspend fun needsMobileDataConfirmation(
+        item: FeedItem,
+        settingsDataStore: SettingsDataStore,
+        networkTypeChecker: NetworkTypeChecker,
+    ): Boolean {
+        val downloadedFilePath = item.downloadedFilePath?.takeIf { File(it).exists() }
+        if (downloadedFilePath != null) return false
+        if (!networkTypeChecker.isActiveNetworkCellular()) return false
+        val settings = settingsDataStore.settings.first()
+        return !settings.alwaysAllowPodcastStreamingOnMobileData
     }
 }

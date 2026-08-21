@@ -134,7 +134,12 @@
     <string name="settings_font_size_preview">Portez ce vieux whisky au juge blond qui fume.</string>
     <string name="settings_download_on_battery">Télécharger sur batterie</string>
     <string name="settings_download_on_mobile_data">Télécharger avec les données mobiles</string>
-    <string name="settings_allow_streaming_on_mobile_data">Autoriser le streaming avec les données mobiles</string>
+    <string name="settings_always_allow_streaming_on_mobile_data">Toujours autoriser le streaming avec les données mobiles</string>
+    <string name="playback_mobile_data_warning_title">Diffuser avec les données mobiles ?</string>
+    <string name="playback_mobile_data_warning_message">Cet épisode n\'est pas téléchargé. Le lire maintenant le diffusera avec les données mobiles, ce qui peut consommer une part importante de votre forfait.</string>
+    <string name="playback_mobile_data_warning_always_allow">Toujours autoriser</string>
+    <string name="playback_mobile_data_warning_play">Lire quand même</string>
+    <string name="playback_mobile_data_warning_cancel">Annuler</string>
     <string name="settings_auto_delete_finished_downloads">Supprimer automatiquement les téléchargements écoutés</string>
     <string name="settings_battery_optimization_heading">Utilisation de la batterie en arrière-plan</string>
     <string name="settings_battery_optimization_description">Pour un passage automatique fiable à l\'épisode suivant et des téléchargements fiables écran éteint, autorisez MyCasts à fonctionner sans restriction de batterie.</string>

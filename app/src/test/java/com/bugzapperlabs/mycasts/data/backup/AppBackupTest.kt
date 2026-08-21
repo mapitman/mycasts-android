@@ -69,7 +69,7 @@ class AppBackupTest {
             defaultToAllItemsView = true,
             allowPodcastDownloadOnBattery = true,
             allowPodcastDownloadOnMobileData = true,
-            allowPodcastStreamingOnMobileData = false,
+            alwaysAllowPodcastStreamingOnMobileData = true,
             autoDeleteFinishedDownloads = true,
             notifyOnNewItems = true,
             lastImportUrl = "https://example.com/import.opml",
@@ -94,23 +94,38 @@ class AppBackupTest {
     }
 
     @Test
-    fun fromJson_preRenameCellularJsonKeys_stillRestoreCorrectly() {
-        // issue #221: a backup exported before allowPodcastDownloadOnCellular/allowPodcastStreaming
-        // were renamed to their "MobileData" Kotlin names still uses those old JSON key names --
-        // toJson() deliberately keeps writing them (see its own comment) rather than the new
-        // property names, so this needs to keep restoring correctly rather than silently falling
-        // back to defaults for both fields.
+    fun fromJson_preRenameCellularDownloadJsonKey_stillRestoresCorrectly() {
+        // issue #221: a backup exported before allowPodcastDownloadOnCellular was renamed to its
+        // "MobileData" Kotlin name still uses that old JSON key name -- toJson() deliberately keeps
+        // writing it (see its own comment) rather than the new property name, so this needs to keep
+        // restoring correctly rather than silently falling back to the default.
         val json = org.json.JSONObject(
             AppBackup(feeds = emptyList(), feedItems = emptyList(), queueEntries = emptyList(), settings = AppSettings()).toJson(),
         )
         val settingsJson = json.getJSONObject("settings")
         settingsJson.put("allowPodcastDownloadOnCellular", true)
-        settingsJson.put("allowPodcastStreaming", false)
 
         val restored = AppBackup.fromJson(json.toString())
 
         assertEquals(true, restored.settings.allowPodcastDownloadOnMobileData)
-        assertEquals(false, restored.settings.allowPodcastStreamingOnMobileData)
+    }
+
+    @Test
+    fun fromJson_preIssue222StreamingJsonKey_isIgnoredAndFallsBackToDefault() {
+        // issue #222: the old "allowPodcastStreaming" key (backing the removed persistent
+        // pre-emptive-block toggle) is deliberately NOT read into the new
+        // alwaysAllowPodcastStreamingOnMobileData field -- the semantics inverted, so a stale
+        // value under the old key wouldn't mean the same thing under the new one. A backup from
+        // before this issue should just restore the new field at its default (ask every time).
+        val json = org.json.JSONObject(
+            AppBackup(feeds = emptyList(), feedItems = emptyList(), queueEntries = emptyList(), settings = AppSettings()).toJson(),
+        )
+        val settingsJson = json.getJSONObject("settings")
+        settingsJson.put("allowPodcastStreaming", false)
+
+        val restored = AppBackup.fromJson(json.toString())
+
+        assertEquals(AppSettings().alwaysAllowPodcastStreamingOnMobileData, restored.settings.alwaysAllowPodcastStreamingOnMobileData)
     }
 
     @Test

@@ -134,7 +134,12 @@
     <string name="settings_font_size_preview">Der schnelle braune Fuchs springt über den faulen Hund.</string>
     <string name="settings_download_on_battery">Download bei Akkubetrieb</string>
     <string name="settings_download_on_mobile_data">Download über mobile Daten</string>
-    <string name="settings_allow_streaming_on_mobile_data">Streaming über mobile Daten erlauben</string>
+    <string name="settings_always_allow_streaming_on_mobile_data">Streaming über mobile Daten immer erlauben</string>
+    <string name="playback_mobile_data_warning_title">Über mobile Daten streamen?</string>
+    <string name="playback_mobile_data_warning_message">Diese Episode ist nicht heruntergeladen. Wenn du sie jetzt abspielst, wird sie über mobile Daten gestreamt, was einen erheblichen Teil deines Datenvolumens verbrauchen kann.</string>
+    <string name="playback_mobile_data_warning_always_allow">Immer erlauben</string>
+    <string name="playback_mobile_data_warning_play">Trotzdem abspielen</string>
+    <string name="playback_mobile_data_warning_cancel">Abbrechen</string>
     <string name="settings_auto_delete_finished_downloads">Downloads nach Wiedergabe automatisch löschen</string>
     <string name="settings_battery_optimization_heading">Akkunutzung im Hintergrund</string>
     <string name="settings_battery_optimization_description">Für zuverlässiges automatisches Weiterspringen zu Podcast-Episoden und Downloads bei ausgeschaltetem Bildschirm: Erlaube MyCasts den Betrieb ohne Akku-Einschränkungen.</string>

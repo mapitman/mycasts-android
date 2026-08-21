@@ -35,12 +35,12 @@ data class AppSettings(
     val defaultToAllItemsView: Boolean = false,
     val allowPodcastDownloadOnBattery: Boolean = false,
     val allowPodcastDownloadOnMobileData: Boolean = false,
-    /** Whether streaming is allowed over mobile data (issue #123) -- Wi-Fi streaming is always
-     *  allowed regardless of this setting; it only gates the mobile-data case. Same field/default
-     *  as the blanket "allow streaming" toggle this replaced, so an existing choice to disable
-     *  streaming (data-conscious) narrows to "mobile data only" instead of resetting to the
-     *  default. */
-    val allowPodcastStreamingOnMobileData: Boolean = true,
+    /** Whether to skip the play-time mobile-data warning and just stream (issue #222) -- Wi-Fi
+     *  streaming is always allowed regardless of this setting; it only gates the mobile-data case.
+     *  Off by default, so playing an undownloaded episode over mobile data warns the user and lets
+     *  them choose to proceed (optionally checking "always allow" to set this), rather than the
+     *  old model of a persistent toggle that pre-emptively and silently blocked streaming outright. */
+    val alwaysAllowPodcastStreamingOnMobileData: Boolean = false,
     /** Deletes a downloaded episode's file once it's fully played (issue #71). */
     val autoDeleteFinishedDownloads: Boolean = false,
     val notifyOnNewItems: Boolean = false,

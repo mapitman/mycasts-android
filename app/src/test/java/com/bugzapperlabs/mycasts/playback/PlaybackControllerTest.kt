@@ -42,17 +42,19 @@ class PlaybackControllerTest {
     private lateinit var db: AppDatabase
     private lateinit var feedRepository: FeedRepository
     private lateinit var queueRepository: QueueRepository
+    private lateinit var settingsDataStore: SettingsDataStore
+    private lateinit var context: android.content.Context
     private lateinit var playbackController: PlaybackController
 
     @Before
     fun setUp() {
-        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        context = ApplicationProvider.getApplicationContext()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         feedRepository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val settingsDataStore = SettingsDataStore(dataStore)
+        settingsDataStore = SettingsDataStore(dataStore)
         val downloadRepository = EnclosureDownloadRepository(
             feedRepository = feedRepository,
             downloadScheduling = object : DownloadScheduling {
@@ -173,5 +175,107 @@ class PlaybackControllerTest {
         playbackController.play(item, "Feed")
 
         assertTrue(queueRepository.isQueued(item.id))
+    }
+
+    private fun newController(networkTypeChecker: NetworkTypeChecker) = PlaybackController(
+        context,
+        settingsDataStore,
+        feedRepository,
+        queueRepository,
+        ChaptersFetcher(OkHttpClient()),
+        networkTypeChecker,
+    )
+
+    /** issue #222: playing an undownloaded episode over mobile data (without "always allow" set)
+     *  surfaces a pending confirmation instead of silently doing nothing, and doesn't queue/play
+     *  the episode yet. */
+    @Test
+    fun play_notDownloadedOnMobileDataWithoutAlwaysAllow_surfacesPendingConfirmationInsteadOfPlaying() = runTest {
+        val cellularController = newController(NetworkTypeChecker { true })
+        val feedId = feedRepository.subscribe(Feed(title = "Feed"))
+        val item = FeedItem(
+            id = "episode-1", feedId = feedId, itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(item))
+
+        val started = cellularController.play(item, "Feed")
+
+        assertFalse(started)
+        assertFalse(queueRepository.isQueued(item.id))
+        assertEquals(item.id, cellularController.pendingMobileDataConfirmation.value?.item?.id)
+        cellularController.awaitShutdownForTest()
+    }
+
+    @Test
+    fun confirmPendingMobileDataStreaming_playsAndClearsThePendingState() = runTest {
+        val cellularController = newController(NetworkTypeChecker { true })
+        val feedId = feedRepository.subscribe(Feed(title = "Feed"))
+        val item = FeedItem(
+            id = "episode-1", feedId = feedId, itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(item))
+        cellularController.play(item, "Feed")
+
+        cellularController.confirmPendingMobileDataStreaming(alwaysAllow = false)
+
+        assertTrue(queueRepository.isQueued(item.id))
+        assertEquals(null, cellularController.pendingMobileDataConfirmation.value)
+        assertFalse(settingsDataStore.settings.first().alwaysAllowPodcastStreamingOnMobileData)
+        cellularController.awaitShutdownForTest()
+    }
+
+    @Test
+    fun confirmPendingMobileDataStreaming_alwaysAllow_persistsTheSetting() = runTest {
+        val cellularController = newController(NetworkTypeChecker { true })
+        val feedId = feedRepository.subscribe(Feed(title = "Feed"))
+        val item = FeedItem(
+            id = "episode-1", feedId = feedId, itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(item))
+        cellularController.play(item, "Feed")
+
+        cellularController.confirmPendingMobileDataStreaming(alwaysAllow = true)
+
+        assertTrue(settingsDataStore.settings.first().alwaysAllowPodcastStreamingOnMobileData)
+        cellularController.awaitShutdownForTest()
+    }
+
+    @Test
+    fun dismissPendingMobileDataConfirmation_clearsStateWithoutPlaying() = runTest {
+        val cellularController = newController(NetworkTypeChecker { true })
+        val feedId = feedRepository.subscribe(Feed(title = "Feed"))
+        val item = FeedItem(
+            id = "episode-1", feedId = feedId, itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(item))
+        cellularController.play(item, "Feed")
+
+        cellularController.dismissPendingMobileDataConfirmation()
+
+        assertEquals(null, cellularController.pendingMobileDataConfirmation.value)
+        assertFalse(queueRepository.isQueued(item.id))
+        cellularController.awaitShutdownForTest()
+    }
+
+    @Test
+    fun play_alreadyDownloadedOnMobileData_playsWithoutConfirmation() = runTest {
+        val cellularController = newController(NetworkTypeChecker { true })
+        val feedId = feedRepository.subscribe(Feed(title = "Feed"))
+        val item = FeedItem(
+            id = "episode-1", feedId = feedId, itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg",
+            downloadedFilePath = tempFolder.newFile("ep1.mp3").absolutePath,
+        )
+        feedRepository.insertItems(listOf(item))
+
+        cellularController.play(item, "Feed")
+
+        assertTrue(queueRepository.isQueued(item.id))
+        assertEquals(null, cellularController.pendingMobileDataConfirmation.value)
+        cellularController.awaitShutdownForTest()
     }
 }

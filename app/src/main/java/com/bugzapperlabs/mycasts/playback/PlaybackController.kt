@@ -66,6 +66,10 @@ data class PlaybackUiState(
         get() = chapters.indexOfLast { it.startTimeMs <= positionMs }
 }
 
+/** An episode whose play attempt is blocked pending the user's answer to the mobile-data
+ *  streaming warning (issue #222) -- see [PlaybackController.pendingMobileDataConfirmation]. */
+data class PendingMobileDataConfirmation(val item: FeedItem, val feedTitle: String?)
+
 /**
  * UI-facing entry point for playback (used by the in-article player, issue #20): connects to
  * [PlaybackService] via a [MediaController] and exposes its state as a [StateFlow]. Resolving the
@@ -108,6 +112,14 @@ class PlaybackController @Inject constructor(
 
     private val _uiState = MutableStateFlow(PlaybackUiState())
     val uiState: StateFlow<PlaybackUiState> = _uiState.asStateFlow()
+
+    // issue #222: set by play() instead of silently failing when an episode isn't downloaded and
+    // would need to stream over mobile data -- a single piece of state here (rather than one per
+    // caller) since both QueueViewModel.playNow and EpisodeDetailsViewModel.togglePlayPause funnel
+    // through this same play(), and MainActivity renders the one confirmation dialog for it
+    // regardless of which screen the tap came from.
+    private val _pendingMobileDataConfirmation = MutableStateFlow<PendingMobileDataConfirmation?>(null)
+    val pendingMobileDataConfirmation: StateFlow<PendingMobileDataConfirmation?> = _pendingMobileDataConfirmation.asStateFlow()
 
     // Player.Listener.onEvents only fires on discrete state changes (play/pause/seek/media item
     // transition/etc.), never on a timer -- without this, positionMs (and the progress bar/elapsed
@@ -232,8 +244,31 @@ class PlaybackController @Inject constructor(
      * playback.
      */
     suspend fun play(item: FeedItem, feedTitle: String?): Boolean {
+        if (PlaybackMediaItemFactory.needsMobileDataConfirmation(item, settingsDataStore, networkTypeChecker)) {
+            _pendingMobileDataConfirmation.value = PendingMobileDataConfirmation(item, feedTitle)
+            return false
+        }
         queueRepository.moveToFront(item.id)
         return loadMedia(item, feedTitle, autoPlay = true)
+    }
+
+    /**
+     * Plays [pendingMobileDataConfirmation]'s episode after the user has explicitly confirmed
+     * streaming it over mobile data (issue #222), optionally persisting "always allow" so future
+     * plays skip this prompt entirely. A no-op if nothing is actually pending (e.g. the dialog's
+     * already been dismissed some other way).
+     */
+    suspend fun confirmPendingMobileDataStreaming(alwaysAllow: Boolean) {
+        val pending = _pendingMobileDataConfirmation.value ?: return
+        _pendingMobileDataConfirmation.value = null
+        if (alwaysAllow) settingsDataStore.setAlwaysAllowPodcastStreamingOnMobileData(true)
+        queueRepository.moveToFront(pending.item.id)
+        loadMedia(pending.item, pending.feedTitle, autoPlay = true, forceAllowStreaming = true)
+    }
+
+    /** Dismisses [pendingMobileDataConfirmation] without playing anything (issue #222). */
+    fun dismissPendingMobileDataConfirmation() {
+        _pendingMobileDataConfirmation.value = null
     }
 
     /**
@@ -257,9 +292,10 @@ class PlaybackController @Inject constructor(
         loadMedia(item, feed?.userTitle ?: feed?.title, autoPlay = false)
     }
 
-    private suspend fun loadMedia(item: FeedItem, feedTitle: String?, autoPlay: Boolean): Boolean {
-        val resolved = PlaybackMediaItemFactory.resolve(item, feedTitle, feedRepository, settingsDataStore, networkTypeChecker)
-            ?: return false
+    private suspend fun loadMedia(item: FeedItem, feedTitle: String?, autoPlay: Boolean, forceAllowStreaming: Boolean = false): Boolean {
+        val resolved = PlaybackMediaItemFactory.resolve(
+            item, feedTitle, feedRepository, settingsDataStore, networkTypeChecker, forceAllowStreaming,
+        ) ?: return false
 
         val previousItemId = currentItemId
         if (previousItemId != null && previousItemId != item.id) {

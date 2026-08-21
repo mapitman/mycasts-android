@@ -134,7 +134,12 @@
     <string name="settings_font_size_preview">Ma la volpe, col suo balzo, ha raggiunto il quieto Fido.</string>
     <string name="settings_download_on_battery">Scarica in modalità batteria</string>
     <string name="settings_download_on_mobile_data">Scarica con dati mobili</string>
-    <string name="settings_allow_streaming_on_mobile_data">Consenti streaming con dati mobili</string>
+    <string name="settings_always_allow_streaming_on_mobile_data">Consenti sempre lo streaming con dati mobili</string>
+    <string name="playback_mobile_data_warning_title">Riprodurre in streaming con dati mobili?</string>
+    <string name="playback_mobile_data_warning_message">Questo episodio non è scaricato. Riprodurlo ora lo trasmetterà con i dati mobili, il che potrebbe consumare una parte significativa del tuo piano dati.</string>
+    <string name="playback_mobile_data_warning_always_allow">Consenti sempre</string>
+    <string name="playback_mobile_data_warning_play">Riproduci comunque</string>
+    <string name="playback_mobile_data_warning_cancel">Annulla</string>
     <string name="settings_auto_delete_finished_downloads">Elimina automaticamente i download riprodotti</string>
     <string name="settings_battery_optimization_heading">Utilizzo della batteria in background</string>
     <string name="settings_battery_optimization_description">Per un avanzamento automatico dei podcast e download affidabili a schermo spento, consenti a MyCasts di funzionare senza restrizioni sulla batteria.</string>
