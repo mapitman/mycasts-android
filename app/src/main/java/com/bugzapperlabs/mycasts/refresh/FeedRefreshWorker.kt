@@ -32,11 +32,10 @@ import kotlinx.coroutines.flow.first
  * subscribed feed; a per-feed failure doesn't fail the whole run since [FeedUpdateResult] already
  * carries success/failure per feed and the next scheduled run will simply retry.
  *
- * User-requested addition (issue #23): for feeds flagged with `autoDownloadEnabled`, newly
- * ingested items with an enclosure are queued for background download.
- *
  * Also (issue #68): for feeds flagged with `autoQueueEnabled`, newly ingested episodes are added
- * to the Next Up queue, then that feed's queued episodes are trimmed to `autoQueueMaxCount` (if set).
+ * to the Next Up queue, then that feed's queued episodes are trimmed to `autoQueueMaxCount` (if
+ * set). Adding an episode to Next Up this way (or manually, from the UI) is itself what triggers
+ * its download (issue #219) -- see `QueueRepository.triggerDownload`.
  *
  * Also refreshes the home-screen widget's unread counts (issue #24) once the run completes, and
  * optionally posts a notification summarizing new items (issue #25) when the user has opted in

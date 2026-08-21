@@ -20,7 +20,6 @@ data class FeedPropertiesUiState(
     val feedUrl: String? = null,
     val itemsToKeep: Int? = null,
     val globalMaxItems: Int = 20,
-    val autoDownloadEnabled: Boolean = false,
     val maxDownloadsToKeep: Int? = null,
     val autoQueueEnabled: Boolean = false,
     val autoQueueMaxCount: Int? = null,
@@ -52,7 +51,6 @@ class FeedPropertiesViewModel @Inject constructor(
                 feedUrl = feed.feedUrl,
                 itemsToKeep = feed.itemsToKeep,
                 globalMaxItems = settings.maxItemsPerFeed,
-                autoDownloadEnabled = feed.autoDownloadEnabled,
                 maxDownloadsToKeep = feed.maxDownloadsToKeep,
                 autoQueueEnabled = feed.autoQueueEnabled,
                 autoQueueMaxCount = feed.autoQueueMaxCount,
@@ -77,13 +75,6 @@ class FeedPropertiesViewModel @Inject constructor(
         viewModelScope.launch {
             val feed = feedRepository.getFeed(feedId) ?: return@launch
             feedRepository.updateFeed(feed.copy(itemsToKeep = itemsToKeep))
-        }
-    }
-
-    fun setAutoDownloadEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            val feed = feedRepository.getFeed(feedId) ?: return@launch
-            feedRepository.updateFeed(feed.copy(autoDownloadEnabled = enabled))
         }
     }
 

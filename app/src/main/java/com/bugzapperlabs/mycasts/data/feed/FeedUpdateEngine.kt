@@ -219,15 +219,6 @@ class FeedUpdateEngine @Inject constructor(
         if (isFirstFetch && hasPodcastEpisode && !currentFeed.autoQueueEnabled) {
             updatedFeed = updatedFeed.copy(autoQueueEnabled = true, autoQueueMaxCount = NEW_PODCAST_AUTO_QUEUE_CAP)
         }
-        // Global default for a new feed's own auto-download toggle (issue #98), mirroring the
-        // auto-queue default above -- a per-feed, one-time default, not a master switch, so it
-        // never touches a feed that's already been through its first fetch. Also carries over the
-        // global max-downloads-to-keep default, the same way Feed Properties' own auto-download
-        // toggle pairs with its own max-count chips, rather than leaving maxDownloadsToKeep at
-        // whatever Feed's own class default happens to be.
-        if (isFirstFetch && hasPodcastEpisode && !currentFeed.autoDownloadEnabled && settings.autoDownloadNewFeedsByDefault) {
-            updatedFeed = updatedFeed.copy(autoDownloadEnabled = true, maxDownloadsToKeep = settings.autoDownloadNewFeedsMaxCount)
-        }
         feedRepository.updateFeed(updatedFeed)
         // Self-heals any lingering duplicate episodes from the since-fixed concurrent-refresh race
         // (issue #70 follow-up) before trimming, so a feed already contaminated by it recovers on
@@ -244,7 +235,7 @@ class FeedUpdateEngine @Inject constructor(
         // trimToItemsToKeep now does the one authoritative ranking itself, against the feed's full
         // combined item set it already has to fetch anyway -- passing every candidate here and
         // letting it filter down to the true survivors is both simpler and avoids a second query.
-        val protectedNewItemIds = if (updatedFeed.autoDownloadEnabled || updatedFeed.autoQueueEnabled) {
+        val protectedNewItemIds = if (updatedFeed.autoQueueEnabled) {
             newItemIds.toSet()
         } else {
             emptySet()

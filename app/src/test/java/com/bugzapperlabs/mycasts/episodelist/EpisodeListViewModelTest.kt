@@ -106,7 +106,6 @@ class EpisodeListViewModelTest {
         context = ApplicationProvider.getApplicationContext()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        queueRepository = QueueRepository(db.queueDao())
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
@@ -125,7 +124,8 @@ class EpisodeListViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        autoQueueAndDownloadEnforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository)
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        autoQueueAndDownloadEnforcer = AutoQueueAndDownloadEnforcer(repository, queueRepository)
 
         feedId = repository.subscribe(Feed(title = "A Feed"))
         repository.insertItems(

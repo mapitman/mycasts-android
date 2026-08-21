@@ -89,9 +89,6 @@ fun SettingsScreen(
     val addDefaultFeedsMessage by viewModel.addDefaultFeedsMessage.collectAsState()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    // issue #117: prompted right when the toggle is switched on, not routed through
-    // ActionsSection's button-triggered ConfirmableAction pattern below.
-    var showApplyAutoDownloadPrompt by remember { mutableStateOf(false) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { /* If denied, the setting stays on but no notification will be shown until granted. */ }
@@ -185,36 +182,6 @@ fun SettingsScreen(
                 settings.autoDeleteFinishedDownloads,
                 viewModel::setAutoDeleteFinishedDownloads,
             )
-            SwitchRow(
-                stringResource(R.string.settings_auto_download_new_feeds),
-                settings.autoDownloadNewFeedsByDefault,
-                onCheckedChange = { enabled ->
-                    viewModel.setAutoDownloadNewFeedsByDefault(enabled)
-                    if (enabled) showApplyAutoDownloadPrompt = true
-                },
-            )
-            if (settings.autoDownloadNewFeedsByDefault) {
-                Text(
-                    text = stringResource(R.string.settings_auto_download_max_count),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Row(modifier = Modifier.padding(top = 4.dp)) {
-                    listOf(1, 3, 5, 10, null).forEach { maxCount ->
-                        FilterChip(
-                            selected = settings.autoDownloadNewFeedsMaxCount == maxCount,
-                            onClick = { viewModel.setAutoDownloadNewFeedsMaxCount(maxCount) },
-                            label = {
-                                Text(
-                                    maxCount?.toString()
-                                        ?: stringResource(R.string.feed_properties_auto_queue_unlimited),
-                                )
-                            },
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                    }
-                }
-            }
             BatteryOptimizationSetting()
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
@@ -245,27 +212,6 @@ fun SettingsScreen(
                 modifier = Modifier.padding(bottom = 24.dp),
             )
         }
-    }
-
-    if (showApplyAutoDownloadPrompt) {
-        AlertDialog(
-            onDismissRequest = { showApplyAutoDownloadPrompt = false },
-            title = { Text(stringResource(R.string.settings_confirm_apply_auto_download_title)) },
-            text = { Text(stringResource(R.string.settings_confirm_apply_auto_download_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.enableAutoDownloadForExistingFeeds()
-                    showApplyAutoDownloadPrompt = false
-                }) {
-                    Text(stringResource(R.string.action_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showApplyAutoDownloadPrompt = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
-        )
     }
 }
 

@@ -174,42 +174,24 @@ fun FeedPropertiesScreen(
                 )
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .toggleable(
-                        value = uiState.autoDownloadEnabled,
-                        onValueChange = viewModel::setAutoDownloadEnabled,
-                        role = Role.Switch,
+            Text(
+                text = stringResource(R.string.feed_properties_max_downloads_to_keep),
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 24.dp),
+            )
+            Row(modifier = Modifier.padding(top = 4.dp)) {
+                listOf(1, 3, 5, 10, null).forEach { maxCount ->
+                    FilterChip(
+                        selected = uiState.maxDownloadsToKeep == maxCount,
+                        onClick = { viewModel.setMaxDownloadsToKeep(maxCount) },
+                        label = {
+                            Text(
+                                maxCount?.toString()
+                                    ?: stringResource(R.string.feed_properties_auto_queue_unlimited),
+                            )
+                        },
+                        modifier = Modifier.padding(end = 8.dp),
                     )
-                    .padding(top = 24.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.feed_properties_auto_download),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                Switch(checked = uiState.autoDownloadEnabled, onCheckedChange = null)
-            }
-            if (uiState.autoDownloadEnabled) {
-                Text(
-                    text = stringResource(R.string.feed_properties_max_downloads_to_keep),
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Row(modifier = Modifier.padding(top = 4.dp)) {
-                    listOf(1, 3, 5, 10, null).forEach { maxCount ->
-                        FilterChip(
-                            selected = uiState.maxDownloadsToKeep == maxCount,
-                            onClick = { viewModel.setMaxDownloadsToKeep(maxCount) },
-                            label = {
-                                Text(
-                                    maxCount?.toString()
-                                        ?: stringResource(R.string.feed_properties_auto_queue_unlimited),
-                                )
-                            },
-                            modifier = Modifier.padding(end = 8.dp),
-                        )
-                    }
                 }
             }
 

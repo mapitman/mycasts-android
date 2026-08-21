@@ -69,7 +69,6 @@ private fun Feed.toJson(): JSONObject = JSONObject().apply {
     putOpt("itemsToKeep", itemsToKeep)
     putOpt("lastGet", lastGet)
     putOpt("sortOrder", sortOrder)
-    put("autoDownloadEnabled", autoDownloadEnabled)
     put("autoQueueEnabled", autoQueueEnabled)
     putOpt("autoQueueMaxCount", autoQueueMaxCount)
     put("playbackSpeed", playbackSpeed.toDouble())
@@ -91,7 +90,6 @@ private fun JSONObject.toFeed(): Feed = Feed(
     itemsToKeep = optIntOrNull("itemsToKeep"),
     lastGet = optLongOrNull("lastGet"),
     sortOrder = optIntOrNull("sortOrder"),
-    autoDownloadEnabled = optBoolean("autoDownloadEnabled"),
     autoQueueEnabled = optBoolean("autoQueueEnabled"),
     autoQueueMaxCount = optIntOrNull("autoQueueMaxCount"),
     playbackSpeed = optDouble("playbackSpeed", 1.0).toFloat(),
@@ -181,8 +179,6 @@ private fun AppSettings.toJson(): JSONObject = JSONObject().apply {
     put("addDefaultFeedsPromptShown", addDefaultFeedsPromptShown)
     putOpt("podcastIndexApiKey", podcastIndexApiKey)
     putOpt("podcastIndexApiSecret", podcastIndexApiSecret)
-    put("autoDownloadNewFeedsByDefault", autoDownloadNewFeedsByDefault)
-    putOpt("autoDownloadNewFeedsMaxCount", autoDownloadNewFeedsMaxCount)
     put("useDeviceThemeColors", useDeviceThemeColors)
 }
 
@@ -237,12 +233,6 @@ private fun JSONObject.toAppSettings(): AppSettings {
         },
         podcastIndexApiKey = optStringOrNull("podcastIndexApiKey"),
         podcastIndexApiSecret = optStringOrNull("podcastIndexApiSecret"),
-        autoDownloadNewFeedsByDefault = if (has("autoDownloadNewFeedsByDefault")) {
-            getBoolean("autoDownloadNewFeedsByDefault")
-        } else {
-            defaults.autoDownloadNewFeedsByDefault
-        },
-        autoDownloadNewFeedsMaxCount = optIntOrNull("autoDownloadNewFeedsMaxCount"),
         useDeviceThemeColors = if (has("useDeviceThemeColors")) getBoolean("useDeviceThemeColors") else defaults.useDeviceThemeColors,
     )
 }

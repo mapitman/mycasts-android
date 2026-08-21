@@ -85,7 +85,7 @@ class FeedRefreshWorkerTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao())
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
     }
 
     @After
@@ -562,7 +562,7 @@ class FeedRefreshWorkerTest {
             workerParameters,
             repository,
             engine,
-            AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository),
+            AutoQueueAndDownloadEnforcer(repository, queueRepository),
             settingsDataStore,
             FeedRefreshState(),
         )

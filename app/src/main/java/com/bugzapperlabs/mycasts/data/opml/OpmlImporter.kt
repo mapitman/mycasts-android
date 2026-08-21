@@ -50,9 +50,9 @@ data class ImportProgress(val completedCount: Int, val totalCount: Int)
  *
  * [AutoQueueAndDownloadEnforcer.apply] is run once, on the whole batch of successful persists,
  * once all of them finish (issue #101) -- without this, a feed that came back with
- * `autoDownloadEnabled`/`autoQueueEnabled` set (either the existing auto-queue-on-first-fetch
- * default, issue #137, or the newer global auto-download default, issue #98) never actually gets
- * its first batch of episodes queued/downloaded: the enforcer is what does that, and every other
+ * `autoQueueEnabled` set (the auto-queue-on-first-fetch default, issue #137) never actually gets
+ * its first batch of episodes queued (and so downloaded, per issue #219): the enforcer is what does
+ * that, and every other
  * caller ([com.bugzapperlabs.mycasts.feedlist.FeedListViewModel.refresh],
  * [com.bugzapperlabs.mycasts.episodelist.EpisodeListViewModel.refresh],
  * [com.bugzapperlabs.mycasts.refresh.FeedRefreshWorker]) already calls it right after their own

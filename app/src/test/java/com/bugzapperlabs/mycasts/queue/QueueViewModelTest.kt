@@ -71,18 +71,10 @@ class QueueViewModelTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
         feedRepository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        queueRepository = QueueRepository(db.queueDao())
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
-        playbackController = PlaybackController(
-            context,
-            SettingsDataStore(dataStore),
-            feedRepository,
-            queueRepository,
-            ChaptersFetcher(OkHttpClient()),
-            NetworkTypeChecker { false },
-        )
+        val settingsDataStore = SettingsDataStore(dataStore)
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = feedRepository,
             downloadScheduling = object : DownloadScheduling {
@@ -94,7 +86,16 @@ class QueueViewModelTest {
                 override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
                 override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
             },
-            settingsDataStore = SettingsDataStore(dataStore),
+            settingsDataStore = settingsDataStore,
+        )
+        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository)
+        playbackController = PlaybackController(
+            context,
+            settingsDataStore,
+            feedRepository,
+            queueRepository,
+            ChaptersFetcher(OkHttpClient()),
+            NetworkTypeChecker { false },
         )
 
         feedId = feedRepository.subscribe(Feed(title = "A Feed"))

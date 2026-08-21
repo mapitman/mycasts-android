@@ -15,13 +15,6 @@ const val MAX_ARTICLES_SLIDER_UNLIMITED_POSITION = 105f
 fun itemsToKeepFromSliderPosition(position: Float): Int =
     if (position >= MAX_ARTICLES_SLIDER_UNLIMITED_POSITION) UNLIMITED_ITEMS_TO_KEEP else position.toInt()
 
-/** Sentinel used only for [AppSettings.autoDownloadNewFeedsMaxCount]'s on-disk DataStore
- *  representation (issue #98) -- [Preferences] has no native "key present but null" state the way
- *  a nullable Room column does, so "Unlimited" (the Kotlin `null`) has to round-trip through a
- *  literal value distinguishable from every real choice in the 1/3/5/10 chip row, and from an
- *  absent key (which means "never configured", falling back to the real default of 5). */
-const val UNLIMITED_MAX_DOWNLOADS_SENTINEL = 0
-
 /**
  * Ported from SettingsViewModel.cs. Dropped fields with no Android equivalent in this plan:
  * Instapaper username/password (Instapaper integration dropped, see port plan), and
@@ -77,15 +70,6 @@ data class AppSettings(
      *  see [com.bugzapperlabs.mycasts.data.directory.PodcastSearchService]. */
     val podcastIndexApiKey: String? = null,
     val podcastIndexApiSecret: String? = null,
-    /** Default [com.bugzapperlabs.mycasts.data.local.Feed.autoDownloadEnabled] applied to a feed
-     *  the first time it's subscribed (issue #98), mirroring how autoQueueEnabled already defaults
-     *  on for new podcast feeds. Existing feeds and any later per-feed change in Feed Properties
-     *  are unaffected either way. */
-    val autoDownloadNewFeedsByDefault: Boolean = false,
-    /** Default [com.bugzapperlabs.mycasts.data.local.Feed.maxDownloadsToKeep] applied alongside
-     *  [autoDownloadNewFeedsByDefault] (issue #98) -- same 1/3/5/10/unlimited(null) options as the
-     *  per-feed chips in Feed Properties. */
-    val autoDownloadNewFeedsMaxCount: Int? = 5,
     /** Follows the device's Material You theme color when available (issue #95), instead of the
      *  fixed MyCasts brand colors. Defaults to on; a user who prefers the brand colors can turn it
      *  back off. Has no effect below Android 12 (see [com.bugzapperlabs.mycasts.ui.theme.MyCastsTheme]). */

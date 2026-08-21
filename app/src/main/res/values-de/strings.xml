@@ -136,8 +136,6 @@
     <string name="settings_download_on_mobile_data">Download über mobile Daten</string>
     <string name="settings_allow_streaming_on_mobile_data">Streaming über mobile Daten erlauben</string>
     <string name="settings_auto_delete_finished_downloads">Downloads nach Wiedergabe automatisch löschen</string>
-    <string name="settings_auto_download_new_feeds">Neue Abonnements automatisch herunterladen</string>
-    <string name="settings_auto_download_max_count">Downloads pro Podcast behalten</string>
     <string name="settings_battery_optimization_heading">Akkunutzung im Hintergrund</string>
     <string name="settings_battery_optimization_description">Für zuverlässiges automatisches Weiterspringen zu Podcast-Episoden und Downloads bei ausgeschaltetem Bildschirm: Erlaube MyCasts den Betrieb ohne Akku-Einschränkungen.</string>
     <string name="settings_battery_optimization_granted">Uneingeschränkt</string>
@@ -231,7 +229,6 @@
     <string name="feed_properties_use_global_max_unlimited">Globale Einstellung für maximale Episoden verwenden (Alle)</string>
     <string name="feed_properties_max_articles_for_feed">Max. Episoden für diesen Feed: %1$d</string>
     <string name="feed_properties_max_articles_for_feed_unlimited">Max. Episoden für diesen Feed: Alle</string>
-    <string name="feed_properties_auto_download">Neue Episoden automatisch herunterladen</string>
     <string name="feed_properties_max_downloads_to_keep">Max. heruntergeladene Episoden für diesen Feed</string>
     <string name="feed_properties_auto_queue">Neue Episoden automatisch zur Warteschlange hinzufügen</string>
     <string name="feed_properties_auto_queue_max_count">Max. Episoden in der Warteschlange für diesen Feed</string>

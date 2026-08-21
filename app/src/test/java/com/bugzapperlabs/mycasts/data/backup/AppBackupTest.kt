@@ -31,7 +31,6 @@ class AppBackupTest {
             itemsToKeep = 30,
             lastGet = 1000L,
             sortOrder = 2,
-            autoDownloadEnabled = true,
             autoQueueEnabled = true,
             autoQueueMaxCount = 5,
             playbackSpeed = 1.5f,
@@ -82,8 +81,6 @@ class AppBackupTest {
             addDefaultFeedsPromptShown = true,
             podcastIndexApiKey = "key",
             podcastIndexApiSecret = "secret",
-            autoDownloadNewFeedsByDefault = true,
-            autoDownloadNewFeedsMaxCount = null,
             useDeviceThemeColors = false,
         )
         val backup = AppBackup(feeds = listOf(feed), feedItems = listOf(item), queueEntries = listOf(queueEntry), settings = settings)
