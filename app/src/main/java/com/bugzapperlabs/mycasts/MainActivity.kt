@@ -21,16 +21,19 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -52,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -80,6 +84,7 @@ import com.bugzapperlabs.mycasts.feedlist.FeedListScreen
 import com.bugzapperlabs.mycasts.feedproperties.FeedPropertiesScreen
 import com.bugzapperlabs.mycasts.playback.MiniPlayerViewModel
 import com.bugzapperlabs.mycasts.playback.NowPlayingMiniStrip
+import com.bugzapperlabs.mycasts.playback.PlaybackController
 import com.bugzapperlabs.mycasts.queue.QueueScreen
 import com.bugzapperlabs.mycasts.episodedetails.EpisodeDetailsScreen
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduler
@@ -117,6 +122,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var downloadFeedbackCoordinator: DownloadFeedbackCoordinator
+
+    @Inject
+    lateinit var playbackController: PlaybackController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -192,6 +200,11 @@ class MainActivity : ComponentActivity() {
                 // which tab/screen is showing.
                 val downloadSnackbarHostState = remember { SnackbarHostState() }
                 val downloadFeedbackResult by downloadFeedbackCoordinator.result.collectAsState()
+                // issue #222: rendered once here, rather than in whichever ViewModel/screen called
+                // PlaybackController.play(), since QueueViewModel.playNow and
+                // EpisodeDetailsViewModel.togglePlayPause both funnel through that same play() with
+                // no shared dialog infrastructure of their own -- see PlaybackController's doc.
+                val pendingMobileDataConfirmation by playbackController.pendingMobileDataConfirmation.collectAsState()
                 LaunchedEffect(downloadFeedbackResult) {
                     val message = downloadFeedbackResult ?: return@LaunchedEffect
                     downloadSnackbarHostState.showSnackbar(message)
@@ -530,6 +543,49 @@ class MainActivity : ComponentActivity() {
                                 coroutineScope.launch { settingsDataStore.setBatteryOptimizationPromptShown(true) }
                             }) {
                                 Text(stringResource(R.string.action_cancel))
+                            }
+                        },
+                    )
+                }
+                if (pendingMobileDataConfirmation != null) {
+                    // Reset per confirmation (keyed on the pending item) rather than surviving
+                    // across dialogs, so a previous prompt's checked "always allow" box doesn't
+                    // silently carry over and pre-check a later, unrelated one.
+                    var alwaysAllow by remember(pendingMobileDataConfirmation) { mutableStateOf(false) }
+                    AlertDialog(
+                        onDismissRequest = { playbackController.dismissPendingMobileDataConfirmation() },
+                        title = { Text(stringResource(R.string.playback_mobile_data_warning_title)) },
+                        text = {
+                            Column {
+                                Text(stringResource(R.string.playback_mobile_data_warning_message))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .padding(top = 16.dp)
+                                        .toggleable(
+                                            value = alwaysAllow,
+                                            onValueChange = { alwaysAllow = it },
+                                            role = Role.Checkbox,
+                                        ),
+                                ) {
+                                    Checkbox(checked = alwaysAllow, onCheckedChange = null)
+                                    Text(
+                                        stringResource(R.string.playback_mobile_data_warning_always_allow),
+                                        modifier = Modifier.padding(start = 8.dp),
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                coroutineScope.launch { playbackController.confirmPendingMobileDataStreaming(alwaysAllow) }
+                            }) {
+                                Text(stringResource(R.string.playback_mobile_data_warning_play))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { playbackController.dismissPendingMobileDataConfirmation() }) {
+                                Text(stringResource(R.string.playback_mobile_data_warning_cancel))
                             }
                         },
                     )

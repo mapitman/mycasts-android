@@ -136,10 +136,9 @@ class PlaybackMediaItemFactoryTest {
     }
 
     @Test
-    fun resolve_mobileDataStreamingDisallowedAndOnMobileDataAndNotDownloaded_returnsNull() = runTest {
-        // issue #123: the renamed setting only gates the mobile-data case -- this needs an
-        // actually-cellular NetworkTypeChecker to trigger, unlike the old blanket toggle.
-        settingsDataStore.setAllowPodcastStreamingOnMobileData(false)
+    fun resolve_onMobileDataAndNotAlwaysAllowedAndNotDownloaded_returnsNull() = runTest {
+        // issue #222: alwaysAllowPodcastStreamingOnMobileData defaults to false -- this needs an
+        // actually-cellular NetworkTypeChecker to trigger, since Wi-Fi is always allowed.
         val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         val item = FeedItem(
             id = "episode-1",
@@ -159,9 +158,8 @@ class PlaybackMediaItemFactoryTest {
     }
 
     @Test
-    fun resolve_mobileDataStreamingDisallowedButOnWifi_stillStreams() = runTest {
-        // issue #123: Wi-Fi streaming is always allowed regardless of the mobile-data setting.
-        settingsDataStore.setAllowPodcastStreamingOnMobileData(false)
+    fun resolve_notAlwaysAllowedButOnWifi_stillStreams() = runTest {
+        // issue #123/#222: Wi-Fi streaming is always allowed regardless of the mobile-data setting.
         val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         val item = FeedItem(
             id = "episode-1",
@@ -181,8 +179,8 @@ class PlaybackMediaItemFactoryTest {
     }
 
     @Test
-    fun resolve_onMobileDataWithMobileDataStreamingAllowed_stillStreams() = runTest {
-        settingsDataStore.setAllowPodcastStreamingOnMobileData(true)
+    fun resolve_onMobileDataWithAlwaysAllowSet_stillStreams() = runTest {
+        settingsDataStore.setAlwaysAllowPodcastStreamingOnMobileData(true)
         val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         val item = FeedItem(
             id = "episode-1",
@@ -199,5 +197,76 @@ class PlaybackMediaItemFactoryTest {
         )
 
         assertNotNull(resolved)
+    }
+
+    @Test
+    fun resolve_onMobileDataWithForceAllowStreaming_stillStreams() = runTest {
+        // issue #222: forceAllowStreaming is how PlaybackController plays after the user
+        // confirms the mobile-data warning for one specific episode, without persisting anything.
+        val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
+        val item = FeedItem(
+            id = "episode-1",
+            feedId = feedId,
+            title = "Episode One",
+            itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3",
+            enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(item))
+
+        val resolved = PlaybackMediaItemFactory.resolve(
+            item, "A Feed", feedRepository, settingsDataStore,
+            networkTypeChecker = NetworkTypeChecker { true }, forceAllowStreaming = true,
+        )
+
+        assertNotNull(resolved)
+    }
+
+    @Test
+    fun needsMobileDataConfirmation_notDownloadedAndOnMobileDataAndNotAlwaysAllowed_returnsTrue() = runTest {
+        val item = FeedItem(id = "episode-1", feedId = 1, itemGuid = "g1", enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg")
+
+        val needsConfirmation = PlaybackMediaItemFactory.needsMobileDataConfirmation(
+            item, settingsDataStore, networkTypeChecker = NetworkTypeChecker { true },
+        )
+
+        assertEquals(true, needsConfirmation)
+    }
+
+    @Test
+    fun needsMobileDataConfirmation_onWifi_returnsFalse() = runTest {
+        val item = FeedItem(id = "episode-1", feedId = 1, itemGuid = "g1", enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg")
+
+        val needsConfirmation = PlaybackMediaItemFactory.needsMobileDataConfirmation(
+            item, settingsDataStore, networkTypeChecker = NetworkTypeChecker { false },
+        )
+
+        assertEquals(false, needsConfirmation)
+    }
+
+    @Test
+    fun needsMobileDataConfirmation_alwaysAllowSet_returnsFalse() = runTest {
+        settingsDataStore.setAlwaysAllowPodcastStreamingOnMobileData(true)
+        val item = FeedItem(id = "episode-1", feedId = 1, itemGuid = "g1", enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg")
+
+        val needsConfirmation = PlaybackMediaItemFactory.needsMobileDataConfirmation(
+            item, settingsDataStore, networkTypeChecker = NetworkTypeChecker { true },
+        )
+
+        assertEquals(false, needsConfirmation)
+    }
+
+    @Test
+    fun needsMobileDataConfirmation_alreadyDownloaded_returnsFalse() = runTest {
+        val item = FeedItem(
+            id = "episode-1", feedId = 1, itemGuid = "g1", enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg",
+            downloadedFilePath = tempFolder.newFile("ep1.mp3").absolutePath,
+        )
+
+        val needsConfirmation = PlaybackMediaItemFactory.needsMobileDataConfirmation(
+            item, settingsDataStore, networkTypeChecker = NetworkTypeChecker { true },
+        )
+
+        assertEquals(false, needsConfirmation)
     }
 }

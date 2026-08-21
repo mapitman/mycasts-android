@@ -134,7 +134,12 @@
     <string name="settings_font_size_preview">El veloz murciélago hindú comía feliz cardillo y kiwi.</string>
     <string name="settings_download_on_battery">Descargar con la batería</string>
     <string name="settings_download_on_mobile_data">Descargar con datos móviles</string>
-    <string name="settings_allow_streaming_on_mobile_data">Permitir streaming con datos móviles</string>
+    <string name="settings_always_allow_streaming_on_mobile_data">Permitir siempre streaming con datos móviles</string>
+    <string name="playback_mobile_data_warning_title">¿Transmitir con datos móviles?</string>
+    <string name="playback_mobile_data_warning_message">Este episodio no está descargado. Reproducirlo ahora lo transmitirá con datos móviles, lo que puede consumir una parte importante de tu plan de datos.</string>
+    <string name="playback_mobile_data_warning_always_allow">Permitir siempre</string>
+    <string name="playback_mobile_data_warning_play">Reproducir de todos modos</string>
+    <string name="playback_mobile_data_warning_cancel">Cancelar</string>
     <string name="settings_auto_delete_finished_downloads">Eliminar descargas automáticamente tras reproducirlas</string>
     <string name="settings_battery_optimization_heading">Uso de batería en segundo plano</string>
     <string name="settings_battery_optimization_description">Para que el avance automático de podcasts y las descargas funcionen de forma fiable con la pantalla apagada, permite que MyCasts funcione sin restricciones de batería.</string>

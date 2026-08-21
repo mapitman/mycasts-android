@@ -138,7 +138,12 @@
     <string name="settings_font_size_preview">The quick brown fox jumps over the lazy dog.</string>
     <string name="settings_download_on_battery">Download on battery</string>
     <string name="settings_download_on_mobile_data">Download on mobile data</string>
-    <string name="settings_allow_streaming_on_mobile_data">Allow streaming over mobile data</string>
+    <string name="settings_always_allow_streaming_on_mobile_data">Always allow streaming over mobile data</string>
+    <string name="playback_mobile_data_warning_title">Stream over mobile data?</string>
+    <string name="playback_mobile_data_warning_message">This episode isn\'t downloaded. Playing it now will stream it over mobile data, which may use a significant amount of your data plan.</string>
+    <string name="playback_mobile_data_warning_always_allow">Always allow</string>
+    <string name="playback_mobile_data_warning_play">Play anyway</string>
+    <string name="playback_mobile_data_warning_cancel">Cancel</string>
     <string name="settings_auto_delete_finished_downloads">Auto-delete downloads once played</string>
     <string name="settings_battery_optimization_heading">Background battery usage</string>
     <string name="settings_battery_optimization_description">For reliable podcast auto-advance and downloads when the screen is off, allow MyCasts to run without battery restrictions.</string>
