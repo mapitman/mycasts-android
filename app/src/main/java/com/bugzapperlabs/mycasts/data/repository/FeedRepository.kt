@@ -90,10 +90,6 @@ class FeedRepository @Inject constructor(
 
     suspend fun deleteItems(items: List<FeedItem>) = feedItemDao.deleteAll(items)
 
-    /** Issue #117: applies the global auto-download-by-default setting to every existing
-     *  subscription, not just ones added going forward. */
-    suspend fun setAutoDownloadEnabledForAllFeeds(enabled: Boolean) = feedDao.setAutoDownloadEnabledForAllFeeds(enabled)
-
     suspend fun setDownloadedBytes(itemId: String, bytes: Long?) = feedItemDao.setDownloadedBytes(itemId, bytes)
 
     suspend fun setDownloadedFilePath(itemId: String, path: String?) = feedItemDao.setDownloadedFilePath(itemId, path)

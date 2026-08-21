@@ -12,7 +12,6 @@ import com.bugzapperlabs.mycasts.data.opml.ImportProgress
 import com.bugzapperlabs.mycasts.data.opml.OpmlExporter
 import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlParser
-import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
@@ -29,7 +28,6 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsDataStore: SettingsDataStore,
-    private val feedRepository: FeedRepository,
     private val opmlImportCoordinator: OpmlImportCoordinator,
     private val opmlExporter: OpmlExporter,
     private val appBackupRepository: AppBackupRepository,
@@ -101,20 +99,6 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoDeleteFinishedDownloads(value: Boolean) {
         viewModelScope.launch { settingsDataStore.setAutoDeleteFinishedDownloads(value) }
-    }
-
-    fun setAutoDownloadNewFeedsByDefault(value: Boolean) {
-        viewModelScope.launch { settingsDataStore.setAutoDownloadNewFeedsByDefault(value) }
-    }
-
-    fun setAutoDownloadNewFeedsMaxCount(value: Int?) {
-        viewModelScope.launch { settingsDataStore.setAutoDownloadNewFeedsMaxCount(value) }
-    }
-
-    /** Retroactively applies the just-enabled auto-download-by-default setting to every
-     *  already-subscribed feed (issue #117), not just ones added from here on. */
-    fun enableAutoDownloadForExistingFeeds() {
-        viewModelScope.launch { feedRepository.setAutoDownloadEnabledForAllFeeds(true) }
     }
 
     fun setUseDeviceThemeColors(value: Boolean) {

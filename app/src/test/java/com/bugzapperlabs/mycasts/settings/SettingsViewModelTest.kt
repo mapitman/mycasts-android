@@ -175,8 +175,8 @@ class SettingsViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        val queueRepository = QueueRepository(db.queueDao())
-        val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository)
+        val queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        val enforcer = AutoQueueAndDownloadEnforcer(repository, queueRepository)
         val opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer)
         opmlImportCoordinator = OpmlImportCoordinator(opmlImporter, context)
         // Real WorkManager deadlocked when touched from Robolectric-hosted ViewModel tests (see
@@ -184,7 +184,6 @@ class SettingsViewModelTest {
         // FeedRefreshScheduling interface and this test uses a no-op fake instead.
         viewModel = SettingsViewModel(
             settingsDataStore = settingsDataStore,
-            feedRepository = repository,
             opmlImportCoordinator = opmlImportCoordinator,
             opmlExporter = OpmlExporter(db.feedDao()),
             appBackupRepository = AppBackupRepository(repository, queueRepository, settingsDataStore),
@@ -251,16 +250,5 @@ class SettingsViewModelTest {
         val settings = viewModel.settings.first { it.maxItemsPerFeed != 99 }
         assertEquals(20, settings.maxItemsPerFeed)
         assertEquals(1, db.feedDao().observeAll().first().size)
-    }
-
-    @Test
-    fun enableAutoDownloadForExistingFeeds_enablesItOnEveryExistingFeed() = runTest(testDispatcher, timeout = 120.seconds) {
-        repository.subscribe(Feed(title = "Feed A", autoDownloadEnabled = false))
-        repository.subscribe(Feed(title = "Feed B", autoDownloadEnabled = false))
-
-        viewModel.enableAutoDownloadForExistingFeeds()
-
-        val feeds = db.feedDao().observeAll().first { feeds -> feeds.all { it.autoDownloadEnabled } }
-        assertEquals(2, feeds.size)
     }
 }

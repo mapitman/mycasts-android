@@ -178,3 +178,52 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_feeds_feedUrl ON feeds(feedUrl)")
     }
 }
+
+/**
+ * Removes feeds.autoDownloadEnabled (issue #219): auto-download is no longer a separate per-feed
+ * toggle triggered by feed refresh -- an episode downloads automatically when it's added to Next
+ * Up (manually or via auto-queue) instead, replacing this flag entirely rather than adding
+ * alongside it. feeds.maxDownloadsToKeep (the storage cap) and feed_items.autoDownloaded (the cap
+ * eviction's exemption flag) both stay -- they're still meaningful once downloads are triggered by
+ * queuing rather than by this removed flag. SQLite has no DROP COLUMN before 3.35 (the version
+ * bundled with this app's minSdk), so this recreates the table without the column, mirroring
+ * MIGRATION_6_7's identical approach for removing feeds.categoryId.
+ */
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE feeds_new (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "title TEXT, " +
+                "userTitle TEXT, " +
+                "description TEXT, " +
+                "feedUrl TEXT, " +
+                "siteUrl TEXT, " +
+                "imageUrl TEXT, " +
+                "displayMode INTEGER, " +
+                "itemsToKeep INTEGER, " +
+                "lastGet INTEGER, " +
+                "sortOrder INTEGER, " +
+                "autoQueueEnabled INTEGER NOT NULL, " +
+                "autoQueueMaxCount INTEGER, " +
+                "playbackSpeed REAL NOT NULL, " +
+                "autoQueuePosition TEXT NOT NULL, " +
+                "volumeBoostMillibels INTEGER NOT NULL, " +
+                "startSkipSeconds INTEGER NOT NULL, " +
+                "maxDownloadsToKeep INTEGER)",
+        )
+        db.execSQL(
+            "INSERT INTO feeds_new (id, title, userTitle, description, feedUrl, siteUrl, imageUrl, " +
+                "displayMode, itemsToKeep, lastGet, sortOrder, autoQueueEnabled, autoQueueMaxCount, " +
+                "playbackSpeed, autoQueuePosition, volumeBoostMillibels, startSkipSeconds, maxDownloadsToKeep) " +
+                "SELECT id, title, userTitle, description, feedUrl, siteUrl, imageUrl, displayMode, " +
+                "itemsToKeep, lastGet, sortOrder, autoQueueEnabled, autoQueueMaxCount, playbackSpeed, " +
+                "autoQueuePosition, volumeBoostMillibels, startSkipSeconds, maxDownloadsToKeep FROM feeds",
+        )
+        db.execSQL("DROP TABLE feeds")
+        db.execSQL("ALTER TABLE feeds_new RENAME TO feeds")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_feeds_userTitle ON feeds(userTitle)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_feeds_title ON feeds(title)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_feeds_feedUrl ON feeds(feedUrl)")
+    }
+}

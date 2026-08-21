@@ -47,9 +47,4 @@ interface FeedDao {
 
     @Query("SELECT * FROM feeds WHERE id = :id")
     fun observeById(id: Long): Flow<Feed?>
-
-    /** Retroactively applies the global auto-download-new-episodes default (issue #117) to every
-     *  already-subscribed feed, not just ones added after the setting was turned on. */
-    @Query("UPDATE feeds SET autoDownloadEnabled = :enabled")
-    suspend fun setAutoDownloadEnabledForAllFeeds(enabled: Boolean)
 }

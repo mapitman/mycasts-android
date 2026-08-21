@@ -11,8 +11,13 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadScheduling
+import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -91,11 +96,22 @@ class FeedUpdateEngineTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        queueRepository = QueueRepository(db.queueDao())
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
+        val downloadRepository = EnclosureDownloadRepository(
+            feedRepository = repository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {}
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+                override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
         engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
     }
 
@@ -349,26 +365,6 @@ class FeedUpdateEngineTest {
     }
 
     @Test
-    fun updateFeed_autoDownloadEnabled_firstFetchStillOnlyCapsRatherThanProtectingFromEviction() = runTest {
-        // issue #83's protectedNewItemIds mechanism no longer has anything to do on a first fetch
-        // now that issue #110 caps before insert -- confirms auto-download being enabled doesn't
-        // change that outcome (the cap itself is unconditional, not gated on it).
-        val url = server.url("/feed.xml").toString()
-        val feedId = repository.subscribe(
-            Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1, autoDownloadEnabled = true),
-        )
-        val feed = repository.getFeed(feedId)!!
-        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First", "guid-2" to "Second")))
-
-        val result = engine.updateFeed(feed)
-
-        assertTrue(result is FeedUpdateResult.Success)
-        val success = result as FeedUpdateResult.Success
-        assertTrue("evictedItemIds=${success.evictedItemIds}", success.evictedItemIds.isEmpty())
-        assertEquals(1, success.newItemIds.size)
-    }
-
-    @Test
     fun updateFeed_subsequentRefresh_stillTrimsNewItemsNormally() = runTest {
         // issue #110 only caps a feed's *first* fetch -- a later refresh (lastGet already set)
         // still inserts everything new and relies on trimToItemsToKeep afterward, same as before
@@ -386,14 +382,15 @@ class FeedUpdateEngineTest {
     }
 
     @Test
-    fun updateFeed_autoDownloadEnabled_subsequentRefresh_protectsUpToCapNewestFirst() = runTest {
+    fun updateFeed_autoQueueEnabled_subsequentRefresh_protectsUpToCapNewestFirst() = runTest {
         // issue #83's original mechanism, still live for a *subsequent* refresh (as opposed to
         // issue #110's first-fetch cap above): trimToItemsToKeep runs inside persist(), before the
         // caller ever gets a chance to run AutoQueueAndDownloadEnforcer.apply() against this
         // refresh's newItemIds -- a feed publishing more new episodes in one refresh than
         // itemsToKeep allows used to have the oldest of that very batch evicted immediately, so the
         // enforcer's later feedRepository.getItem(itemId) lookup silently found nothing and
-        // skipped auto-download entirely for those episodes, with no error or trace of it happening.
+        // skipped auto-queue (and so auto-download, per issue #219) entirely for those episodes,
+        // with no error or trace of it happening.
         //
         // issue #134 then bounded that same-refresh exemption to itemsToKeep itself
         // (newest-by-publishDate) rather than exempting every new item unconditionally -- a feed
@@ -409,7 +406,7 @@ class FeedUpdateEngineTest {
         // whatever order an unrelated pre-existing item happens to come back in.
         val url = server.url("/feed.xml").toString()
         val feedId = repository.subscribe(
-            Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1, autoDownloadEnabled = true),
+            Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1, autoQueueEnabled = true),
         )
         val feed = repository.getFeed(feedId)!!
         server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems()))
@@ -487,7 +484,7 @@ class FeedUpdateEngineTest {
         // newer already-stored item instead of being evicted.
         val url = server.url("/feed.xml").toString()
         val feedId = repository.subscribe(
-            Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1, autoDownloadEnabled = true),
+            Feed(title = "Test Feed", feedUrl = url, itemsToKeep = 1),
         )
         val feed = repository.getFeed(feedId)!!
         server.enqueue(
@@ -515,72 +512,6 @@ class FeedUpdateEngineTest {
         assertEquals(1, success.evictedItemIds.size)
         val stored = repository.observeItems(feed.id).first()
         assertEquals(listOf("existing-newest"), stored.map { it.itemGuid })
-    }
-
-    @Test
-    fun updateFeed_globalAutoDownloadDefaultEnabled_setsAutoDownloadAndMaxCountOnFirstFetch() = runTest {
-        // issue #98: mirrors the existing auto-queue default-on-first-fetch behavior (issue #137),
-        // but for auto-download, gated by a global Settings toggle rather than being unconditional.
-        settingsDataStore.setAutoDownloadNewFeedsByDefault(true)
-        settingsDataStore.setAutoDownloadNewFeedsMaxCount(10)
-        val feed = subscribeFeed()
-        server.enqueue(
-            MockResponse().setResponseCode(200).setBody(
-                """
-                |<?xml version="1.0" encoding="UTF-8"?>
-                |<rss version="2.0"><channel>
-                |  <title>Test Feed</title>
-                |  <link>https://example.com</link>
-                |  <description>desc</description>
-                |  <item>
-                |    <title>Episode 1</title>
-                |    <link>https://example.com/1</link>
-                |    <guid>guid-1</guid>
-                |    <description>Body</description>
-                |    <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
-                |    <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1" />
-                |  </item>
-                |</channel></rss>
-                """.trimMargin(),
-            ),
-        )
-
-        engine.updateFeed(feed)
-
-        val updated = repository.getFeed(feed.id)!!
-        assertTrue(updated.autoDownloadEnabled)
-        assertEquals(10, updated.maxDownloadsToKeep)
-    }
-
-    @Test
-    fun updateFeed_globalAutoDownloadDefaultDisabled_leavesAutoDownloadOff() = runTest {
-        // The global default is opt-in (issue #98) -- off by default, a feed's first fetch should
-        // leave autoDownloadEnabled exactly as it already was (false).
-        val feed = subscribeFeed()
-        server.enqueue(
-            MockResponse().setResponseCode(200).setBody(
-                """
-                |<?xml version="1.0" encoding="UTF-8"?>
-                |<rss version="2.0"><channel>
-                |  <title>Test Feed</title>
-                |  <link>https://example.com</link>
-                |  <description>desc</description>
-                |  <item>
-                |    <title>Episode 1</title>
-                |    <link>https://example.com/1</link>
-                |    <guid>guid-1</guid>
-                |    <description>Body</description>
-                |    <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
-                |    <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1" />
-                |  </item>
-                |</channel></rss>
-                """.trimMargin(),
-            ),
-        )
-
-        engine.updateFeed(feed)
-
-        assertTrue(!repository.getFeed(feed.id)!!.autoDownloadEnabled)
     }
 
     @Test

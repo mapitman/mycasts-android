@@ -23,6 +23,7 @@ import com.bugzapperlabs.mycasts.data.local.MIGRATION_10_11
 import com.bugzapperlabs.mycasts.data.local.MIGRATION_11_12
 import com.bugzapperlabs.mycasts.data.local.MIGRATION_12_13
 import com.bugzapperlabs.mycasts.data.local.MIGRATION_13_14
+import com.bugzapperlabs.mycasts.data.local.MIGRATION_14_15
 import com.bugzapperlabs.mycasts.data.local.QueueDao
 import javax.inject.Singleton
 
@@ -47,6 +48,7 @@ object DatabaseModule {
                 MIGRATION_11_12,
                 MIGRATION_12_13,
                 MIGRATION_13_14,
+                MIGRATION_14_15,
             )
             .build()
 

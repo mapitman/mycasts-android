@@ -78,19 +78,10 @@ class EpisodeDetailsViewModelTest {
         appContext = context
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        queueRepository = QueueRepository(db.queueDao())
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
-        playbackController = PlaybackController(
-            context,
-            settingsDataStore,
-            repository,
-            queueRepository,
-            ChaptersFetcher(OkHttpClient()),
-            NetworkTypeChecker { false },
-        )
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
             downloadScheduling = object : DownloadScheduling {
@@ -101,6 +92,15 @@ class EpisodeDetailsViewModelTest {
                 override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
             },
             settingsDataStore = settingsDataStore,
+        )
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        playbackController = PlaybackController(
+            context,
+            settingsDataStore,
+            repository,
+            queueRepository,
+            ChaptersFetcher(OkHttpClient()),
+            NetworkTypeChecker { false },
         )
         downloadFeedbackCoordinator = DownloadFeedbackCoordinator(
             downloadRepository = downloadRepository,

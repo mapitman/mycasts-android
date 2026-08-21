@@ -2,9 +2,18 @@ package com.bugzapperlabs.mycasts.data.repository
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.DownloadScheduling
+import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -13,19 +22,26 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.File
 
 /** Config pins Robolectric to API 35 -- Robolectric 4.14 doesn't support compileSdk 36 yet. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class QueueRepositoryTest {
+    @get:Rule
+    val tempFolder = TemporaryFolder()
+
     private lateinit var db: AppDatabase
     private lateinit var feedRepository: FeedRepository
     private lateinit var queueRepository: QueueRepository
     private var feedId: Long = 0
+    private val enqueuedDownloadItemIds = mutableListOf<String>()
 
     @Before
     fun setUp() = runTest {
@@ -33,7 +49,24 @@ class QueueRepositoryTest {
             .allowMainThreadQueries()
             .build()
         feedRepository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        queueRepository = QueueRepository(db.queueDao())
+        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
+            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
+        )
+        val settingsDataStore = SettingsDataStore(dataStore)
+        val downloadRepository = EnclosureDownloadRepository(
+            feedRepository = feedRepository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {
+                    enqueuedDownloadItemIds += itemId
+                }
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+                override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository)
 
         feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         feedRepository.insertItems(
@@ -261,5 +294,81 @@ class QueueRepositoryTest {
 
         val queue = queueRepository.observeQueue().first()
         assertEquals(listOf("ep-1", "ep-2"), queue.map { it.item.id })
+    }
+
+    @Test
+    fun addToEnd_podcastEpisode_startsDownload() = runTest {
+        // issue #219: adding to Next Up, manually or via auto-queue, is the sole download trigger.
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "podcast-1", feedId = feedId, title = "Podcast Episode", itemGuid = "gp1",
+                    enclosureUrl = "https://example.com/1.mp3", enclosureType = "audio/mpeg",
+                ),
+            ),
+        )
+
+        queueRepository.addToEnd("podcast-1")
+
+        assertEquals(listOf("podcast-1"), enqueuedDownloadItemIds)
+        assertTrue(feedRepository.getItem("podcast-1")!!.autoDownloaded)
+    }
+
+    @Test
+    fun addToFront_podcastEpisode_startsDownload() = runTest {
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "podcast-1", feedId = feedId, title = "Podcast Episode", itemGuid = "gp1",
+                    enclosureUrl = "https://example.com/1.mp3", enclosureType = "audio/mpeg",
+                ),
+            ),
+        )
+
+        queueRepository.addToFront("podcast-1")
+
+        assertEquals(listOf("podcast-1"), enqueuedDownloadItemIds)
+    }
+
+    @Test
+    fun addToEnd_alreadyDownloaded_doesNotRestartDownload() = runTest {
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "podcast-1", feedId = feedId, title = "Podcast Episode", itemGuid = "gp1",
+                    enclosureUrl = "https://example.com/1.mp3", enclosureType = "audio/mpeg",
+                    downloadedFilePath = "/tmp/already.mp3",
+                ),
+            ),
+        )
+
+        queueRepository.addToEnd("podcast-1")
+
+        assertTrue(enqueuedDownloadItemIds.isEmpty())
+    }
+
+    @Test
+    fun addToEnd_nonPodcastEpisode_doesNotStartDownload() = runTest {
+        // ep-1 (from setUp) has no enclosure.
+        queueRepository.addToEnd("ep-1")
+
+        assertTrue(enqueuedDownloadItemIds.isEmpty())
+    }
+
+    @Test
+    fun moveToFront_doesNotStartDownload() = runTest {
+        // moveToFront marks "now playing" -- it shouldn't itself trigger a download.
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "podcast-1", feedId = feedId, title = "Podcast Episode", itemGuid = "gp1",
+                    enclosureUrl = "https://example.com/1.mp3", enclosureType = "audio/mpeg",
+                ),
+            ),
+        )
+
+        queueRepository.moveToFront("podcast-1")
+
+        assertTrue(enqueuedDownloadItemIds.isEmpty())
     }
 }

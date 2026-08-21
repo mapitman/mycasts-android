@@ -69,6 +69,7 @@ class FeedListViewModelTest {
     private lateinit var db: AppDatabase
     private lateinit var repository: FeedRepository
     private lateinit var queueRepository: QueueRepository
+    private lateinit var downloadRepository: EnclosureDownloadRepository
     private lateinit var settingsDataStore: SettingsDataStore
     private lateinit var context: android.content.Context
     private lateinit var viewModel: FeedListViewModel
@@ -88,19 +89,8 @@ class FeedListViewModelTest {
         feedRefreshState: FeedRefreshState,
         feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient()),
     ): Pair<FeedListViewModel, OpmlImportCoordinator> {
-        val downloadRepository = EnclosureDownloadRepository(
-            feedRepository = repository,
-            downloadScheduling = object : DownloadScheduling {
-                override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {}
-                override fun cancelDownload(itemId: String) {}
-                override fun cancelAllDownloads() {}
-                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
-                override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
-            },
-            settingsDataStore = settingsDataStore,
-        )
         val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
-        val enforcer = AutoQueueAndDownloadEnforcer(repository, downloadRepository, queueRepository)
+        val enforcer = AutoQueueAndDownloadEnforcer(repository, queueRepository)
         val coordinator = OpmlImportCoordinator(
             OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer),
             context,
@@ -128,7 +118,18 @@ class FeedListViewModelTest {
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
-        queueRepository = QueueRepository(db.queueDao())
+        downloadRepository = EnclosureDownloadRepository(
+            feedRepository = repository,
+            downloadScheduling = object : DownloadScheduling {
+                override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {}
+                override fun cancelDownload(itemId: String) {}
+                override fun cancelAllDownloads() {}
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+                override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
+            },
+            settingsDataStore = settingsDataStore,
+        )
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
 
         viewModel = newViewModel(FeedRefreshState())
         viewModelStore.put("feedList", viewModel)

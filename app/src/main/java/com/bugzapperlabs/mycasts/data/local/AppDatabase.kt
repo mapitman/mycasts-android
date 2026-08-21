@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [Feed::class, FeedItem::class, QueueEntry::class],
-    version = 14,
+    version = 15,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {

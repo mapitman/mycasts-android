@@ -33,8 +33,6 @@ data class Feed(
     val itemsToKeep: Int? = null,
     val lastGet: Long? = null,
     val sortOrder: Int? = null,
-    /** New in this port (issue #23) -- the original MyFeeds only supported manual downloads. */
-    val autoDownloadEnabled: Boolean = false,
     /** New episodes auto-add to the Next Up queue (issue #68) when this feed refreshes. */
     val autoQueueEnabled: Boolean = false,
     /** Only enforced when [autoQueueEnabled]; null means unlimited (keep all auto-queued episodes). */
@@ -50,10 +48,12 @@ data class Feed(
     /** Seconds to skip from the start when an episode of this feed begins playing fresh, i.e. has
      *  no saved resume position (issue #200); 0 means no skip. */
     val startSkipSeconds: Int = 0,
-    /** Only enforced against auto-downloaded episodes ([FeedItem.autoDownloaded]) of this feed
-     *  (issue #250); null means unlimited. Manually-downloaded episodes are never auto-deleted by
-     *  this cap, and a queued or currently-playing episode is exempt from eviction even if it's
-     *  the oldest auto-download, mirroring [com.bugzapperlabs.mycasts.data.repository.FeedRepository.trimToItemsToKeep]'s
+    /** Only enforced against auto-downloaded episodes ([FeedItem.autoDownloaded] -- issue #219:
+     *  set whenever a download was triggered by an episode being added to Next Up, whether by the
+     *  user or by auto-queue, not by an explicit single-episode download tap) of this feed (issue
+     *  #250); null means unlimited. Manually-downloaded episodes are never auto-deleted by this
+     *  cap, and a queued or currently-playing episode is exempt from eviction even if it's the
+     *  oldest auto-download, mirroring [com.bugzapperlabs.mycasts.data.repository.FeedRepository.trimToItemsToKeep]'s
      *  queue exemption. Defaults to 5 rather than unlimited (issue #98) -- only affects a brand
      *  new [Feed] instance; existing rows keep whatever value is already persisted. */
     val maxDownloadsToKeep: Int? = 5,

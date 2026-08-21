@@ -47,13 +47,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
                 ?: AppSettings().addDefaultFeedsPromptShown,
             podcastIndexApiKey = prefs[Keys.PODCAST_INDEX_API_KEY],
             podcastIndexApiSecret = prefs[Keys.PODCAST_INDEX_API_SECRET],
-            autoDownloadNewFeedsByDefault = prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT]
-                ?: AppSettings().autoDownloadNewFeedsByDefault,
-            autoDownloadNewFeedsMaxCount = when (val stored = prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT]) {
-                null -> AppSettings().autoDownloadNewFeedsMaxCount
-                UNLIMITED_MAX_DOWNLOADS_SENTINEL -> null
-                else -> stored
-            },
             useDeviceThemeColors = prefs[Keys.USE_DEVICE_THEME_COLORS] ?: AppSettings().useDeviceThemeColors,
             pendingNewEpisodeIds = prefs[Keys.PENDING_NEW_EPISODE_IDS] ?: AppSettings().pendingNewEpisodeIds,
             newEpisodeIdsToShow = prefs[Keys.NEW_EPISODE_IDS_TO_SHOW] ?: AppSettings().newEpisodeIdsToShow,
@@ -159,9 +152,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
             prefs[Keys.ADD_DEFAULT_FEEDS_PROMPT_SHOWN] = settings.addDefaultFeedsPromptShown
             settings.podcastIndexApiKey?.let { prefs[Keys.PODCAST_INDEX_API_KEY] = it }
             settings.podcastIndexApiSecret?.let { prefs[Keys.PODCAST_INDEX_API_SECRET] = it }
-            prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT] = settings.autoDownloadNewFeedsByDefault
-            prefs[Keys.AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT] =
-                settings.autoDownloadNewFeedsMaxCount ?: UNLIMITED_MAX_DOWNLOADS_SENTINEL
             prefs[Keys.USE_DEVICE_THEME_COLORS] = settings.useDeviceThemeColors
         }
     }
@@ -188,14 +178,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit {
             if (secret.isNullOrBlank()) it.remove(Keys.PODCAST_INDEX_API_SECRET) else it[Keys.PODCAST_INDEX_API_SECRET] = secret
         }
-    }
-
-    suspend fun setAutoDownloadNewFeedsByDefault(value: Boolean) {
-        dataStore.edit { it[Keys.AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT] = value }
-    }
-
-    suspend fun setAutoDownloadNewFeedsMaxCount(value: Int?) {
-        dataStore.edit { it[Keys.AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT] = value ?: UNLIMITED_MAX_DOWNLOADS_SENTINEL }
     }
 
     suspend fun setUseDeviceThemeColors(value: Boolean) {
@@ -273,8 +255,6 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         val ADD_DEFAULT_FEEDS_PROMPT_SHOWN = booleanPreferencesKey("add_default_feeds_prompt_shown")
         val PODCAST_INDEX_API_KEY = stringPreferencesKey("podcast_index_api_key")
         val PODCAST_INDEX_API_SECRET = stringPreferencesKey("podcast_index_api_secret")
-        val AUTO_DOWNLOAD_NEW_FEEDS_BY_DEFAULT = booleanPreferencesKey("auto_download_new_feeds_by_default")
-        val AUTO_DOWNLOAD_NEW_FEEDS_MAX_COUNT = intPreferencesKey("auto_download_new_feeds_max_count")
         val USE_DEVICE_THEME_COLORS = booleanPreferencesKey("use_device_theme_colors")
         val PENDING_NEW_EPISODE_IDS = stringSetPreferencesKey("pending_new_episode_ids")
         val NEW_EPISODE_IDS_TO_SHOW = stringSetPreferencesKey("new_episode_ids_to_show")

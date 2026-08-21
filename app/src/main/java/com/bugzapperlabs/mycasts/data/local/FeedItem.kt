@@ -51,9 +51,10 @@ data class FeedItem(
     /** From the Podcasting 2.0 `<podcast:chapters>` element (issue #95); chapters themselves are
      *  fetched from this URL lazily at playback time, not persisted. */
     val chaptersUrl: String? = null,
-    /** Whether this episode's download was started by [Feed.autoDownloadEnabled] rather than a
-     *  manual tap (issue #250) -- only auto-downloaded episodes are candidates for
-     *  [Feed.maxDownloadsToKeep] eviction. */
+    /** Whether this episode's download was triggered by being added to Next Up (issue #219,
+     *  originally issue #250's "auto-download on refresh") rather than an explicit single-episode
+     *  download tap -- only auto-downloaded episodes are candidates for [Feed.maxDownloadsToKeep]
+     *  eviction. */
     val autoDownloaded: Boolean = false,
 )
 

@@ -431,6 +431,49 @@ class MigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migrate14To15_dropsAutoDownloadEnabledColumnPreservingOtherFeedColumns() {
+        // issue #219: autoDownloadEnabled is retired entirely -- downloading is now triggered
+        // solely by an episode being added to Next Up, not a separate per-feed toggle.
+        helper.createDatabase(TEST_DB, 14).apply {
+            execSQL(
+                "INSERT INTO feeds (id, title, userTitle, description, feedUrl, siteUrl, imageUrl, " +
+                    "displayMode, itemsToKeep, lastGet, sortOrder, autoDownloadEnabled, autoQueueEnabled, " +
+                    "autoQueueMaxCount, playbackSpeed, autoQueuePosition, volumeBoostMillibels, " +
+                    "startSkipSeconds, maxDownloadsToKeep) " +
+                    "VALUES (1, 'A Podcast', NULL, NULL, 'https://example.com/feed', NULL, NULL, NULL, " +
+                    "NULL, NULL, NULL, 1, 1, 5, 1.5, 'TOP', 300, 10, 3)",
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(TEST_DB, 15, true, MIGRATION_14_15)
+
+        migrated.query(
+            "SELECT title, autoQueueEnabled, autoQueueMaxCount, playbackSpeed, autoQueuePosition, " +
+                "volumeBoostMillibels, startSkipSeconds, maxDownloadsToKeep FROM feeds WHERE id = 1",
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("A Podcast", cursor.getString(0))
+            assertEquals(1, cursor.getInt(1))
+            assertEquals(5, cursor.getInt(2))
+            assertEquals(1.5, cursor.getDouble(3), 0.0)
+            assertEquals("TOP", cursor.getString(4))
+            assertEquals(300, cursor.getInt(5))
+            assertEquals(10, cursor.getInt(6))
+            assertEquals(3, cursor.getInt(7))
+        }
+
+        var threw = false
+        try {
+            migrated.query("SELECT autoDownloadEnabled FROM feeds").use { it.moveToFirst() }
+        } catch (e: android.database.sqlite.SQLiteException) {
+            threw = true
+        }
+        assertTrue("expected autoDownloadEnabled column to no longer exist", threw)
+        migrated.close()
+    }
+
     companion object {
         private const val TEST_DB = "migration-test"
     }

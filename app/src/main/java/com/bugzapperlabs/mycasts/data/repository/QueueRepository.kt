@@ -3,6 +3,8 @@ package com.bugzapperlabs.mycasts.data.repository
 import com.bugzapperlabs.mycasts.data.local.QueueDao
 import com.bugzapperlabs.mycasts.data.local.QueueEntry
 import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
+import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -10,6 +12,8 @@ import javax.inject.Inject
 /** The "Next Up" playback queue (issue #67), over [QueueDao]. */
 class QueueRepository @Inject constructor(
     private val queueDao: QueueDao,
+    private val feedRepository: FeedRepository,
+    private val downloadRepository: EnclosureDownloadRepository,
 ) {
     fun observeQueue(): Flow<List<QueuedEpisode>> = queueDao.observeQueue()
 
@@ -23,12 +27,17 @@ class QueueRepository @Inject constructor(
      * No-op if already queued -- an episode can only be queued once. Returns whether it was added.
      * [autoQueued] should only be true for the feed-refresh auto-queue path (issue #68); manual
      * adds must stay exempt from that feed's [enforceFeedCap] eviction (issue #125/#127).
+     *
+     * Also starts the episode downloading (issue #219) -- adding to Next Up, whether by the user
+     * or by auto-queue, is now the sole trigger for auto-downloading; there's no separate per-feed
+     * or global auto-download toggle any more.
      */
     suspend fun addToEnd(itemId: String, autoQueued: Boolean = false): Boolean {
         if (queueDao.findItemId(itemId) != null) return false
         queueDao.insert(
             QueueEntry(itemId, position = queueDao.maxPosition() + 1, addedAt = System.currentTimeMillis(), autoQueued = autoQueued),
         )
+        triggerDownload(itemId)
         return true
     }
 
@@ -37,12 +46,31 @@ class QueueRepository @Inject constructor(
      * [addToEnd]'s parameter of the same name (issue #166: auto-queue can now insert at either end
      * of the queue depending on the feed's `autoQueuePosition`), so this end also needs to be able
      * to mark entries as auto-queued for [enforceFeedCap] eviction to see them.
+     *
+     * Also starts the episode downloading (issue #219), same as [addToEnd].
      */
     suspend fun addToFront(itemId: String, autoQueued: Boolean = false) {
         if (queueDao.findItemId(itemId) != null) return
         queueDao.insert(
             QueueEntry(itemId, position = queueDao.minPosition() - 1, addedAt = System.currentTimeMillis(), autoQueued = autoQueued),
         )
+        triggerDownload(itemId)
+    }
+
+    /**
+     * Starts auto-downloading [itemId] as a side effect of it being added to Next Up (issue #219)
+     * -- not called from [moveToFront], since that just marks an already-queued (or not) episode as
+     * "now playing" rather than the user/auto-queue actually adding it to Next Up. Skips episodes
+     * that are already downloaded or mid-download, since [EnclosureDownloadRepository.startDownload]
+     * would otherwise unconditionally re-enqueue (and so restart) them.
+     */
+    private suspend fun triggerDownload(itemId: String) {
+        val item = feedRepository.getItem(itemId) ?: return
+        if (!item.isPodcastEpisode) return
+        if (item.downloadedFilePath != null || item.downloadedBytes != null) return
+        downloadRepository.startDownload(item, autoDownloaded = true)
+        val feed = feedRepository.getFeed(item.feedId) ?: return
+        feed.maxDownloadsToKeep?.let { downloadRepository.enforceFeedDownloadCap(feed.id, it) }
     }
 
     /**
