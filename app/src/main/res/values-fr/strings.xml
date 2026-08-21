@@ -119,7 +119,9 @@
     <string name="settings_title">Paramètres</string>
     <string name="settings_section_general">Général</string>
     <string name="settings_section_fonts">Polices</string>
-    <string name="settings_section_podcasts">Podcasts</string>
+    <string name="settings_section_downloads">Téléchargements</string>
+    <string name="settings_section_mobile_data">Données mobiles</string>
+    <string name="settings_section_storage">Stockage</string>
     <string name="settings_section_actions">Actions</string>
     <string name="settings_section_about">À propos</string>
     <string name="settings_show_images">Afficher les images</string>

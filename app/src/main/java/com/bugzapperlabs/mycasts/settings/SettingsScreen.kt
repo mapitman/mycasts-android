@@ -161,12 +161,19 @@ fun SettingsScreen(
             FontSizeRow(settings.fontSize, viewModel::setFontSize)
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            SectionHeader(stringResource(R.string.settings_section_podcasts))
+            SectionHeader(stringResource(R.string.settings_section_downloads))
             SwitchRow(
                 stringResource(R.string.settings_download_on_battery),
                 settings.allowPodcastDownloadOnBattery,
                 viewModel::setAllowPodcastDownloadOnBattery,
             )
+            // BatteryOptimizationSetting lives here rather than under Mobile Data or Storage: its
+            // whole purpose is exempting the app from Doze so background downloads (and queue
+            // auto-advance) keep working reliably, not a podcast-specific toggle of its own.
+            BatteryOptimizationSetting()
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            SectionHeader(stringResource(R.string.settings_section_mobile_data))
             SwitchRow(
                 stringResource(R.string.settings_download_on_mobile_data),
                 settings.allowPodcastDownloadOnMobileData,
@@ -177,12 +184,14 @@ fun SettingsScreen(
                 settings.alwaysAllowPodcastStreamingOnMobileData,
                 viewModel::setAlwaysAllowPodcastStreamingOnMobileData,
             )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+            SectionHeader(stringResource(R.string.settings_section_storage))
             SwitchRow(
                 stringResource(R.string.settings_auto_delete_finished_downloads),
                 settings.autoDeleteFinishedDownloads,
                 viewModel::setAutoDeleteFinishedDownloads,
             )
-            BatteryOptimizationSetting()
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_podcast_search))
