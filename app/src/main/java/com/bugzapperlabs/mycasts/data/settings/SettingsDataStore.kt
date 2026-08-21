@@ -25,13 +25,13 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
                 ?: AppSettings().defaultToAllItemsView,
             allowPodcastDownloadOnBattery = prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_BATTERY]
                 ?: AppSettings().allowPodcastDownloadOnBattery,
-            allowPodcastDownloadOnCellular = prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR]
-                ?: AppSettings().allowPodcastDownloadOnCellular,
+            allowPodcastDownloadOnMobileData = prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_MOBILE_DATA]
+                ?: AppSettings().allowPodcastDownloadOnMobileData,
             // issue #123: reuses the same DataStore key the old blanket "allow streaming" toggle
             // used -- an existing choice carries over as-is rather than resetting, just under
-            // narrower (cellular-only) semantics now.
-            allowPodcastStreamingOnCellular = prefs[Keys.ALLOW_PODCAST_STREAMING]
-                ?: AppSettings().allowPodcastStreamingOnCellular,
+            // narrower (mobile-data-only) semantics now.
+            allowPodcastStreamingOnMobileData = prefs[Keys.ALLOW_PODCAST_STREAMING]
+                ?: AppSettings().allowPodcastStreamingOnMobileData,
             autoDeleteFinishedDownloads = prefs[Keys.AUTO_DELETE_FINISHED_DOWNLOADS]
                 ?: AppSettings().autoDeleteFinishedDownloads,
             notifyOnNewItems = prefs[Keys.NOTIFY_ON_NEW_ITEMS] ?: AppSettings().notifyOnNewItems,
@@ -88,11 +88,11 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.ALLOW_PODCAST_DOWNLOAD_ON_BATTERY] = value }
     }
 
-    suspend fun setAllowPodcastDownloadOnCellular(value: Boolean) {
-        dataStore.edit { it[Keys.ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR] = value }
+    suspend fun setAllowPodcastDownloadOnMobileData(value: Boolean) {
+        dataStore.edit { it[Keys.ALLOW_PODCAST_DOWNLOAD_ON_MOBILE_DATA] = value }
     }
 
-    suspend fun setAllowPodcastStreamingOnCellular(value: Boolean) {
+    suspend fun setAllowPodcastStreamingOnMobileData(value: Boolean) {
         dataStore.edit { it[Keys.ALLOW_PODCAST_STREAMING] = value }
     }
 
@@ -146,8 +146,8 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
             prefs[Keys.FEED_REFRESH_CONCURRENCY] = settings.feedRefreshConcurrency
             prefs[Keys.DEFAULT_TO_ALL_ARTICLE_VIEW] = settings.defaultToAllItemsView
             prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_BATTERY] = settings.allowPodcastDownloadOnBattery
-            prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR] = settings.allowPodcastDownloadOnCellular
-            prefs[Keys.ALLOW_PODCAST_STREAMING] = settings.allowPodcastStreamingOnCellular
+            prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_MOBILE_DATA] = settings.allowPodcastDownloadOnMobileData
+            prefs[Keys.ALLOW_PODCAST_STREAMING] = settings.allowPodcastStreamingOnMobileData
             prefs[Keys.AUTO_DELETE_FINISHED_DOWNLOADS] = settings.autoDeleteFinishedDownloads
             prefs[Keys.NOTIFY_ON_NEW_ITEMS] = settings.notifyOnNewItems
             settings.lastImportUrl?.let { prefs[Keys.LAST_IMPORT_URL] = it }
@@ -257,7 +257,10 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         val FEED_REFRESH_CONCURRENCY = intPreferencesKey("feed_refresh_concurrency")
         val DEFAULT_TO_ALL_ARTICLE_VIEW = booleanPreferencesKey("default_to_all_article_view")
         val ALLOW_PODCAST_DOWNLOAD_ON_BATTERY = booleanPreferencesKey("allow_podcast_download_on_battery")
-        val ALLOW_PODCAST_DOWNLOAD_ON_CELLULAR = booleanPreferencesKey("allow_podcast_download_on_cellular")
+        // issue #221: the stored key string is deliberately left as "...cellular", not renamed to
+        // match this constant's own name -- an existing user's choice carries over as-is rather
+        // than silently resetting to the default under a new, unread key.
+        val ALLOW_PODCAST_DOWNLOAD_ON_MOBILE_DATA = booleanPreferencesKey("allow_podcast_download_on_cellular")
         val ALLOW_PODCAST_STREAMING = booleanPreferencesKey("allow_podcast_streaming")
         val AUTO_DELETE_FINISHED_DOWNLOADS = booleanPreferencesKey("auto_delete_finished_downloads")
         val NOTIFY_ON_NEW_ITEMS = booleanPreferencesKey("notify_on_new_items")

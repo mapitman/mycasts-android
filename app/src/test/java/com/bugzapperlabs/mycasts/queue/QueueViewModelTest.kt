@@ -86,7 +86,7 @@ class QueueViewModelTest {
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = feedRepository,
             downloadScheduling = object : DownloadScheduling {
-                override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
+                override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {
                     enqueuedDownloadItemIds += itemId
                 }
                 override fun cancelDownload(itemId: String) {}

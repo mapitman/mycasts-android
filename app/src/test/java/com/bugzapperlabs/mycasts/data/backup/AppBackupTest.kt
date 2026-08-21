@@ -69,8 +69,8 @@ class AppBackupTest {
             feedRefreshConcurrency = 4,
             defaultToAllItemsView = true,
             allowPodcastDownloadOnBattery = true,
-            allowPodcastDownloadOnCellular = true,
-            allowPodcastStreamingOnCellular = false,
+            allowPodcastDownloadOnMobileData = true,
+            allowPodcastStreamingOnMobileData = false,
             autoDeleteFinishedDownloads = true,
             notifyOnNewItems = true,
             lastImportUrl = "https://example.com/import.opml",
@@ -94,6 +94,26 @@ class AppBackupTest {
         assertEquals(listOf(item), restored.feedItems)
         assertEquals(listOf(queueEntry), restored.queueEntries)
         assertEquals(settings, restored.settings)
+    }
+
+    @Test
+    fun fromJson_preRenameCellularJsonKeys_stillRestoreCorrectly() {
+        // issue #221: a backup exported before allowPodcastDownloadOnCellular/allowPodcastStreaming
+        // were renamed to their "MobileData" Kotlin names still uses those old JSON key names --
+        // toJson() deliberately keeps writing them (see its own comment) rather than the new
+        // property names, so this needs to keep restoring correctly rather than silently falling
+        // back to defaults for both fields.
+        val json = org.json.JSONObject(
+            AppBackup(feeds = emptyList(), feedItems = emptyList(), queueEntries = emptyList(), settings = AppSettings()).toJson(),
+        )
+        val settingsJson = json.getJSONObject("settings")
+        settingsJson.put("allowPodcastDownloadOnCellular", true)
+        settingsJson.put("allowPodcastStreaming", false)
+
+        val restored = AppBackup.fromJson(json.toString())
+
+        assertEquals(true, restored.settings.allowPodcastDownloadOnMobileData)
+        assertEquals(false, restored.settings.allowPodcastStreamingOnMobileData)
     }
 
     @Test

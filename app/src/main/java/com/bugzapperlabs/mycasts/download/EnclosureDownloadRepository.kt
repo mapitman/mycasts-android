@@ -21,7 +21,7 @@ class EnclosureDownloadRepository @Inject constructor(
         val settings = settingsDataStore.settings.first()
         downloadScheduling.enqueueDownload(
             itemId = item.id,
-            allowCellular = settings.allowPodcastDownloadOnCellular,
+            allowMobileData = settings.allowPodcastDownloadOnMobileData,
             allowOnBattery = settings.allowPodcastDownloadOnBattery,
         )
     }

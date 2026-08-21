@@ -63,10 +63,12 @@ object PlaybackMediaItemFactory {
     /**
      * Returns null without resolving anything if streaming is disallowed and nothing is
      * downloaded. Wi-Fi streaming is always allowed (issue #123); [networkTypeChecker] only gates
-     * the cellular case, checked once here at resolve (i.e. playback-start) time -- a stream
-     * already in progress is allowed to keep playing through a later network change, so this
-     * never needs rechecking mid-session. Defaults to "never cellular" since most callers (tests
-     * exercising unrelated behavior, primarily) don't care about this gating at all.
+     * the mobile-data case (issue #221; [NetworkTypeChecker.isActiveNetworkCellular] itself is
+     * still named after the underlying Android transport type it checks, not the app's own
+     * "mobile data" terminology), checked once here at resolve (i.e. playback-start) time -- a
+     * stream already in progress is allowed to keep playing through a later network change, so
+     * this never needs rechecking mid-session. Defaults to "never on mobile data" since most
+     * callers (tests exercising unrelated behavior, primarily) don't care about this gating at all.
      */
     suspend fun resolve(
         item: FeedItem,
@@ -76,7 +78,7 @@ object PlaybackMediaItemFactory {
         networkTypeChecker: NetworkTypeChecker = NetworkTypeChecker { false },
     ): ResolvedPlaybackMedia? {
         val settings = settingsDataStore.settings.first()
-        val allowStreaming = !networkTypeChecker.isActiveNetworkCellular() || settings.allowPodcastStreamingOnCellular
+        val allowStreaming = !networkTypeChecker.isActiveNetworkCellular() || settings.allowPodcastStreamingOnMobileData
         val downloadedFilePath = item.downloadedFilePath?.takeIf { File(it).exists() }
         val uri = PlaybackUrlResolver.resolve(item, downloadedFilePath, allowStreaming = allowStreaming)
             ?: return null

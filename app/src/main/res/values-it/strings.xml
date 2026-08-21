@@ -133,8 +133,8 @@
     <string name="settings_font_size">Dimensione carattere: %1$d%%</string>
     <string name="settings_font_size_preview">Ma la volpe, col suo balzo, ha raggiunto il quieto Fido.</string>
     <string name="settings_download_on_battery">Scarica in modalità batteria</string>
-    <string name="settings_download_on_cellular">Scarica su rete cellulare</string>
-    <string name="settings_allow_streaming_on_cellular">Consenti streaming su rete cellulare</string>
+    <string name="settings_download_on_mobile_data">Scarica con dati mobili</string>
+    <string name="settings_allow_streaming_on_mobile_data">Consenti streaming con dati mobili</string>
     <string name="settings_auto_delete_finished_downloads">Elimina automaticamente i download riprodotti</string>
     <string name="settings_auto_download_new_feeds">Scarica automaticamente i nuovi abbonamenti</string>
     <string name="settings_auto_download_max_count">Download da conservare per podcast</string>

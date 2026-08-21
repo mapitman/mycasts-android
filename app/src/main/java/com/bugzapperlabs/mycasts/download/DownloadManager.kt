@@ -29,7 +29,7 @@ data class DownloadWorkInfo(val itemId: String, val status: DownloadWorkStatus)
  * outside a scheduler class like this one.
  */
 interface DownloadScheduling {
-    fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean)
+    fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean)
     fun cancelDownload(itemId: String)
     fun cancelAllDownloads()
     fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>>
@@ -62,9 +62,9 @@ interface DownloadScheduling {
 class DownloadManager @Inject constructor(
     private val workManager: WorkManager,
 ) : DownloadScheduling {
-    override fun enqueueDownload(itemId: String, allowCellular: Boolean, allowOnBattery: Boolean) {
+    override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {
         val constraints = Constraints.Builder()
-            .setRequiredNetworkType(if (allowCellular) NetworkType.CONNECTED else NetworkType.UNMETERED)
+            .setRequiredNetworkType(if (allowMobileData) NetworkType.CONNECTED else NetworkType.UNMETERED)
             .setRequiresBatteryNotLow(!allowOnBattery)
             .build()
 

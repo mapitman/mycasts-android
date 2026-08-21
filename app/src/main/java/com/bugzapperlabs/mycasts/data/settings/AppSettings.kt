@@ -41,12 +41,13 @@ data class AppSettings(
     val feedRefreshConcurrency: Int = 2,
     val defaultToAllItemsView: Boolean = false,
     val allowPodcastDownloadOnBattery: Boolean = false,
-    val allowPodcastDownloadOnCellular: Boolean = false,
-    /** Whether streaming is allowed over cellular (issue #123) -- Wi-Fi streaming is always
-     *  allowed regardless of this setting; it only gates the cellular case. Same field/default as
-     *  the blanket "allow streaming" toggle this replaced, so an existing choice to disable
-     *  streaming (data-conscious) narrows to "cellular only" instead of resetting to the default. */
-    val allowPodcastStreamingOnCellular: Boolean = true,
+    val allowPodcastDownloadOnMobileData: Boolean = false,
+    /** Whether streaming is allowed over mobile data (issue #123) -- Wi-Fi streaming is always
+     *  allowed regardless of this setting; it only gates the mobile-data case. Same field/default
+     *  as the blanket "allow streaming" toggle this replaced, so an existing choice to disable
+     *  streaming (data-conscious) narrows to "mobile data only" instead of resetting to the
+     *  default. */
+    val allowPodcastStreamingOnMobileData: Boolean = true,
     /** Deletes a downloaded episode's file once it's fully played (issue #71). */
     val autoDeleteFinishedDownloads: Boolean = false,
     val notifyOnNewItems: Boolean = false,

@@ -136,10 +136,10 @@ class PlaybackMediaItemFactoryTest {
     }
 
     @Test
-    fun resolve_cellularStreamingDisallowedAndOnCellularAndNotDownloaded_returnsNull() = runTest {
-        // issue #123: the renamed setting only gates the cellular case -- this needs an actually-
-        // cellular NetworkTypeChecker to trigger, unlike the old blanket toggle.
-        settingsDataStore.setAllowPodcastStreamingOnCellular(false)
+    fun resolve_mobileDataStreamingDisallowedAndOnMobileDataAndNotDownloaded_returnsNull() = runTest {
+        // issue #123: the renamed setting only gates the mobile-data case -- this needs an
+        // actually-cellular NetworkTypeChecker to trigger, unlike the old blanket toggle.
+        settingsDataStore.setAllowPodcastStreamingOnMobileData(false)
         val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         val item = FeedItem(
             id = "episode-1",
@@ -159,9 +159,9 @@ class PlaybackMediaItemFactoryTest {
     }
 
     @Test
-    fun resolve_cellularStreamingDisallowedButOnWifi_stillStreams() = runTest {
-        // issue #123: Wi-Fi streaming is always allowed regardless of the cellular setting.
-        settingsDataStore.setAllowPodcastStreamingOnCellular(false)
+    fun resolve_mobileDataStreamingDisallowedButOnWifi_stillStreams() = runTest {
+        // issue #123: Wi-Fi streaming is always allowed regardless of the mobile-data setting.
+        settingsDataStore.setAllowPodcastStreamingOnMobileData(false)
         val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         val item = FeedItem(
             id = "episode-1",
@@ -181,8 +181,8 @@ class PlaybackMediaItemFactoryTest {
     }
 
     @Test
-    fun resolve_onCellularWithCellularStreamingAllowed_stillStreams() = runTest {
-        settingsDataStore.setAllowPodcastStreamingOnCellular(true)
+    fun resolve_onMobileDataWithMobileDataStreamingAllowed_stillStreams() = runTest {
+        settingsDataStore.setAllowPodcastStreamingOnMobileData(true)
         val feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         val item = FeedItem(
             id = "episode-1",

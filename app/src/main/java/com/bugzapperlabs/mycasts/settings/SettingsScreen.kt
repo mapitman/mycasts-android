@@ -171,14 +171,14 @@ fun SettingsScreen(
                 viewModel::setAllowPodcastDownloadOnBattery,
             )
             SwitchRow(
-                stringResource(R.string.settings_download_on_cellular),
-                settings.allowPodcastDownloadOnCellular,
-                viewModel::setAllowPodcastDownloadOnCellular,
+                stringResource(R.string.settings_download_on_mobile_data),
+                settings.allowPodcastDownloadOnMobileData,
+                viewModel::setAllowPodcastDownloadOnMobileData,
             )
             SwitchRow(
-                stringResource(R.string.settings_allow_streaming_on_cellular),
-                settings.allowPodcastStreamingOnCellular,
-                viewModel::setAllowPodcastStreamingOnCellular,
+                stringResource(R.string.settings_allow_streaming_on_mobile_data),
+                settings.allowPodcastStreamingOnMobileData,
+                viewModel::setAllowPodcastStreamingOnMobileData,
             )
             SwitchRow(
                 stringResource(R.string.settings_auto_delete_finished_downloads),
