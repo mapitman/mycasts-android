@@ -54,6 +54,12 @@ interface FeedItemDao {
     @Query("SELECT * FROM feed_items WHERE feedId = :feedId AND itemGuid = :itemGuid LIMIT 1")
     suspend fun findByItemGuid(feedId: Long, itemGuid: String): FeedItem?
 
+    // Newest publishDate already known for this feed, queried before a refresh inserts anything
+    // new (issue #238) -- lets the caller rank a genuinely new release against what the feed
+    // already had, not just against the rest of this refresh's own new-item batch.
+    @Query("SELECT MAX(publishDate) FROM feed_items WHERE feedId = :feedId")
+    suspend fun getMaxPublishDate(feedId: Long): Long?
+
     @Query("SELECT * FROM feed_items WHERE id = :id")
     suspend fun getById(id: String): FeedItem?
 
