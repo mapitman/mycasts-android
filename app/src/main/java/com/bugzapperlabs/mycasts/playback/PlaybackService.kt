@@ -16,7 +16,12 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSink
+import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import androidx.media3.exoplayer.source.preload.TargetPreloadStatusControl
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -141,6 +146,7 @@ class PlaybackService : MediaSessionService() {
         // of ExoPlayer's own configuration below is unchanged from before that; the preload
         // manager just needs to build the player itself to wire in its shared internals.
         val preloadManagerBuilder = DefaultPreloadManager.Builder(this, NextEpisodePreloadStatusControl())
+            .setMediaSourceFactory(DefaultMediaSourceFactory(streamingDataSourceFactory()))
         preloadManager = preloadManagerBuilder.build()
         player = preloadManagerBuilder.buildExoPlayer(
             ExoPlayer.Builder(this)
@@ -196,6 +202,28 @@ class PlaybackService : MediaSessionService() {
             .setCallback(mediaSessionCallback)
             .build()
         updateMediaButtonPreferences()
+    }
+
+    /**
+     * Wraps HTTP(S) reads in [streamingCache] so a streamed (undownloaded) episode's
+     * already-fetched bytes are read from disk instead of re-streamed on a later seek-backward or
+     * replay (issue #230). [DefaultDataSource.Factory] dispatches by URI scheme -- a local file
+     * path (how a downloaded episode's URI is set, see [PlaybackUrlResolver]) always goes straight
+     * to its own internal file data source regardless of the base factory passed in here, so
+     * downloaded episodes are never routed through (and so never redundantly duplicated into)
+     * this cache; only genuinely-streamed HTTP(S) playback is.
+     */
+    @OptIn(markerClass = [UnstableApi::class])
+    private fun streamingDataSourceFactory(): DefaultDataSource.Factory {
+        val streamingCache = StreamingCache.get(this)
+        val cacheDataSourceFactory = CacheDataSource.Factory()
+            .setCache(streamingCache)
+            .setUpstreamDataSourceFactory(DefaultHttpDataSource.Factory())
+            .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(streamingCache))
+            // A cache write failure (e.g. disk full) shouldn't break playback itself -- falls back
+            // to reading straight from the upstream HTTP source for that request instead.
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        return DefaultDataSource.Factory(this, cacheDataSourceFactory)
     }
 
     /**
