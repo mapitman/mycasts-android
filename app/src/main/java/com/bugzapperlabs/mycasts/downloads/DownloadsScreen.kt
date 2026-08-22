@@ -1,6 +1,8 @@
 package com.bugzapperlabs.mycasts.downloads
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +23,9 @@ import androidx.compose.material.icons.filled.CancelPresentation
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.RssFeed
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -31,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -55,7 +60,7 @@ import java.util.Locale
 import kotlin.math.log10
 import kotlin.math.pow
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DownloadsScreen(
     modifier: Modifier = Modifier,
@@ -65,6 +70,7 @@ fun DownloadsScreen(
     val activeDownloads by viewModel.activeDownloads.collectAsState()
     var pendingDelete by remember { mutableStateOf<FeedItem?>(null) }
     var pendingCancelAll by remember { mutableStateOf(false) }
+    var pendingDeleteSelected by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -73,25 +79,45 @@ fun DownloadsScreen(
         // comment for the full double-reservation explanation.
         contentWindowInsets = WindowInsets.systemBars.exclude(WindowInsets.navigationBars),
         topBar = {
-            // No "Downloads" label (issue #127): the bottom nav's highlighted tab already conveys
-            // that. The byte total is real content, not a redundant screen name, so it stays.
-            // No back arrow either (issue #128) -- this is a bottom-nav destination. CompactTopBar
-            // replaces TopAppBar here too, sized to just this text rather than Material's taller
-            // ~64dp component height on top of it.
-            CompactTopBar {
-                Text(
-                    text = formatBytes(uiState.totalBytes),
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            if (uiState.isSelectionMode) {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.article_list_selected, uiState.selectedIds.size)) },
+                    navigationIcon = {
+                        IconButton(onClick = viewModel::clearSelection) {
+                            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_clear_selection))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = viewModel::selectAll) {
+                            Icon(Icons.Filled.SelectAll, contentDescription = stringResource(R.string.cd_select_all))
+                        }
+                        IconButton(onClick = { pendingDeleteSelected = true }) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete_downloads))
+                        }
+                    },
                 )
-                Spacer(modifier = Modifier.weight(1f))
-                // Always shown, not gated on activeDownloads being non-empty (issue #156): a job
-                // enqueued before per-item tagging existed has no way to recover its itemId, so it
-                // can never appear in that list even though cancelAllDownloads still reaches it via
-                // WorkManager's always-present per-worker-class tag -- gating this on the list
-                // would hide the one button able to clear exactly that kind of stuck job.
-                IconButton(onClick = { pendingCancelAll = true }) {
-                    Icon(Icons.Filled.CancelPresentation, contentDescription = stringResource(R.string.cd_cancel_all_downloads))
+            } else {
+                // No "Downloads" label (issue #127): the bottom nav's highlighted tab already
+                // conveys that. The byte total is real content, not a redundant screen name, so it
+                // stays. No back arrow either (issue #128) -- this is a bottom-nav destination.
+                // CompactTopBar replaces TopAppBar here too, sized to just this text rather than
+                // Material's taller ~64dp component height on top of it.
+                CompactTopBar {
+                    Text(
+                        text = formatBytes(uiState.totalBytes),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    // Always shown, not gated on activeDownloads being non-empty (issue #156): a
+                    // job enqueued before per-item tagging existed has no way to recover its
+                    // itemId, so it can never appear in that list even though cancelAllDownloads
+                    // still reaches it via WorkManager's always-present per-worker-class tag --
+                    // gating this on the list would hide the one button able to clear exactly that
+                    // kind of stuck job.
+                    IconButton(onClick = { pendingCancelAll = true }) {
+                        Icon(Icons.Filled.CancelPresentation, contentDescription = stringResource(R.string.cd_cancel_all_downloads))
+                    }
                 }
             }
         },
@@ -121,7 +147,21 @@ fun DownloadsScreen(
                     }
                 }
                 items(uiState.episodes, key = { it.item.id }) { episode ->
-                    DownloadedEpisodeRow(episode = episode, onDelete = { pendingDelete = episode.item })
+                    DownloadedEpisodeRow(
+                        episode = episode,
+                        selected = episode.item.id in uiState.selectedIds,
+                        selectionMode = uiState.isSelectionMode,
+                        // Outside selection mode, a tap does nothing (no per-episode detail
+                        // navigation exists on this screen) -- only a long-press starts selecting,
+                        // matching EpisodeListScreen's own long-press-to-select entry point.
+                        onClick = if (uiState.isSelectionMode) {
+                            { viewModel.toggleSelection(episode.item.id) }
+                        } else {
+                            {}
+                        },
+                        onLongClick = { viewModel.toggleSelection(episode.item.id) },
+                        onDelete = { pendingDelete = episode.item },
+                    )
                 }
             }
         }
@@ -135,6 +175,17 @@ fun DownloadsScreen(
                 pendingDelete = null
             },
             onDismiss = { pendingDelete = null },
+        )
+    }
+
+    if (pendingDeleteSelected) {
+        ConfirmDeleteDialog(
+            itemCount = uiState.selectedIds.size,
+            onConfirm = {
+                viewModel.deleteSelected()
+                pendingDeleteSelected = false
+            },
+            onDismiss = { pendingDeleteSelected = false },
         )
     }
 
@@ -161,8 +212,21 @@ fun DownloadsScreen(
 }
 
 @Composable
-private fun DownloadedEpisodeRow(episode: DownloadedEpisodeUiState, onDelete: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+@OptIn(ExperimentalFoundationApi::class)
+private fun DownloadedEpisodeRow(
+    episode: DownloadedEpisodeUiState,
+    selected: Boolean,
+    selectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // A placeholder fills the same slot when there's no artwork (issue #149), matching
             // ListItemRow's leading-image treatment used in the feed and episode lists.
@@ -217,19 +281,23 @@ private fun DownloadedEpisodeRow(episode: DownloadedEpisodeUiState, onDelete: ()
                     )
                 }
             }
-            if (episode.isInProgress) {
+            if (episode.isInProgress && !selectionMode) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             }
-            // "Cancel" (matching ActiveDownloadRow's own icon/label) while still downloading, not
-            // "Delete" -- there's nothing finished to delete yet, and the ambiguous trash icon here
-            // was reported as unclear about whether it actually stopped an in-progress download
-            // (it does -- EnclosureDownloadRepository.deleteDownload cancels the underlying
-            // WorkManager job before clearing state either way).
-            IconButton(onClick = onDelete) {
-                if (episode.isInProgress) {
-                    Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_cancel_download))
-                } else {
-                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete_download))
+            if (selectionMode) {
+                Checkbox(checked = selected, onCheckedChange = null)
+            } else {
+                // "Cancel" (matching ActiveDownloadRow's own icon/label) while still downloading,
+                // not "Delete" -- there's nothing finished to delete yet, and the ambiguous trash
+                // icon here was reported as unclear about whether it actually stopped an
+                // in-progress download (it does -- EnclosureDownloadRepository.deleteDownload
+                // cancels the underlying WorkManager job before clearing state either way).
+                IconButton(onClick = onDelete) {
+                    if (episode.isInProgress) {
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.cd_cancel_download))
+                    } else {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.cd_delete_download))
+                    }
                 }
             }
         }

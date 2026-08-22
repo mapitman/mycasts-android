@@ -8,6 +8,7 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.download.DownloadWorkStatus
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -29,7 +30,12 @@ data class DownloadedEpisodeUiState(
 data class DownloadsUiState(
     val episodes: List<DownloadedEpisodeUiState> = emptyList(),
     val totalBytes: Long = 0L,
-)
+    /** Multi-select management, mirroring EpisodeListUiState's pattern -- implicit from a
+     *  non-empty selection rather than an explicit toggled flag. */
+    val selectedIds: Set<String> = emptySet(),
+) {
+    val isSelectionMode: Boolean get() = selectedIds.isNotEmpty()
+}
 
 /** A single row in the active-download-jobs list (issue #156) -- distinct from
  *  [DownloadedEpisodeUiState], which can't represent a job that's never recorded any progress. */
@@ -45,22 +51,30 @@ class DownloadsViewModel @Inject constructor(
     private val feedRepository: FeedRepository,
     private val downloadRepository: EnclosureDownloadRepository,
 ) : ViewModel() {
-    val uiState: StateFlow<DownloadsUiState> = feedRepository.observeDownloadedItems()
-        .map { episodes ->
-            val rows = episodes.map { (item, feedTitle, feedImageUrl) ->
-                val isInProgress = item.downloadedFilePath == null
-                // downloadedBytes is cleared once a download completes (see
-                // FeedItemDao.setDownloadedFilePath), so a completed episode's size comes from the
-                // file on disk instead.
-                val sizeBytes = if (isInProgress) {
-                    item.downloadedBytes ?: 0L
-                } else {
-                    item.downloadedFilePath?.let { File(it).length() } ?: 0L
-                }
-                DownloadedEpisodeUiState(item, feedTitle.orEmpty(), feedImageUrl, isInProgress, sizeBytes)
+    private val selectedIds = MutableStateFlow<Set<String>>(emptySet())
+
+    val uiState: StateFlow<DownloadsUiState> = combine(
+        feedRepository.observeDownloadedItems(),
+        selectedIds,
+    ) { episodes, selected ->
+        val rows = episodes.map { (item, feedTitle, feedImageUrl) ->
+            val isInProgress = item.downloadedFilePath == null
+            // downloadedBytes is cleared once a download completes (see
+            // FeedItemDao.setDownloadedFilePath), so a completed episode's size comes from the
+            // file on disk instead.
+            val sizeBytes = if (isInProgress) {
+                item.downloadedBytes ?: 0L
+            } else {
+                item.downloadedFilePath?.let { File(it).length() } ?: 0L
             }
-            DownloadsUiState(episodes = rows, totalBytes = rows.sumOf { it.sizeBytes })
+            DownloadedEpisodeUiState(item, feedTitle.orEmpty(), feedImageUrl, isInProgress, sizeBytes)
         }
+        // Dropped rather than carried forward (issue #124's pattern) so a stale id for an episode
+        // deleted some other way (e.g. an unrelated single-item delete) doesn't keep inflating the
+        // top bar's selected count for a row that's no longer even in the list.
+        val stillPresent = selected.intersect(rows.map { it.item.id }.toSet())
+        DownloadsUiState(episodes = rows, totalBytes = rows.sumOf { it.sizeBytes }, selectedIds = stillPresent)
+    }
         .flowOn(Dispatchers.IO)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DownloadsUiState())
 
@@ -92,6 +106,33 @@ class DownloadsViewModel @Inject constructor(
 
     fun delete(item: FeedItem) {
         viewModelScope.launch { downloadRepository.deleteDownload(item) }
+    }
+
+    fun toggleSelection(itemId: String) {
+        selectedIds.value = if (itemId in selectedIds.value) {
+            selectedIds.value - itemId
+        } else {
+            selectedIds.value + itemId
+        }
+    }
+
+    fun clearSelection() {
+        selectedIds.value = emptySet()
+    }
+
+    fun selectAll() {
+        selectedIds.value = uiState.value.episodes.map { it.item.id }.toSet()
+    }
+
+    /** Deletes (or, for a still-in-progress selected item, cancels -- mirroring [delete]'s own
+     *  per-row behavior) every currently-selected episode, then exits selection mode. */
+    fun deleteSelected() {
+        val ids = selectedIds.value
+        val items = uiState.value.episodes.filter { it.item.id in ids }.map { it.item }
+        viewModelScope.launch {
+            items.forEach { downloadRepository.deleteDownload(it) }
+            clearSelection()
+        }
     }
 
     fun cancelAllDownloads() {

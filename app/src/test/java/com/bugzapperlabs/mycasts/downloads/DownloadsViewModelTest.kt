@@ -206,4 +206,100 @@ class DownloadsViewModelTest {
 
         assertEquals(listOf("ep-invisible"), active.map { it.itemId })
     }
+
+    @Test
+    fun toggleSelection_addsAndRemovesFromSelection() = runTest(testDispatcher) {
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "ep-1", feedId = feedId, title = "Episode 1", itemGuid = "g1", downloadedBytes = 10L),
+                FeedItem(id = "ep-2", feedId = feedId, title = "Episode 2", itemGuid = "g2", downloadedBytes = 10L),
+            ),
+        )
+        viewModel.uiState.first { it.episodes.size == 2 }
+
+        viewModel.toggleSelection("ep-1")
+        val selected = viewModel.uiState.first { it.selectedIds.isNotEmpty() }
+        assertEquals(setOf("ep-1"), selected.selectedIds)
+        assertTrue(selected.isSelectionMode)
+
+        viewModel.toggleSelection("ep-1")
+        val deselected = viewModel.uiState.first { it.selectedIds.isEmpty() }
+        assertEquals(emptySet<String>(), deselected.selectedIds)
+        assertFalse(deselected.isSelectionMode)
+    }
+
+    @Test
+    fun selectAll_selectsEveryEpisode() = runTest(testDispatcher) {
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "ep-1", feedId = feedId, title = "Episode 1", itemGuid = "g1", downloadedBytes = 10L),
+                FeedItem(id = "ep-2", feedId = feedId, title = "Episode 2", itemGuid = "g2", downloadedBytes = 10L),
+            ),
+        )
+        viewModel.uiState.first { it.episodes.size == 2 }
+
+        viewModel.selectAll()
+
+        val state = viewModel.uiState.first { it.selectedIds.size == 2 }
+        assertEquals(setOf("ep-1", "ep-2"), state.selectedIds)
+    }
+
+    @Test
+    fun clearSelection_exitsSelectionMode() = runTest(testDispatcher) {
+        repository.insertItems(
+            listOf(FeedItem(id = "ep-1", feedId = feedId, title = "Episode 1", itemGuid = "g1", downloadedBytes = 10L)),
+        )
+        viewModel.uiState.first { it.episodes.isNotEmpty() }
+        viewModel.toggleSelection("ep-1")
+        viewModel.uiState.first { it.selectedIds.isNotEmpty() }
+
+        viewModel.clearSelection()
+
+        val state = viewModel.uiState.first { it.selectedIds.isEmpty() }
+        assertFalse(state.isSelectionMode)
+    }
+
+    @Test
+    fun deleteSelected_deletesOnlySelectedEpisodesAndExitsSelectionMode() = runTest(testDispatcher) {
+        val keptFile = tempFolder.newFile("kept.mp3")
+        val deletedFile1 = tempFolder.newFile("deleted1.mp3")
+        val deletedFile2 = tempFolder.newFile("deleted2.mp3")
+        repository.insertItems(
+            listOf(
+                FeedItem(id = "ep-kept", feedId = feedId, title = "Kept", itemGuid = "g1", downloadedFilePath = keptFile.absolutePath),
+                FeedItem(id = "ep-deleted-1", feedId = feedId, title = "Deleted 1", itemGuid = "g2", downloadedFilePath = deletedFile1.absolutePath),
+                FeedItem(id = "ep-deleted-2", feedId = feedId, title = "Deleted 2", itemGuid = "g3", downloadedFilePath = deletedFile2.absolutePath),
+            ),
+        )
+        viewModel.uiState.first { it.episodes.size == 3 }
+        viewModel.toggleSelection("ep-deleted-1")
+        viewModel.toggleSelection("ep-deleted-2")
+
+        viewModel.deleteSelected()
+
+        val remaining = viewModel.uiState.first { it.episodes.size == 1 }
+        assertEquals(listOf("ep-kept"), remaining.episodes.map { it.item.id })
+        assertFalse(remaining.isSelectionMode)
+        assertTrue(keptFile.exists())
+        assertFalse(deletedFile1.exists())
+        assertFalse(deletedFile2.exists())
+    }
+
+    @Test
+    fun uiState_selectedEpisodeDeletedElsewhere_dropsItFromSelection() = runTest(testDispatcher) {
+        // issue #124's pattern: a stale id for an episode removed some other way (a single-item
+        // delete) shouldn't keep inflating the selected count for a row no longer even shown.
+        val file = tempFolder.newFile("episode.mp3")
+        repository.insertItems(
+            listOf(FeedItem(id = "ep-1", feedId = feedId, title = "Episode 1", itemGuid = "g1", downloadedFilePath = file.absolutePath)),
+        )
+        viewModel.uiState.first { it.episodes.isNotEmpty() }
+        viewModel.toggleSelection("ep-1")
+        viewModel.uiState.first { it.selectedIds.isNotEmpty() }
+
+        viewModel.delete(repository.getItem("ep-1")!!)
+
+        val state = viewModel.uiState.first { it.episodes.isEmpty() }
+        assertEquals(emptySet<String>(), state.selectedIds)
+    }
 }
