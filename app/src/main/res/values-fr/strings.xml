@@ -120,6 +120,7 @@
     <string name="settings_section_general">Général</string>
     <string name="settings_section_fonts">Polices</string>
     <string name="settings_section_downloads">Téléchargements</string>
+    <string name="settings_download_on_add_to_next_up">Télécharger les épisodes ajoutés à À suivre</string>
     <string name="settings_section_mobile_data">Données mobiles</string>
     <string name="settings_section_storage">Stockage</string>
     <string name="settings_section_actions">Actions</string>

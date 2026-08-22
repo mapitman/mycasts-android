@@ -127,7 +127,7 @@ class AddFeedViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        val enforcer = AutoQueueAndDownloadEnforcer(repository, QueueRepository(db.queueDao(), repository, downloadRepository))
+        val enforcer = AutoQueueAndDownloadEnforcer(repository, QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore))
         val opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer)
         opmlImportCoordinator = OpmlImportCoordinator(opmlImporter, context)
         viewModel = AddFeedViewModel(

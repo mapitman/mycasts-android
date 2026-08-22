@@ -85,7 +85,7 @@ class FeedRefreshWorkerTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore)
     }
 
     @After

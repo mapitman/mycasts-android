@@ -120,6 +120,7 @@
     <string name="settings_section_general">General</string>
     <string name="settings_section_fonts">Fuentes</string>
     <string name="settings_section_downloads">Descargas</string>
+    <string name="settings_download_on_add_to_next_up">Descargar episodios al añadirlos a Reproducir a continuación</string>
     <string name="settings_section_mobile_data">Datos móviles</string>
     <string name="settings_section_storage">Almacenamiento</string>
     <string name="settings_section_actions">Acciones</string>

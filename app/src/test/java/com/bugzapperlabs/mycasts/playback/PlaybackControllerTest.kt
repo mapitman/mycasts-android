@@ -66,7 +66,7 @@ class PlaybackControllerTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository, settingsDataStore)
         playbackController = PlaybackController(
             context,
             settingsDataStore,

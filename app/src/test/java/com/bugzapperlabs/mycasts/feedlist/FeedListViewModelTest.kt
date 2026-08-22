@@ -129,7 +129,7 @@ class FeedListViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore)
 
         viewModel = newViewModel(FeedRefreshState())
         viewModelStore.put("feedList", viewModel)

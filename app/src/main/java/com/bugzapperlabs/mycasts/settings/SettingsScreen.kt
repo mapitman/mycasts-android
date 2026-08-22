@@ -163,6 +163,11 @@ fun SettingsScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
             SectionHeader(stringResource(R.string.settings_section_downloads))
             SwitchRow(
+                stringResource(R.string.settings_download_on_add_to_next_up),
+                settings.downloadOnAddToNextUp,
+                viewModel::setDownloadOnAddToNextUp,
+            )
+            SwitchRow(
                 stringResource(R.string.settings_download_on_battery),
                 settings.allowPodcastDownloadOnBattery,
                 viewModel::setAllowPodcastDownloadOnBattery,

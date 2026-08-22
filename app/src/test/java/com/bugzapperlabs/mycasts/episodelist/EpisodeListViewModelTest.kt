@@ -124,7 +124,7 @@ class EpisodeListViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore)
         autoQueueAndDownloadEnforcer = AutoQueueAndDownloadEnforcer(repository, queueRepository)
 
         feedId = repository.subscribe(Feed(title = "A Feed"))

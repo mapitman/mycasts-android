@@ -27,6 +27,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
                 ?: AppSettings().allowPodcastDownloadOnBattery,
             allowPodcastDownloadOnMobileData = prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_MOBILE_DATA]
                 ?: AppSettings().allowPodcastDownloadOnMobileData,
+            downloadOnAddToNextUp = prefs[Keys.DOWNLOAD_ON_ADD_TO_NEXT_UP] ?: AppSettings().downloadOnAddToNextUp,
             // issue #222: a new key, not a reuse of the old ALLOW_PODCAST_STREAMING key -- the
             // semantics inverted (a persistent pre-emptive block became a "skip the warning"
             // opt-in), so carrying an old value over under the new meaning would misrepresent
@@ -87,6 +88,10 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         dataStore.edit { it[Keys.ALLOW_PODCAST_DOWNLOAD_ON_MOBILE_DATA] = value }
     }
 
+    suspend fun setDownloadOnAddToNextUp(value: Boolean) {
+        dataStore.edit { it[Keys.DOWNLOAD_ON_ADD_TO_NEXT_UP] = value }
+    }
+
     suspend fun setAlwaysAllowPodcastStreamingOnMobileData(value: Boolean) {
         dataStore.edit { it[Keys.ALWAYS_ALLOW_PODCAST_STREAMING] = value }
     }
@@ -142,6 +147,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
             prefs[Keys.DEFAULT_TO_ALL_ARTICLE_VIEW] = settings.defaultToAllItemsView
             prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_BATTERY] = settings.allowPodcastDownloadOnBattery
             prefs[Keys.ALLOW_PODCAST_DOWNLOAD_ON_MOBILE_DATA] = settings.allowPodcastDownloadOnMobileData
+            prefs[Keys.DOWNLOAD_ON_ADD_TO_NEXT_UP] = settings.downloadOnAddToNextUp
             prefs[Keys.ALWAYS_ALLOW_PODCAST_STREAMING] = settings.alwaysAllowPodcastStreamingOnMobileData
             prefs[Keys.AUTO_DELETE_FINISHED_DOWNLOADS] = settings.autoDeleteFinishedDownloads
             prefs[Keys.NOTIFY_ON_NEW_ITEMS] = settings.notifyOnNewItems
@@ -245,6 +251,7 @@ class SettingsDataStore @Inject constructor(private val dataStore: DataStore<Pre
         // match this constant's own name -- an existing user's choice carries over as-is rather
         // than silently resetting to the default under a new, unread key.
         val ALLOW_PODCAST_DOWNLOAD_ON_MOBILE_DATA = booleanPreferencesKey("allow_podcast_download_on_cellular")
+        val DOWNLOAD_ON_ADD_TO_NEXT_UP = booleanPreferencesKey("download_on_add_to_next_up")
         val ALWAYS_ALLOW_PODCAST_STREAMING = booleanPreferencesKey("always_allow_podcast_streaming")
         val AUTO_DELETE_FINISHED_DOWNLOADS = booleanPreferencesKey("auto_delete_finished_downloads")
         val NOTIFY_ON_NEW_ITEMS = booleanPreferencesKey("notify_on_new_items")

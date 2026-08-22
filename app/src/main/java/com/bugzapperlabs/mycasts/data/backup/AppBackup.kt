@@ -167,6 +167,7 @@ private fun AppSettings.toJson(): JSONObject = JSONObject().apply {
     // issue #221: JSON keys kept as their pre-rename "Cellular" names (not renamed to match the
     // Kotlin properties) so a backup exported before this change still restores correctly.
     put("allowPodcastDownloadOnCellular", allowPodcastDownloadOnMobileData)
+    put("downloadOnAddToNextUp", downloadOnAddToNextUp)
     // issue #222: a new key, not a reuse of the old "allowPodcastStreaming" one -- that toggle's
     // semantics inverted (persistent pre-emptive block -> "skip the play-time warning" opt-in), so
     // an old backup's value wouldn't mean the same thing under the new field; toAppSettings() just
@@ -205,6 +206,7 @@ private fun JSONObject.toAppSettings(): AppSettings {
         } else {
             defaults.allowPodcastDownloadOnMobileData
         },
+        downloadOnAddToNextUp = if (has("downloadOnAddToNextUp")) getBoolean("downloadOnAddToNextUp") else defaults.downloadOnAddToNextUp,
         alwaysAllowPodcastStreamingOnMobileData = if (has("alwaysAllowPodcastStreamingOnMobileData")) {
             getBoolean("alwaysAllowPodcastStreamingOnMobileData")
         } else {

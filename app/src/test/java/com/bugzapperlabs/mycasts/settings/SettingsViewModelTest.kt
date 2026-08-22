@@ -175,7 +175,7 @@ class SettingsViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        val queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        val queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore)
         val enforcer = AutoQueueAndDownloadEnforcer(repository, queueRepository)
         val opmlImporter = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer)
         opmlImportCoordinator = OpmlImportCoordinator(opmlImporter, context)

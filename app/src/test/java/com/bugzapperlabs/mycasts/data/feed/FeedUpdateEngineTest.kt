@@ -111,7 +111,7 @@ class FeedUpdateEngineTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore)
         engine = FeedUpdateEngine(FeedFetcher(OkHttpClient()), repository, settingsDataStore, FeedRefreshLocks())
     }
 

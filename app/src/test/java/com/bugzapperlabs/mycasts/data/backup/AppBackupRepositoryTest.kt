@@ -64,7 +64,7 @@ class AppBackupRepositoryTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository, settingsDataStore)
         backupRepository = AppBackupRepository(feedRepository, queueRepository, settingsDataStore)
     }
 
