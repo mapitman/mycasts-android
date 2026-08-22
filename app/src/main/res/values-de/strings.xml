@@ -177,6 +177,17 @@
     <string name="settings_confirm_restore_backup_title">Dieses Backup wiederherstellen?</string>
     <string name="settings_confirm_restore_backup_message">Dadurch werden alle Podcasts, Episoden, Warteschlangeneinträge und Einstellungen auf diesem Gerät durch den Inhalt der Backup-Datei ersetzt. Dies kann nicht rückgängig gemacht werden.</string>
     <string name="settings_add_default_feeds">Starter-Podcasts hinzufügen</string>
+    <string name="settings_recover_downloads">Heruntergeladene Dateien wiederherstellen</string>
+    <string name="settings_recover_downloads_description">Verknüpft heruntergeladene Episodendateien neu, die noch auf dem Gerät vorhanden sind, deren Eintrag aber verloren ging -- ohne erneutes Herunterladen -- und löscht verbleibende Dateien, die zu keiner Episode mehr passen.</string>
+    <plurals name="settings_recover_downloads_result">
+        <item quantity="one">%1$d heruntergeladene Episode wiederhergestellt</item>
+        <item quantity="other">%1$d heruntergeladene Episoden wiederhergestellt</item>
+    </plurals>
+    <plurals name="settings_recover_downloads_deleted">
+        <item quantity="one">%1$d verwaiste Datei gelöscht</item>
+        <item quantity="other">%1$d verwaiste Dateien gelöscht</item>
+    </plurals>
+    <string name="settings_recover_downloads_none_found">Keine verwaisten Downloads gefunden</string>
     <string name="settings_reset_settings">Einstellungen zurücksetzen</string>
     <string name="settings_confirm_add_default_feeds_title">Starter-Podcasts hinzufügen?</string>
     <string name="settings_confirm_add_default_feeds_message">Dadurch werden die mitgelieferten Starter-Podcasts zu Ihren Abonnements hinzugefügt.</string>

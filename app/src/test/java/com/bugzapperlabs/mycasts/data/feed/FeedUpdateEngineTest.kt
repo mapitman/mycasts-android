@@ -591,6 +591,28 @@ class FeedUpdateEngineTest {
     }
 
     @Test
+    fun updateFeed_secondRun_doesNotClearAlreadyDownloadedItemsBookkeeping() = runTest {
+        // Regression test: re-persisting an already-known item rebuilt a fresh FeedItem carrying
+        // forward isRead/enclosurePosition from the existing row, but not downloadedFilePath/
+        // downloadedBytes/autoDownloaded -- those silently fell back to the class defaults
+        // (null/null/false) on every single refresh of every already-known episode, wiping every
+        // downloaded file's DB record app-wide the moment a routine background refresh next ran.
+        val feed = subscribeFeed()
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First")))
+        engine.updateFeed(feed)
+        val itemId = repository.observeItems(feed.id).first().first { it.itemGuid == "guid-1" }.id
+        repository.setDownloadedFilePath(itemId, "/data/downloads/guid-1.mp3")
+        repository.setAutoDownloaded(itemId, true)
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("guid-1" to "First")))
+        engine.updateFeed(feed)
+
+        val item = repository.getItem(itemId)!!
+        assertEquals("/data/downloads/guid-1.mp3", item.downloadedFilePath)
+        assertTrue(item.autoDownloaded)
+    }
+
+    @Test
     fun updateFeed_doesNotClobberPlaybackSpeedChangedDuringFetch() = runTest {
         // issue #189: persist() used to write back a Feed built from the snapshot passed in at
         // the start of the refresh, silently reverting anything the user changed on that feed

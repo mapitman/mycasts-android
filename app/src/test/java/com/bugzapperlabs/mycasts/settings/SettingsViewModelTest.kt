@@ -187,6 +187,7 @@ class SettingsViewModelTest {
             opmlImportCoordinator = opmlImportCoordinator,
             opmlExporter = OpmlExporter(db.feedDao()),
             appBackupRepository = AppBackupRepository(repository, queueRepository, settingsDataStore),
+            downloadRepository = downloadRepository,
             feedRefreshScheduler = object : FeedRefreshScheduling {
                 override suspend fun schedule(intervalMinutes: Long) {}
             },
@@ -250,5 +251,34 @@ class SettingsViewModelTest {
         val settings = viewModel.settings.first { it.maxItemsPerFeed != 99 }
         assertEquals(20, settings.maxItemsPerFeed)
         assertEquals(1, db.feedDao().observeAll().first().size)
+    }
+
+    @Test
+    fun recoverOrphanedDownloads_reportsBothRecoveredAndDeletedCounts() = runTest(testDispatcher, timeout = 120.seconds) {
+        // issue #234: exercises the ViewModel's combined recover-then-cleanup flow end to end.
+        val appContext = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val feedId = repository.subscribe(com.bugzapperlabs.mycasts.data.local.Feed(title = "A Feed"))
+        repository.insertItems(
+            listOf(
+                com.bugzapperlabs.mycasts.data.local.FeedItem(
+                    id = "item-1", feedId = feedId, itemGuid = "g1",
+                    enclosureUrl = "https://example.com/episode.mp3", enclosureType = "audio/mpeg",
+                ),
+            ),
+        )
+        val downloadDir = java.io.File(
+            appContext.filesDir,
+            com.bugzapperlabs.mycasts.download.EnclosureDownloadWorker.DOWNLOAD_DIR,
+        ).apply { mkdirs() }
+        val recoverableFileName = com.bugzapperlabs.mycasts.download.EnclosureFileNaming.fileNameFor(
+            "https://example.com/episode.mp3", "audio/mpeg",
+        )
+        java.io.File(downloadDir, recoverableFileName).writeText("recoverable")
+        java.io.File(downloadDir, "no-longer-referenced.mp3").writeText("orphaned")
+
+        viewModel.recoverOrphanedDownloads()
+
+        val message = viewModel.addDefaultFeedsMessage.first { it != null }
+        assertEquals("Recovered 1 downloaded episode. Deleted 1 orphaned file", message)
     }
 }

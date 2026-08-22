@@ -177,6 +177,17 @@
     <string name="settings_confirm_restore_backup_title">Ripristinare questo backup?</string>
     <string name="settings_confirm_restore_backup_message">Questo sostituisce ogni podcast, episodio, elemento in coda e impostazione presenti su questo dispositivo con il contenuto del file di backup. L\'operazione non può essere annullata.</string>
     <string name="settings_add_default_feeds">Aggiungi podcast iniziali</string>
+    <string name="settings_recover_downloads">Recupera file scaricati</string>
+    <string name="settings_recover_downloads_description">Ricollega i file degli episodi scaricati ancora presenti sul dispositivo ma il cui record è andato perso, senza riscaricarli, ed elimina i file rimanenti che non corrispondono più a nessun episodio.</string>
+    <plurals name="settings_recover_downloads_result">
+        <item quantity="one">Recuperato %1$d episodio scaricato</item>
+        <item quantity="other">Recuperati %1$d episodi scaricati</item>
+    </plurals>
+    <plurals name="settings_recover_downloads_deleted">
+        <item quantity="one">%1$d file orfano eliminato</item>
+        <item quantity="other">%1$d file orfani eliminati</item>
+    </plurals>
+    <string name="settings_recover_downloads_none_found">Nessun download orfano trovato</string>
     <string name="settings_reset_settings">Ripristina impostazioni</string>
     <string name="settings_confirm_add_default_feeds_title">Aggiungere i podcast iniziali?</string>
     <string name="settings_confirm_add_default_feeds_message">Questo aggiunge i podcast iniziali inclusi ai tuoi abbonamenti.</string>

@@ -326,4 +326,86 @@ class EnclosureDownloadRepositoryTest {
         assertTrue(file.exists())
         assertEquals(file.absolutePath, repository.getItem("item-1")?.downloadedFilePath)
     }
+
+    @Test
+    fun recoverOrphanedDownloads_fileStillOnDiskUnderExpectedName_reLinksIt() = runTest {
+        // issue #234: the on-disk filename is derived purely from the enclosure URL (see
+        // EnclosureFileNaming), so a file already sitting there for a still-known item's
+        // enclosureUrl can be confidently re-linked without re-downloading it.
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        val fileName = EnclosureFileNaming.fileNameFor("https://example.com/episode.mp3", "audio/mpeg")
+        File(downloadDir, fileName).writeText("fake audio bytes")
+
+        val recovered = downloadRepository.recoverOrphanedDownloads(context)
+
+        assertEquals(1, recovered)
+        assertEquals(File(downloadDir, fileName).absolutePath, repository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun recoverOrphanedDownloads_noMatchingFileOnDisk_recoversNothing() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        seedFeedAndItem("https://example.com/episode.mp3")
+
+        val recovered = downloadRepository.recoverOrphanedDownloads(context)
+
+        assertEquals(0, recovered)
+        assertNull(repository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun recoverOrphanedDownloads_itemAlreadyDownloaded_isNotACandidate() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val existingFile = tempFolder.newFile("already-downloaded.mp3")
+        repository.setDownloadedFilePath("item-1", existingFile.absolutePath)
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        val fileName = EnclosureFileNaming.fileNameFor("https://example.com/episode.mp3", "audio/mpeg")
+        File(downloadDir, fileName).writeText("a different file that happens to match the naming scheme")
+
+        val recovered = downloadRepository.recoverOrphanedDownloads(context)
+
+        assertEquals(0, recovered)
+        assertEquals(existingFile.absolutePath, repository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun cleanUpOrphanedDownloadFiles_fileMatchesNoKnownEpisode_deletesIt() = runTest {
+        // issue #234: a file whose originating FeedItem row is gone entirely (not just its
+        // download record) can never be traced back to what it was -- EnclosureFileNaming's hash
+        // is one-way -- so there's nothing to recover, only detect and delete.
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        val orphanFile = File(downloadDir, "no-longer-referenced.mp3").apply { writeText("orphaned bytes") }
+
+        val deleted = downloadRepository.cleanUpOrphanedDownloadFiles(context)
+
+        assertEquals(1, deleted)
+        assertFalse(orphanFile.exists())
+    }
+
+    @Test
+    fun cleanUpOrphanedDownloadFiles_fileMatchesKnownEpisode_isNotDeleted() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        val fileName = EnclosureFileNaming.fileNameFor("https://example.com/episode.mp3", "audio/mpeg")
+        val matchingFile = File(downloadDir, fileName).apply { writeText("still-referenced bytes") }
+
+        val deleted = downloadRepository.cleanUpOrphanedDownloadFiles(context)
+
+        assertEquals(0, deleted)
+        assertTrue(matchingFile.exists())
+    }
+
+    @Test
+    fun cleanUpOrphanedDownloadFiles_noDownloadDirectory_returnsZero() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+
+        val deleted = downloadRepository.cleanUpOrphanedDownloadFiles(context)
+
+        assertEquals(0, deleted)
+    }
 }

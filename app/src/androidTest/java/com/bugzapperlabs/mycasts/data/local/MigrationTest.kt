@@ -444,10 +444,16 @@ class MigrationTest {
                     "VALUES (1, 'A Podcast', NULL, NULL, 'https://example.com/feed', NULL, NULL, NULL, " +
                     "NULL, NULL, NULL, 1, 1, 5, 1.5, 'TOP', 300, 10, 3)",
             )
+            execSQL("INSERT INTO feed_items (id, feedId, title, isRead, autoDownloaded) VALUES ('item-1', 1, 'Episode 1', 0, 0)")
             close()
         }
 
         val migrated = helper.runMigrationsAndValidate(TEST_DB, 15, true, MIGRATION_14_15)
+
+        migrated.query("SELECT COUNT(*) FROM feed_items WHERE id = 'item-1'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("feed_items should survive the feeds table rebuild", 1, cursor.getInt(0))
+        }
 
         migrated.query(
             "SELECT title, autoQueueEnabled, autoQueueMaxCount, playbackSpeed, autoQueuePosition, " +
