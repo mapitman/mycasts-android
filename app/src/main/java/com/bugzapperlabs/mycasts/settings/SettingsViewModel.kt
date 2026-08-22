@@ -142,11 +142,19 @@ class SettingsViewModel @Inject constructor(
      *  re-downloading anything -- see [EnclosureDownloadRepository.recoverOrphanedDownloads]. */
     fun recoverOrphanedDownloads() {
         viewModelScope.launch {
+            // Cleanup runs after recovery, not before/instead -- a file recovery can still
+            // re-link stays out of the "nothing left in the database points at this" bucket
+            // cleanup targets, see EnclosureDownloadRepository.cleanUpOrphanedDownloadFiles's doc.
             val recovered = downloadRepository.recoverOrphanedDownloads(context)
-            _localMessage.value = if (recovered > 0) {
-                context.resources.getQuantityString(R.plurals.settings_recover_downloads_result, recovered, recovered)
-            } else {
+            val deleted = downloadRepository.cleanUpOrphanedDownloadFiles(context)
+            val parts = buildList {
+                if (recovered > 0) add(context.resources.getQuantityString(R.plurals.settings_recover_downloads_result, recovered, recovered))
+                if (deleted > 0) add(context.resources.getQuantityString(R.plurals.settings_recover_downloads_deleted, deleted, deleted))
+            }
+            _localMessage.value = if (parts.isEmpty()) {
                 context.getString(R.string.settings_recover_downloads_none_found)
+            } else {
+                parts.joinToString(". ")
             }
         }
     }

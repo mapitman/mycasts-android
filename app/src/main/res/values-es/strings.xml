@@ -178,10 +178,14 @@
     <string name="settings_confirm_restore_backup_message">Esto reemplaza todos los podcasts, episodios, elementos de la cola y ajustes de este dispositivo con lo que hay en el archivo de copia de seguridad. Esta acción no se puede deshacer.</string>
     <string name="settings_add_default_feeds">Añadir podcasts iniciales</string>
     <string name="settings_recover_downloads">Recuperar archivos descargados</string>
-    <string name="settings_recover_downloads_description">Vuelve a enlazar los archivos de episodios descargados que aún están en el dispositivo pero cuyo registro se perdió, sin volver a descargarlos.</string>
+    <string name="settings_recover_downloads_description">Vuelve a enlazar los archivos de episodios descargados que aún están en el dispositivo pero cuyo registro se perdió, sin volver a descargarlos, y elimina los archivos restantes que ya no corresponden a ningún episodio.</string>
     <plurals name="settings_recover_downloads_result">
         <item quantity="one">Se recuperó %1$d episodio descargado</item>
         <item quantity="other">Se recuperaron %1$d episodios descargados</item>
+    </plurals>
+    <plurals name="settings_recover_downloads_deleted">
+        <item quantity="one">Se eliminó %1$d archivo huérfano</item>
+        <item quantity="other">Se eliminaron %1$d archivos huérfanos</item>
     </plurals>
     <string name="settings_recover_downloads_none_found">No se encontraron descargas huérfanas</string>
     <string name="settings_reset_settings">Restablecer configuración</string>

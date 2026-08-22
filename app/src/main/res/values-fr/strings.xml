@@ -178,10 +178,14 @@
     <string name="settings_confirm_restore_backup_message">Cela remplace tous les podcasts, épisodes, éléments de file d\'attente et paramètres actuellement sur cet appareil par le contenu du fichier de sauvegarde. Cette action est irréversible.</string>
     <string name="settings_add_default_feeds">Ajouter des podcasts de démarrage</string>
     <string name="settings_recover_downloads">Récupérer les fichiers téléchargés</string>
-    <string name="settings_recover_downloads_description">Relie les fichiers d\'épisodes téléchargés encore présents sur l\'appareil mais dont l\'enregistrement a été perdu, sans les retélécharger.</string>
+    <string name="settings_recover_downloads_description">Relie les fichiers d\'épisodes téléchargés encore présents sur l\'appareil mais dont l\'enregistrement a été perdu, sans les retélécharger, et supprime les fichiers restants qui ne correspondent plus à aucun épisode.</string>
     <plurals name="settings_recover_downloads_result">
         <item quantity="one">%1$d épisode téléchargé récupéré</item>
         <item quantity="other">%1$d épisodes téléchargés récupérés</item>
+    </plurals>
+    <plurals name="settings_recover_downloads_deleted">
+        <item quantity="one">%1$d fichier orphelin supprimé</item>
+        <item quantity="other">%1$d fichiers orphelins supprimés</item>
     </plurals>
     <string name="settings_recover_downloads_none_found">Aucun téléchargement orphelin trouvé</string>
     <string name="settings_reset_settings">Réinitialiser les paramètres</string>

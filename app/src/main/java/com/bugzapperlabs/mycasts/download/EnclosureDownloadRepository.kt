@@ -137,4 +137,26 @@ class EnclosureDownloadRepository @Inject constructor(
         }
         return recovered
     }
+
+    /**
+     * Deletes every file in the downloads directory that no longer matches any known episode's
+     * expected filename (issue #234) -- the counterpart to [recoverOrphanedDownloads] for files
+     * that can't be recovered at all: [recoverOrphanedDownloads] only re-links a file when its
+     * originating [FeedItem] row still exists (matched by enclosure URL), but that same bug's
+     * knock-on effect on [com.bugzapperlabs.mycasts.data.repository.FeedRepository.trimToItemsToKeep]'s
+     * "downloaded episodes are exempt from the trim" protection could let the *row itself* get
+     * evicted once it looked like an ordinary already-read article -- and [EnclosureFileNaming]'s
+     * hash is one-way, so a file with no matching row left in the database can never be traced
+     * back to what it was. There's nothing recoverable to confirm with the user about deleting
+     * those, so this runs without a confirmation prompt (call this only after
+     * [recoverOrphanedDownloads] has already had a chance to re-link everything it can).
+     */
+    suspend fun cleanUpOrphanedDownloadFiles(context: Context): Int {
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR)
+        val files = downloadDir.listFiles() ?: return 0
+        val expectedFileNames = feedRepository.itemsWithEnclosure().mapNotNullTo(mutableSetOf()) { item ->
+            item.enclosureUrl?.let { EnclosureFileNaming.fileNameFor(it, item.enclosureType) }
+        }
+        return files.count { file -> file.name !in expectedFileNames && file.delete() }
+    }
 }

@@ -133,4 +133,12 @@ interface FeedItemDao {
     // either kind's bookkeeping.
     @Query("SELECT * FROM feed_items WHERE enclosureUrl IS NOT NULL AND downloadedFilePath IS NULL AND downloadedBytes IS NULL")
     suspend fun itemsMissingDownloadWithEnclosure(): List<FeedItem>
+
+    // Every episode a downloaded file could legitimately belong to (issue #234), regardless of
+    // its own current download state -- EnclosureDownloadRepository.cleanUpOrphanedDownloadFiles
+    // computes each one's expected on-disk filename from this set to find files matching no known
+    // episode at all (as opposed to itemsMissingDownloadWithEnclosure's narrower "known episode,
+    // lost its own download record" case).
+    @Query("SELECT * FROM feed_items WHERE enclosureUrl IS NOT NULL")
+    suspend fun itemsWithEnclosure(): List<FeedItem>
 }

@@ -370,4 +370,42 @@ class EnclosureDownloadRepositoryTest {
         assertEquals(0, recovered)
         assertEquals(existingFile.absolutePath, repository.getItem("item-1")?.downloadedFilePath)
     }
+
+    @Test
+    fun cleanUpOrphanedDownloadFiles_fileMatchesNoKnownEpisode_deletesIt() = runTest {
+        // issue #234: a file whose originating FeedItem row is gone entirely (not just its
+        // download record) can never be traced back to what it was -- EnclosureFileNaming's hash
+        // is one-way -- so there's nothing to recover, only detect and delete.
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        val orphanFile = File(downloadDir, "no-longer-referenced.mp3").apply { writeText("orphaned bytes") }
+
+        val deleted = downloadRepository.cleanUpOrphanedDownloadFiles(context)
+
+        assertEquals(1, deleted)
+        assertFalse(orphanFile.exists())
+    }
+
+    @Test
+    fun cleanUpOrphanedDownloadFiles_fileMatchesKnownEpisode_isNotDeleted() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        val fileName = EnclosureFileNaming.fileNameFor("https://example.com/episode.mp3", "audio/mpeg")
+        val matchingFile = File(downloadDir, fileName).apply { writeText("still-referenced bytes") }
+
+        val deleted = downloadRepository.cleanUpOrphanedDownloadFiles(context)
+
+        assertEquals(0, deleted)
+        assertTrue(matchingFile.exists())
+    }
+
+    @Test
+    fun cleanUpOrphanedDownloadFiles_noDownloadDirectory_returnsZero() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+
+        val deleted = downloadRepository.cleanUpOrphanedDownloadFiles(context)
+
+        assertEquals(0, deleted)
+    }
 }
