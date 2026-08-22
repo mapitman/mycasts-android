@@ -69,6 +69,7 @@ class AppBackupTest {
             defaultToAllItemsView = true,
             allowPodcastDownloadOnBattery = true,
             allowPodcastDownloadOnMobileData = true,
+            downloadOnAddToNextUp = false,
             alwaysAllowPodcastStreamingOnMobileData = true,
             autoDeleteFinishedDownloads = true,
             notifyOnNewItems = true,

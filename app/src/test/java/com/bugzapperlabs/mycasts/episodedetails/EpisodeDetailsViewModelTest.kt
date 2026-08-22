@@ -93,7 +93,7 @@ class EpisodeDetailsViewModelTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore)
         playbackController = PlaybackController(
             context,
             settingsDataStore,

@@ -127,7 +127,7 @@ class OpmlImporterTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore)
         val enforcer = AutoQueueAndDownloadEnforcer(repository, queueRepository)
         importer = OpmlImporter(db.feedDao(), feedFetcher, feedUpdateEngine, settingsDataStore, enforcer)
     }

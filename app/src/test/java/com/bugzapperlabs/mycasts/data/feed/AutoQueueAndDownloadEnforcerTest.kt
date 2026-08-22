@@ -76,7 +76,7 @@ class AutoQueueAndDownloadEnforcerTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository, settingsDataStore)
         enforcer = AutoQueueAndDownloadEnforcer(feedRepository, queueRepository)
     }
 

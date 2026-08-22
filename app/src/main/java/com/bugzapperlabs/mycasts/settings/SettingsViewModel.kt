@@ -93,6 +93,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsDataStore.setAllowPodcastDownloadOnMobileData(value) }
     }
 
+    fun setDownloadOnAddToNextUp(value: Boolean) {
+        viewModelScope.launch { settingsDataStore.setDownloadOnAddToNextUp(value) }
+    }
+
     fun setAlwaysAllowPodcastStreamingOnMobileData(value: Boolean) {
         viewModelScope.launch { settingsDataStore.setAlwaysAllowPodcastStreamingOnMobileData(value) }
     }

@@ -35,6 +35,11 @@ data class AppSettings(
     val defaultToAllItemsView: Boolean = false,
     val allowPodcastDownloadOnBattery: Boolean = false,
     val allowPodcastDownloadOnMobileData: Boolean = false,
+    /** Whether adding an episode to Next Up -- manually or via auto-queue -- starts its download
+     *  (issue #219). On by default, matching the unconditional behavior this setting was added
+     *  to make opt-out-able; turning it off falls back to episodes only ever downloading via an
+     *  explicit single-episode download tap. Doesn't affect episodes already mid-download. */
+    val downloadOnAddToNextUp: Boolean = true,
     /** Whether to skip the play-time mobile-data warning and just stream (issue #222) -- Wi-Fi
      *  streaming is always allowed regardless of this setting; it only gates the mobile-data case.
      *  Off by default, so playing an undownloaded episode over mobile data warns the user and lets

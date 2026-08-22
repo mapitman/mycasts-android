@@ -124,6 +124,7 @@
     <string name="settings_section_general">General</string>
     <string name="settings_section_fonts">Fonts</string>
     <string name="settings_section_downloads">Downloads</string>
+    <string name="settings_download_on_add_to_next_up">Download episodes when added to Next Up</string>
     <string name="settings_section_mobile_data">Mobile Data</string>
     <string name="settings_section_storage">Storage</string>
     <string name="settings_section_actions">Actions</string>

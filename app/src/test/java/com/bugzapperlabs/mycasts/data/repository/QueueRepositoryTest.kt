@@ -40,6 +40,7 @@ class QueueRepositoryTest {
     private lateinit var db: AppDatabase
     private lateinit var feedRepository: FeedRepository
     private lateinit var queueRepository: QueueRepository
+    private lateinit var settingsDataStore: SettingsDataStore
     private var feedId: Long = 0
     private val enqueuedDownloadItemIds = mutableListOf<String>()
 
@@ -52,7 +53,7 @@ class QueueRepositoryTest {
         val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
-        val settingsDataStore = SettingsDataStore(dataStore)
+        settingsDataStore = SettingsDataStore(dataStore)
         val downloadRepository = EnclosureDownloadRepository(
             feedRepository = feedRepository,
             downloadScheduling = object : DownloadScheduling {
@@ -66,7 +67,7 @@ class QueueRepositoryTest {
             },
             settingsDataStore = settingsDataStore,
         )
-        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository)
+        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository, settingsDataStore)
 
         feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         feedRepository.insertItems(
@@ -370,5 +371,43 @@ class QueueRepositoryTest {
         queueRepository.moveToFront("podcast-1")
 
         assertTrue(enqueuedDownloadItemIds.isEmpty())
+    }
+
+    @Test
+    fun addToEnd_downloadOnAddToNextUpDisabled_doesNotStartDownload() = runTest {
+        // issue #219 follow-up: turning this global setting off falls back to episodes only ever
+        // downloading via an explicit single-episode download tap.
+        settingsDataStore.setDownloadOnAddToNextUp(false)
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "podcast-1", feedId = feedId, title = "Podcast Episode", itemGuid = "gp1",
+                    enclosureUrl = "https://example.com/1.mp3", enclosureType = "audio/mpeg",
+                ),
+            ),
+        )
+
+        queueRepository.addToEnd("podcast-1")
+
+        assertTrue(enqueuedDownloadItemIds.isEmpty())
+        assertTrue(queueRepository.isQueued("podcast-1"))
+    }
+
+    @Test
+    fun addToFront_downloadOnAddToNextUpDisabled_doesNotStartDownload() = runTest {
+        settingsDataStore.setDownloadOnAddToNextUp(false)
+        feedRepository.insertItems(
+            listOf(
+                FeedItem(
+                    id = "podcast-1", feedId = feedId, title = "Podcast Episode", itemGuid = "gp1",
+                    enclosureUrl = "https://example.com/1.mp3", enclosureType = "audio/mpeg",
+                ),
+            ),
+        )
+
+        queueRepository.addToFront("podcast-1")
+
+        assertTrue(enqueuedDownloadItemIds.isEmpty())
+        assertTrue(queueRepository.isQueued("podcast-1"))
     }
 }

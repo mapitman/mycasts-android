@@ -120,6 +120,7 @@
     <string name="settings_section_general">Generale</string>
     <string name="settings_section_fonts">Caratteri</string>
     <string name="settings_section_downloads">Download</string>
+    <string name="settings_download_on_add_to_next_up">Scarica gli episodi aggiunti a In arrivo</string>
     <string name="settings_section_mobile_data">Dati mobili</string>
     <string name="settings_section_storage">Archiviazione</string>
     <string name="settings_section_actions">Azioni</string>

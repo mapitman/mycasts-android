@@ -4,8 +4,10 @@ import com.bugzapperlabs.mycasts.data.local.QueueDao
 import com.bugzapperlabs.mycasts.data.local.QueueEntry
 import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
+import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
@@ -14,6 +16,7 @@ class QueueRepository @Inject constructor(
     private val queueDao: QueueDao,
     private val feedRepository: FeedRepository,
     private val downloadRepository: EnclosureDownloadRepository,
+    private val settingsDataStore: SettingsDataStore,
 ) {
     fun observeQueue(): Flow<List<QueuedEpisode>> = queueDao.observeQueue()
 
@@ -58,13 +61,17 @@ class QueueRepository @Inject constructor(
     }
 
     /**
-     * Starts auto-downloading [itemId] as a side effect of it being added to Next Up (issue #219)
-     * -- not called from [moveToFront], since that just marks an already-queued (or not) episode as
-     * "now playing" rather than the user/auto-queue actually adding it to Next Up. Skips episodes
-     * that are already downloaded or mid-download, since [EnclosureDownloadRepository.startDownload]
-     * would otherwise unconditionally re-enqueue (and so restart) them.
+     * Starts auto-downloading [itemId] as a side effect of it being added to Next Up (issue #219),
+     * gated by [com.bugzapperlabs.mycasts.data.settings.AppSettings.downloadOnAddToNextUp] (issue
+     * #219 follow-up: added so this can be turned off, falling back to episodes only ever
+     * downloading via an explicit single-episode download tap) -- not called from [moveToFront],
+     * since that just marks an already-queued (or not) episode as "now playing" rather than the
+     * user/auto-queue actually adding it to Next Up. Skips episodes that are already downloaded or
+     * mid-download, since [EnclosureDownloadRepository.startDownload] would otherwise
+     * unconditionally re-enqueue (and so restart) them.
      */
     private suspend fun triggerDownload(itemId: String) {
+        if (!settingsDataStore.settings.first().downloadOnAddToNextUp) return
         val item = feedRepository.getItem(itemId) ?: return
         if (!item.isPodcastEpisode) return
         if (item.downloadedFilePath != null || item.downloadedBytes != null) return

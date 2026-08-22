@@ -120,6 +120,7 @@
     <string name="settings_section_general">Allgemein</string>
     <string name="settings_section_fonts">Schriftarten</string>
     <string name="settings_section_downloads">Downloads</string>
+    <string name="settings_download_on_add_to_next_up">Episoden herunterladen, wenn sie zu „Als Nächstes“ hinzugefügt werden</string>
     <string name="settings_section_mobile_data">Mobile Daten</string>
     <string name="settings_section_storage">Speicher</string>
     <string name="settings_section_actions">Aktionen</string>
