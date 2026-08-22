@@ -1,5 +1,6 @@
 package com.bugzapperlabs.mycasts.download
 
+import android.content.Context
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
@@ -108,5 +109,32 @@ class EnclosureDownloadRepository @Inject constructor(
         settingsDataStore.settings.first().lastPlayingItemId?.let(exempt::add)
 
         downloaded.drop(maxCount).filterNot { it.id in exempt }.forEach { deleteDownload(it) }
+    }
+
+    /**
+     * Re-links episodes whose downloaded-file DB record was lost without the underlying file
+     * itself ever being deleted (issue #234) -- [EnclosureFileNaming.fileNameFor] derives a
+     * download's on-disk filename purely from its enclosure URL, not the item id, so a file that
+     * already exists there for a given (still-known) item's [FeedItem.enclosureUrl] can be
+     * confidently re-linked rather than re-downloaded. Returns how many were recovered, for a
+     * one-time Settings action to report back to the user.
+     *
+     * Deliberately only re-links [FeedItem.downloadedFilePath]/leaves [FeedItem.autoDownloaded]
+     * as-is (false, since #234 wiped it too) -- a recovered episode isn't retroactively subject to
+     * [Feed.maxDownloadsToKeep] eviction the way a freshly-auto-downloaded one would be.
+     */
+    suspend fun recoverOrphanedDownloads(context: Context): Int {
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR)
+        if (!downloadDir.isDirectory) return 0
+        var recovered = 0
+        feedRepository.itemsMissingDownloadWithEnclosure().forEach { item ->
+            val url = item.enclosureUrl ?: return@forEach
+            val file = File(downloadDir, EnclosureFileNaming.fileNameFor(url, item.enclosureType))
+            if (file.isFile && file.length() > 0) {
+                feedRepository.setDownloadedFilePath(item.id, file.absolutePath)
+                recovered++
+            }
+        }
+        return recovered
     }
 }

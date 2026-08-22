@@ -173,6 +173,15 @@ class FeedUpdateEngine @Inject constructor(
                 enclosureLength = parsedItem.enclosure?.length,
                 enclosurePosition = existing?.enclosurePosition,
                 enclosureDurationMs = parsedItem.durationMs,
+                // Carried forward from the existing row, same as isRead/enclosurePosition above --
+                // re-persisting an already-known episode on every refresh must never reset its
+                // download bookkeeping. Before this fix, these three simply fell back to FeedItem's
+                // class defaults (null/null/false) on every single refresh of every already-known
+                // episode, silently wiping every downloaded file's DB record app-wide the moment
+                // background refresh next ran.
+                downloadedBytes = existing?.downloadedBytes,
+                downloadedFilePath = existing?.downloadedFilePath,
+                autoDownloaded = existing?.autoDownloaded ?: false,
                 chaptersUrl = parsedItem.chaptersUrl,
             )
             if (existing == null) {

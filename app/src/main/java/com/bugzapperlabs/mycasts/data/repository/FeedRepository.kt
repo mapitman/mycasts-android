@@ -118,6 +118,11 @@ class FeedRepository @Inject constructor(
      *  reused from [trimToItemsToKeep]'s queue exemption for the same purpose against downloads. */
     suspend fun queuedItemIdsForFeed(feedId: Long): Set<String> = queueDao.orderedItemIdsForFeed(feedId).toSet()
 
+    /** Every episode not currently tracked as downloaded/downloading (issue #234), for
+     *  [com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository.recoverOrphanedDownloads]
+     *  to check against files actually present on disk. */
+    suspend fun itemsMissingDownloadWithEnclosure(): List<FeedItem> = feedItemDao.itemsMissingDownloadWithEnclosure()
+
     /** A one-shot snapshot of every feed and item, for a full backup export (issue #157). */
     suspend fun getAllFeeds(): List<Feed> = feedDao.getAll()
     suspend fun getAllItems(): List<FeedItem> = feedItemDao.getAll()

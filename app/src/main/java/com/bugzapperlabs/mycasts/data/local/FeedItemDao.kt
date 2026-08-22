@@ -126,4 +126,11 @@ interface FeedItemDao {
     // re-check which of them are still real before trusting a raw count of that set.
     @Query("SELECT id FROM feed_items WHERE id IN (:ids)")
     suspend fun existingIds(ids: List<String>): List<String>
+
+    // Candidates for EnclosureDownloadRepository.recoverOrphanedDownloads (issue #234): every item
+    // not currently tracked as downloaded/downloading, checked against files actually present on
+    // disk -- deliberately not scoped to autoDownloaded=true/false, since #234 could have wiped
+    // either kind's bookkeeping.
+    @Query("SELECT * FROM feed_items WHERE enclosureUrl IS NOT NULL AND downloadedFilePath IS NULL AND downloadedBytes IS NULL")
+    suspend fun itemsMissingDownloadWithEnclosure(): List<FeedItem>
 }

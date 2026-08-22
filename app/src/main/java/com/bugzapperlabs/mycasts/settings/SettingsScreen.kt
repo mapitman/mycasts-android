@@ -525,6 +525,19 @@ private fun ActionsSection(viewModel: SettingsViewModel, snackbarHostState: Snac
         }
 
         Text(
+            text = stringResource(R.string.settings_recover_downloads_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),
+        )
+        OutlinedButton(
+            onClick = { viewModel.recoverOrphanedDownloads() },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        ) {
+            Text(stringResource(R.string.settings_recover_downloads))
+        }
+
+        Text(
             text = stringResource(R.string.settings_backup_title),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 16.dp, bottom = 4.dp),

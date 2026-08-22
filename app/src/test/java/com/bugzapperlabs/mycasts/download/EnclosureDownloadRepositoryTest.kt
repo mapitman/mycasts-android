@@ -326,4 +326,48 @@ class EnclosureDownloadRepositoryTest {
         assertTrue(file.exists())
         assertEquals(file.absolutePath, repository.getItem("item-1")?.downloadedFilePath)
     }
+
+    @Test
+    fun recoverOrphanedDownloads_fileStillOnDiskUnderExpectedName_reLinksIt() = runTest {
+        // issue #234: the on-disk filename is derived purely from the enclosure URL (see
+        // EnclosureFileNaming), so a file already sitting there for a still-known item's
+        // enclosureUrl can be confidently re-linked without re-downloading it.
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        val fileName = EnclosureFileNaming.fileNameFor("https://example.com/episode.mp3", "audio/mpeg")
+        File(downloadDir, fileName).writeText("fake audio bytes")
+
+        val recovered = downloadRepository.recoverOrphanedDownloads(context)
+
+        assertEquals(1, recovered)
+        assertEquals(File(downloadDir, fileName).absolutePath, repository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun recoverOrphanedDownloads_noMatchingFileOnDisk_recoversNothing() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        seedFeedAndItem("https://example.com/episode.mp3")
+
+        val recovered = downloadRepository.recoverOrphanedDownloads(context)
+
+        assertEquals(0, recovered)
+        assertNull(repository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun recoverOrphanedDownloads_itemAlreadyDownloaded_isNotACandidate() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val existingFile = tempFolder.newFile("already-downloaded.mp3")
+        repository.setDownloadedFilePath("item-1", existingFile.absolutePath)
+        val downloadDir = File(context.filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        val fileName = EnclosureFileNaming.fileNameFor("https://example.com/episode.mp3", "audio/mpeg")
+        File(downloadDir, fileName).writeText("a different file that happens to match the naming scheme")
+
+        val recovered = downloadRepository.recoverOrphanedDownloads(context)
+
+        assertEquals(0, recovered)
+        assertEquals(existingFile.absolutePath, repository.getItem("item-1")?.downloadedFilePath)
+    }
 }

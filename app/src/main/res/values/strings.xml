@@ -181,6 +181,13 @@
     <string name="settings_confirm_restore_backup_title">Restore this backup?</string>
     <string name="settings_confirm_restore_backup_message">This replaces every podcast, episode, queue entry, and setting currently on this device with what\'s in the backup file. This can\'t be undone.</string>
     <string name="settings_add_default_feeds">Add starter podcasts</string>
+    <string name="settings_recover_downloads">Recover downloaded files</string>
+    <string name="settings_recover_downloads_description">Re-links downloaded episode files still on disk whose record was lost, without re-downloading anything.</string>
+    <plurals name="settings_recover_downloads_result">
+        <item quantity="one">Recovered %1$d downloaded episode</item>
+        <item quantity="other">Recovered %1$d downloaded episodes</item>
+    </plurals>
+    <string name="settings_recover_downloads_none_found">No orphaned downloads found</string>
     <string name="settings_reset_settings">Reset settings</string>
     <string name="settings_confirm_add_default_feeds_title">Add starter podcasts?</string>
     <string name="settings_confirm_add_default_feeds_message">This adds the bundled starter podcasts to your subscriptions.</string>

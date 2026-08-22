@@ -14,6 +14,7 @@ import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,6 +32,7 @@ class SettingsViewModel @Inject constructor(
     private val opmlImportCoordinator: OpmlImportCoordinator,
     private val opmlExporter: OpmlExporter,
     private val appBackupRepository: AppBackupRepository,
+    private val downloadRepository: EnclosureDownloadRepository,
     private val feedRefreshScheduler: FeedRefreshScheduling,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -132,6 +134,19 @@ class SettingsViewModel @Inject constructor(
                 _localMessage.value = context.getString(R.string.add_feed_invalid_opml)
             } else {
                 opmlImportCoordinator.startImport(document)
+            }
+        }
+    }
+
+    /** Re-links downloaded files still on disk whose DB record was lost (issue #234), without
+     *  re-downloading anything -- see [EnclosureDownloadRepository.recoverOrphanedDownloads]. */
+    fun recoverOrphanedDownloads() {
+        viewModelScope.launch {
+            val recovered = downloadRepository.recoverOrphanedDownloads(context)
+            _localMessage.value = if (recovered > 0) {
+                context.resources.getQuantityString(R.plurals.settings_recover_downloads_result, recovered, recovered)
+            } else {
+                context.getString(R.string.settings_recover_downloads_none_found)
             }
         }
     }
