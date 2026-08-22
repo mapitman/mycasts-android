@@ -563,6 +563,64 @@ class FeedUpdateEngineTest {
     }
 
     @Test
+    fun updateFeed_subsequentRefreshWithOlderReissuedItem_excludedFromRecentNewItemIds() = runTest {
+        // issue #238: AutoQueueAndDownloadEnforcer's own newest-by-publishDate ranking only ever
+        // compared this refresh's new items against each other -- a lone reissued old episode (the
+        // only "new" item this refresh, hence trivially "newest" among a set of one) still got
+        // ranked and queued like a real new release. recentNewItemIds must rank against what the
+        // feed already had, not just within the new-item batch.
+        val feed = subscribeFeed(itemsToKeep = 10)
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(Triple("guid-recent", "Recent", "Fri, 03 Jan 2025 00:00:00 GMT")),
+            ),
+        )
+        engine.updateFeed(feed)
+
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("guid-recent", "Recent", "Fri, 03 Jan 2025 00:00:00 GMT"),
+                    Triple("guid-reissued-old", "Reissued Old Episode", "Mon, 01 Jan 2024 00:00:00 GMT"),
+                ),
+            ),
+        )
+        val result = engine.updateFeed(repository.getFeed(feed.id)!!)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        val success = result as FeedUpdateResult.Success
+        assertEquals(1, success.newItemIds.size)
+        assertTrue("recentNewItemIds=${success.recentNewItemIds}", success.recentNewItemIds.isEmpty())
+    }
+
+    @Test
+    fun updateFeed_subsequentRefreshWithMultipleNewItems_recentNewItemIdsSortedNewestPublishDateFirst() = runTest {
+        // issue #238: a subsequent refresh's parsed.items is processed in whatever order the
+        // feed's own XML lists them in (no pre-sort, unlike the first-fetch path) -- recentNewItemIds
+        // must still come back newest-published-first regardless of that order.
+        val feed = subscribeFeed(itemsToKeep = 10)
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems()))
+        engine.updateFeed(feed)
+
+        server.enqueue(
+            MockResponse().setResponseCode(200).setBody(
+                rssWithDatedItems(
+                    Triple("guid-oldest", "Oldest", "Mon, 01 Jan 2024 00:00:00 GMT"),
+                    Triple("guid-newest", "Newest", "Fri, 03 Jan 2025 00:00:00 GMT"),
+                    Triple("guid-middle", "Middle", "Wed, 01 Jan 2025 00:00:00 GMT"),
+                ),
+            ),
+        )
+        val result = engine.updateFeed(repository.getFeed(feed.id)!!)
+
+        assertTrue(result is FeedUpdateResult.Success)
+        val success = result as FeedUpdateResult.Success
+        val items = repository.observeItems(feed.id).first().associateBy { it.id }
+        val orderedGuids = success.recentNewItemIds.map { id -> items.getValue(id).itemGuid }
+        assertEquals(listOf("guid-newest", "guid-middle", "guid-oldest"), orderedGuids)
+    }
+
+    @Test
     fun updateFeed_fetchFailure_returnsFailureWithoutTouchingDb() = runTest {
         val feed = subscribeFeed()
         server.enqueue(MockResponse().setResponseCode(500))

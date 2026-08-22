@@ -126,7 +126,7 @@ class AutoQueueAndDownloadEnforcerTest {
         }
         val feedId = subscribeAndInsertEpisode("new-ep", AutoQueuePosition.BOTTOM)
 
-        enforcer.apply(listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = listOf("new-ep"), evictedItemIds = emptyList())))
+        enforcer.apply(listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = listOf("new-ep"), recentNewItemIds = listOf("new-ep"), evictedItemIds = emptyList())))
 
         val queue = queueRepository.observeQueue().first()
         assertEquals(listOf("existing-ep", "new-ep"), queue.map { it.item.id })
@@ -151,7 +151,7 @@ class AutoQueueAndDownloadEnforcerTest {
         }
         val feedId = subscribeAndInsertEpisode("new-ep", AutoQueuePosition.TOP)
 
-        enforcer.apply(listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = listOf("new-ep"), evictedItemIds = emptyList())))
+        enforcer.apply(listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = listOf("new-ep"), recentNewItemIds = listOf("new-ep"), evictedItemIds = emptyList())))
 
         val queue = queueRepository.observeQueue().first()
         assertEquals(listOf("new-ep", "existing-ep"), queue.map { it.item.id })
@@ -170,7 +170,7 @@ class AutoQueueAndDownloadEnforcerTest {
         )
 
         enforcer.apply(
-            listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = listOf("ep-1", "ep-2"), evictedItemIds = emptyList())),
+            listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = listOf("ep-1", "ep-2"), recentNewItemIds = listOf("ep-1", "ep-2"), evictedItemIds = emptyList())),
         )
 
         // Cap = 1: both got auto-queued to the front, then eviction trims back down to 1 -- the
@@ -205,7 +205,7 @@ class AutoQueueAndDownloadEnforcerTest {
             listOf(
                 FeedUpdateResult.Success(
                     feedId = feedId,
-                    newItemIds = listOf("ep-new", "ep-mid", "ep-old"),
+                    newItemIds = listOf("ep-new", "ep-mid", "ep-old"), recentNewItemIds = listOf("ep-new", "ep-mid", "ep-old"),
                     evictedItemIds = emptyList(),
                 ),
             ),
@@ -230,7 +230,7 @@ class AutoQueueAndDownloadEnforcerTest {
         )
 
         enforcer.apply(
-            listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = itemIds, evictedItemIds = emptyList())),
+            listOf(FeedUpdateResult.Success(feedId = feedId, newItemIds = itemIds, recentNewItemIds = itemIds, evictedItemIds = emptyList())),
         )
 
         assertEquals(25, queueRepository.observeQueue().first().size)

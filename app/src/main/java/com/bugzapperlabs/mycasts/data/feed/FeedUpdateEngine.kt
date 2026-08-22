@@ -119,6 +119,11 @@ class FeedUpdateEngine @Inject constructor(
         // defaults without risking overwriting a value the user has since set themselves via Feed
         // Properties (issue #137) -- lastGet is only ever null before that first fetch completes.
         val isFirstFetch = feed.lastGet == null
+        // Captured before any inserts below, so it reflects what the feed already had -- an old
+        // episode reappearing under a previously-unseen GUID (feed URL/host change, re-published
+        // episode, etc.) must not be ranked against this refresh's other new items alone; it needs
+        // a real baseline to lose against (issue #238).
+        val previousMaxPublishDate = feedRepository.getMaxPublishDate(feed.id)
         val newItemIds = mutableListOf<String>()
         val newItems = mutableListOf<FeedItem>()
         var hasPodcastEpisode = false
@@ -251,7 +256,20 @@ class FeedUpdateEngine @Inject constructor(
         }
         val evicted = feedRepository.trimToItemsToKeep(feed.id, defaultItemsToKeep, protectedNewItemIds)
 
-        return FeedUpdateResult.Success(feedId = feed.id, newItemIds = newItemIds, evictedItemIds = evicted.map { it.id })
+        // Newest-published-first, and only items actually published at or after what this feed
+        // already had -- an item with no publishDate is kept (can't tell its age) but sorts last,
+        // behind everything whose date we do know (issue #238).
+        val recentNewItemIds = newItems
+            .filter { previousMaxPublishDate == null || it.publishDate == null || it.publishDate >= previousMaxPublishDate }
+            .sortedByDescending { it.publishDate ?: Long.MIN_VALUE }
+            .map { it.id }
+
+        return FeedUpdateResult.Success(
+            feedId = feed.id,
+            newItemIds = newItemIds,
+            recentNewItemIds = recentNewItemIds,
+            evictedItemIds = evicted.map { it.id },
+        )
     }
 
     companion object {

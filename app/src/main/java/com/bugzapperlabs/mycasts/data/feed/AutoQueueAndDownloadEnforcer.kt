@@ -31,7 +31,10 @@ class AutoQueueAndDownloadEnforcer @Inject constructor(
             val feed = feedRepository.getFeed(success.feedId) ?: return@forEach
 
             if (feed.autoQueueEnabled) {
-                val podcastEpisodes = success.newItemIds.mapNotNull { feedRepository.getItem(it) }.filter { it.isPodcastEpisode }
+                // Filtered against the feed's previously-known newest publish date, not just
+                // ranked within this refresh's own new-item batch (issue #238) -- see
+                // FeedUpdateEngine.persist's recentNewItemIds.
+                val podcastEpisodes = success.recentNewItemIds.mapNotNull { feedRepository.getItem(it) }.filter { it.isPodcastEpisode }
                 // Caps what actually gets *added* to autoQueueMaxCount, rather than adding every
                 // new episode and trimming back down afterward via enforceFeedCap (issue #102's
                 // queue-side sibling bug) -- a feed's first fetch can bring in hundreds/thousands

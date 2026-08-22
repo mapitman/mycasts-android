@@ -81,6 +81,10 @@ class FeedRepository @Inject constructor(
 
     suspend fun getItem(itemId: String): FeedItem? = feedItemDao.getById(itemId)
 
+    /** Newest publishDate already known for this feed, before a refresh inserts anything new
+     *  (issue #238) -- see [FeedItemDao.getMaxPublishDate]. */
+    suspend fun getMaxPublishDate(feedId: Long): Long? = feedItemDao.getMaxPublishDate(feedId)
+
     suspend fun setEnclosurePosition(itemId: String, position: Double?) =
         feedItemDao.setEnclosurePosition(itemId, position)
 
