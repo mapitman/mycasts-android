@@ -59,9 +59,9 @@ class FeedRefreshWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = feedRefreshState.track {
         try {
             val feeds = feedRepository.observeAllFeeds().first()
-            if (feeds.isNotEmpty()) setForeground(createForegroundInfo(completedCount = 0, totalCount = feeds.size))
+            if (feeds.isNotEmpty()) trySetForeground(createForegroundInfo(completedCount = 0, totalCount = feeds.size))
             val results = feedUpdateEngine.updateFeeds(feeds) { completedCount, totalCount ->
-                setForeground(createForegroundInfo(completedCount, totalCount))
+                trySetForeground(createForegroundInfo(completedCount, totalCount))
             }
 
             // Per-feed failures don't fail the whole run (see class doc), but they shouldn't be
@@ -114,6 +114,27 @@ class FeedRefreshWorker @AssistedInject constructor(
             // individual feed's own fetch failure above.
             Log.e(TAG, "Feed refresh run failed unexpectedly", e)
             Result.success()
+        }
+    }
+
+    /**
+     * [setForeground] can fail outright when this worker runs with no user-visible activity at
+     * all (e.g. a scheduled background run on a device that hasn't exempted the app from Doze) --
+     * Android 12+ restricts promoting to a foreground service from that state, and WorkManager
+     * surfaces the rejection as a thrown exception from [setForeground] itself. Before this fix,
+     * that exception propagated straight out of [doWork]'s try block right at the very start
+     * (before any feed was ever fetched) and was swallowed by the same catch-all added for issue
+     * #164 -- silently reporting the whole run a success while doing nothing. The foreground
+     * notification is a nice-to-have progress indicator, not a requirement for the actual refresh
+     * to work, so a failure here is now just logged and the real work continues regardless.
+     */
+    private suspend fun trySetForeground(info: ForegroundInfo) {
+        try {
+            setForeground(info)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "setForeground failed; continuing refresh without the progress notification", e)
         }
     }
 
