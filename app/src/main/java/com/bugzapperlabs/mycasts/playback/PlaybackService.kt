@@ -61,6 +61,12 @@ private const val ADVANCE_WAKE_LOCK_TIMEOUT_MS = 30_000L
 // deep buffer, so this is generous headroom rather than a tuned minimum.
 private const val PRELOAD_TARGET_MS = 15_000L
 
+// Safety cap on playNextQueued's skip-ahead recursion (issue #240): bounds how many queue entries
+// in a row it will move to the back and try past before giving up, so a queue that's entirely
+// unplayable right now (e.g. nothing downloaded and no Wi-Fi) can't recurse forever cycling back
+// through the same entries.
+private const val MAX_ADVANCE_ATTEMPTS = 50
+
 /**
  * Trivial by design (issue #87): this app only ever preloads a single candidate at a time (the
  * Next Up head), unlike a carousel with many ranked candidates, so there's no need to track a
@@ -496,8 +502,19 @@ class PlaybackService : MediaSessionService() {
     // back of the queue (PlaybackService.onPlayerError's moveToEnd) has nowhere to actually move to
     // if it was the queue's only entry, so it would otherwise still be sitting at the front here,
     // and get "advanced" into again -- the exact same broken episode, looping forever.
+    //
+    // issue #240: an entry that can't currently be resolved (a dangling FeedItem row, or one
+    // blocked by the mobile-data streaming gate with no UI here to confirm from) is skipped over
+    // the same way, recursing with that entry's id as the new [excludeItemId] to try the one after
+    // it, instead of stopping the whole queue on the first unplayable episode. [attempt] bounds
+    // that recursion so a queue that's entirely unplayable right now can't loop forever.
     @OptIn(markerClass = [UnstableApi::class])
-    private suspend fun playNextQueued(excludeItemId: String? = null) {
+    private suspend fun playNextQueued(excludeItemId: String? = null, attempt: Int = 0) {
+        if (attempt >= MAX_ADVANCE_ATTEMPTS) {
+            player.clearMediaItems()
+            settingsDataStore.setLastPlayingItem(null, null)
+            return
+        }
         val itemId = queueRepository.peekFront()?.takeIf { it != excludeItemId }
         if (itemId == null) {
             player.clearMediaItems()
@@ -515,10 +532,24 @@ class PlaybackService : MediaSessionService() {
         // preloadManager.add(), so a freshly re-resolved MediaItem wouldn't match it anyway.
         val cachedPreload = preloadedNext?.takeIf { it.first == itemId }?.second
         val resolved = cachedPreload ?: run {
-            val item = feedRepository.getItem(itemId) ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
+            // issue #240: a dangling queue entry (its FeedItem row is already gone) -- drop it and
+            // keep looking rather than leaving the player stuck on whatever just finished.
+            val item = feedRepository.getItem(itemId) ?: run {
+                queueRepository.remove(itemId)
+                return playNextQueued(excludeItemId = excludeItemId, attempt = attempt + 1)
+            }
             val feed = feedRepository.getFeed(item.feedId)
             PlaybackMediaItemFactory.resolve(item, feed?.userTitle ?: feed?.title, feedRepository, settingsDataStore, networkTypeChecker)
-                ?: run { settingsDataStore.setLastPlayingItem(null, null); return }
+                ?: run {
+                    // issue #240: most commonly the mobile-data streaming gate (issue #222) with no
+                    // UI here to confirm from -- move it out of the front slot (mirrors
+                    // onPlayerError's handling of a broken episode) and try the entry after it,
+                    // rather than stopping the whole queue on one unplayable episode. Kept queued
+                    // (not removed) since it never actually failed to play, just isn't playable
+                    // right now.
+                    queueRepository.moveToEnd(itemId)
+                    return playNextQueued(excludeItemId = itemId, attempt = attempt + 1)
+                }
         }
         val feedId = resolved.mediaItem.mediaMetadata.extras?.getLong(FEED_ID_EXTRA_KEY)
         val preloadedSource = cachedPreload?.let { preloadManager.getMediaSource(resolved.mediaItem) }
