@@ -66,18 +66,13 @@ class QueueRepository @Inject constructor(
      * #219 follow-up: added so this can be turned off, falling back to episodes only ever
      * downloading via an explicit single-episode download tap) -- not called from [moveToFront],
      * since that just marks an already-queued (or not) episode as "now playing" rather than the
-     * user/auto-queue actually adding it to Next Up. Skips episodes that are already downloaded or
-     * mid-download, since [EnclosureDownloadRepository.startDownload] would otherwise
-     * unconditionally re-enqueue (and so restart) them.
+     * user/auto-queue actually adding it to Next Up. See [EnclosureDownloadRepository.ensureDownloaded]
+     * for the actual already-downloaded/mid-download guard.
      */
     private suspend fun triggerDownload(itemId: String) {
         if (!settingsDataStore.settings.first().downloadOnAddToNextUp) return
         val item = feedRepository.getItem(itemId) ?: return
-        if (!item.isPodcastEpisode) return
-        if (item.downloadedFilePath != null || item.downloadedBytes != null) return
-        downloadRepository.startDownload(item, autoDownloaded = true)
-        val feed = feedRepository.getFeed(item.feedId) ?: return
-        feed.maxDownloadsToKeep?.let { downloadRepository.enforceFeedDownloadCap(feed.id, it) }
+        downloadRepository.ensureDownloaded(item)
     }
 
     /**
