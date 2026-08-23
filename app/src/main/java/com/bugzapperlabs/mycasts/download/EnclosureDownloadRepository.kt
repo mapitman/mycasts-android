@@ -28,6 +28,25 @@ class EnclosureDownloadRepository @Inject constructor(
     }
 
     /**
+     * Auto-downloads [item] unless it's already downloaded or mid-download (issue #242) --
+     * [startDownload] would otherwise unconditionally re-enqueue (and so restart) it. Shared by
+     * [com.bugzapperlabs.mycasts.data.repository.QueueRepository]'s downloadOnAddToNextUp-gated
+     * auto-download of newly queued episodes and [com.bugzapperlabs.mycasts.playback.PlaybackService]'s
+     * unconditional pre-caching of the Next Up head, so this guard and the follow-up per-feed cap
+     * check only have to live in one place. WorkManager's own `allowMobileData`/`allowOnBattery`
+     * constraints (set by [startDownload] from the app's existing download settings) still gate
+     * whether the job actually runs, so this never bypasses the user's mobile-data/battery
+     * preferences even when triggered unconditionally.
+     */
+    suspend fun ensureDownloaded(item: FeedItem) {
+        if (!item.isPodcastEpisode) return
+        if (item.downloadedFilePath != null || item.downloadedBytes != null) return
+        startDownload(item, autoDownloaded = true)
+        val feed = feedRepository.getFeed(item.feedId) ?: return
+        feed.maxDownloadsToKeep?.let { enforceFeedDownloadCap(feed.id, it) }
+    }
+
+    /**
      * Marks [itemId]'s download complete and immediately re-checks its feed's max-downloads cap
      * (issue #102) -- called from [com.bugzapperlabs.mycasts.download.EnclosureDownloadWorker]
      * instead of setting [FeedItem.downloadedFilePath] directly. A whole batch of a feed's new

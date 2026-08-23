@@ -200,6 +200,48 @@ class EnclosureDownloadRepositoryTest {
         assertTrue(repository.getItem("item-1")!!.autoDownloaded)
     }
 
+    @Test
+    fun ensureDownloaded_notYetDownloaded_startsDownload() = runTest {
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val item = repository.getItem("item-1")!!
+
+        downloadRepository.ensureDownloaded(item)
+
+        assertEquals(listOf("item-1"), enqueuedCalls.map { it.first })
+        assertTrue(repository.getItem("item-1")!!.autoDownloaded)
+    }
+
+    @Test
+    fun ensureDownloaded_alreadyDownloaded_doesNotRestartDownload() = runTest {
+        seedFeedAndItem("https://example.com/episode.mp3")
+        repository.setDownloadedFilePath("item-1", tempFolder.newFile("downloaded.mp3").absolutePath)
+
+        downloadRepository.ensureDownloaded(repository.getItem("item-1")!!)
+
+        assertTrue(enqueuedCalls.isEmpty())
+    }
+
+    @Test
+    fun ensureDownloaded_midDownload_doesNotRestartDownload() = runTest {
+        // issue #242: a download already in progress (no file yet, but a partial byte count
+        // recorded) shouldn't be restarted from scratch either.
+        seedFeedAndItem("https://example.com/episode.mp3")
+        repository.setDownloadedBytes("item-1", 512L)
+
+        downloadRepository.ensureDownloaded(repository.getItem("item-1")!!)
+
+        assertTrue(enqueuedCalls.isEmpty())
+    }
+
+    @Test
+    fun ensureDownloaded_nonPodcastEpisode_doesNothing() = runTest {
+        seedFeedAndItem("https://example.com/cover.jpg", enclosureType = "image/jpeg")
+
+        downloadRepository.ensureDownloaded(repository.getItem("item-1")!!)
+
+        assertTrue(enqueuedCalls.isEmpty())
+    }
+
     /** Downloaded episodes of feed [feedId], newest [publishDate] first, each with its own file
      *  on disk so eviction assertions can check the underlying file was actually deleted. */
     private suspend fun seedDownloadedEpisodes(feedId: Long, count: Int, autoDownloaded: Boolean = true): List<File> {

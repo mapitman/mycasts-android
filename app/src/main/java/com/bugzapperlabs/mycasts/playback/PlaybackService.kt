@@ -237,6 +237,14 @@ class PlaybackService : MediaSessionService() {
      * the currently-playing episode is itself a real queue entry now, always at the front, so the
      * "head" this preloads has to be the entry *after* it -- preloading the front entry itself
      * would just be re-preloading whatever's already playing.
+     *
+     * Also starts a full background download of the head episode (issue #242), unconditionally --
+     * unlike [QueueRepository]'s own downloadOnAddToNextUp-gated auto-download of newly queued
+     * episodes, this always runs so the episode auto-advance is about to need is already downloaded
+     * (and so unaffected by the mobile-data streaming gate, see [PlaybackMediaItemFactory.resolve])
+     * regardless of that setting. Still respects the user's actual mobile-data/battery download
+     * preferences via [EnclosureDownloadRepository.ensureDownloaded]'s own WorkManager constraints,
+     * and is a no-op if the episode is already downloaded or mid-download.
      */
     @OptIn(markerClass = [UnstableApi::class])
     private fun startPreloadingQueueHead() {
@@ -247,6 +255,7 @@ class PlaybackService : MediaSessionService() {
                     preloadManager.reset()
                     preloadedNext = null
                     if (head == null) return@collect
+                    downloadRepository.ensureDownloaded(head.item)
                     val resolved = PlaybackMediaItemFactory.resolve(head.item, head.feedTitle, feedRepository, settingsDataStore, networkTypeChecker)
                         ?: return@collect
                     preloadedNext = head.item.id to resolved
