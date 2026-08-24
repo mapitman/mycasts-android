@@ -79,6 +79,11 @@ class FeedRepository @Inject constructor(
     suspend fun findByItemGuid(feedId: Long, itemGuid: String): FeedItem? =
         feedItemDao.findByItemGuid(feedId, itemGuid)
 
+    /** Fallback for when a feed has changed an already-known episode's itemGuid (issue #244) --
+     *  see [FeedItemDao.findByEnclosureUrl]. */
+    suspend fun findByEnclosureUrl(feedId: Long, enclosureUrl: String): FeedItem? =
+        feedItemDao.findByEnclosureUrl(feedId, enclosureUrl)
+
     suspend fun getItem(itemId: String): FeedItem? = feedItemDao.getById(itemId)
 
     /** Newest publishDate already known for this feed, before a refresh inserts anything new
