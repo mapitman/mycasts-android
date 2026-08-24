@@ -164,6 +164,54 @@ class FeedUpdateEngineTest {
     }
 
     @Test
+    fun updateFeed_guidChangedForAlreadyReadEpisode_matchesByEnclosureUrlInsteadOfDuplicating() = runTest {
+        // issue #244: some feeds regenerate an already-known episode's guid wholesale (e.g. after
+        // a host/platform migration). Matching by itemGuid alone would then treat it as a brand
+        // new episode, inserting a duplicate row that resets isRead -- an old, already-listened-to
+        // episode reappearing as unplayed.
+        fun rssWithEnclosure(guid: String, title: String, enclosureUrl: String) = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0"><channel>
+              <title>Test Feed</title>
+              <link>https://example.com</link>
+              <description>desc</description>
+              <item>
+                <title>$title</title>
+                <link>https://example.com/$guid</link>
+                <guid>$guid</guid>
+                <description>Body</description>
+                <pubDate>Mon, 03 Jun 2013 11:05:30 GMT</pubDate>
+                <enclosure url="$enclosureUrl" type="audio/mpeg" length="1000" />
+              </item>
+            </channel></rss>
+        """.trimIndent()
+
+        val feed = subscribeFeed()
+        server.enqueue(
+            MockResponse().setResponseCode(200)
+                .setBody(rssWithEnclosure("old-guid", "Episode", "https://example.com/episode.mp3")),
+        )
+        engine.updateFeed(feed)
+
+        val originalItem = repository.observeItems(feed.id).first().single()
+        repository.markRead(originalItem.id, true)
+
+        server.enqueue(
+            MockResponse().setResponseCode(200)
+                .setBody(rssWithEnclosure("new-guid", "Episode", "https://example.com/episode.mp3")),
+        )
+        val result = engine.updateFeed(feed) as FeedUpdateResult.Success
+
+        assertEquals(0, result.newItemCount)
+        val items = repository.observeItems(feed.id).first()
+        assertEquals(1, items.size)
+        val item = items.single()
+        assertEquals(originalItem.id, item.id)
+        assertEquals("new-guid", item.itemGuid)
+        assertTrue(item.isRead)
+    }
+
+    @Test
     fun updateFeed_reDiscoveringAPreviouslyTrimmedItem_doesNotCountItAsNewAgain() = runTest {
         // issue #60: trimToItemsToKeep deletes evicted rows outright, so if a feed's upstream RSS
         // keeps listing an episode after it's been trimmed out, the next refresh's GUID dedup no

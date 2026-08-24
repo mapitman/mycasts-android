@@ -54,6 +54,13 @@ interface FeedItemDao {
     @Query("SELECT * FROM feed_items WHERE feedId = :feedId AND itemGuid = :itemGuid LIMIT 1")
     suspend fun findByItemGuid(feedId: Long, itemGuid: String): FeedItem?
 
+    // Fallback lookup for FeedUpdateEngine.persist when a feed has changed an already-known
+    // episode's itemGuid (issue #244) -- the enclosure url (the actual audio file) is a far more
+    // stable identifier in practice than a guid, which some feeds regenerate wholesale after a
+    // host/platform migration.
+    @Query("SELECT * FROM feed_items WHERE feedId = :feedId AND enclosureUrl = :enclosureUrl LIMIT 1")
+    suspend fun findByEnclosureUrl(feedId: Long, enclosureUrl: String): FeedItem?
+
     // Newest publishDate already known for this feed, queried before a refresh inserts anything
     // new (issue #238) -- lets the caller rank a genuinely new release against what the feed
     // already had, not just against the rest of this refresh's own new-item batch.

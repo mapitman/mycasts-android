@@ -155,7 +155,16 @@ class FeedUpdateEngine @Inject constructor(
                 hasPodcastEpisode = true
             }
 
+            // Falls back to matching by enclosure url when the guid lookup misses (issue #244):
+            // some feeds regenerate an already-known episode's guid wholesale (e.g. after a host
+            // migration), which would otherwise look like a brand-new episode and insert a
+            // duplicate row that resets isRead/download state -- an old, already-listened-to
+            // episode reappearing as unplayed, potentially forever if the feed's total item count
+            // never exceeds itemsToKeep enough to trigger trimToItemsToKeep's eviction. The
+            // enclosure url (the actual audio file) is a much more stable identifier in practice
+            // than a guid or the item's own page url.
             val existing = feedRepository.findByItemGuid(feed.id, itemGuid)
+                ?: parsedItem.enclosure?.url?.let { feedRepository.findByEnclosureUrl(feed.id, it) }
             val firstImage = FirstImageExtractor.extractAndStripFirstImage(parsedItem.description, parsedItem.url)
             val id = existing?.id ?: UUID.randomUUID().toString()
 
