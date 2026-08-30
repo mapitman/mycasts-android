@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- issue #246: declares media playback support for Android Auto, without which the OS won't
+     offer this app in a car at all, regardless of the MediaLibraryService implementation. -->
+<automotiveApp>
+    <uses name="media" />
+</automotiveApp>
