@@ -3,7 +3,9 @@ package com.bugzapperlabs.mycasts.ui.adaptive
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
+import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.material3.adaptive.layout.AnimatedPane
+import androidx.compose.material3.adaptive.layout.calculatePaneScaffoldDirective
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
@@ -48,7 +50,13 @@ fun <T : Any> ListDetailPaneHost(
     modifier: Modifier = Modifier,
     emptyDetailContent: @Composable () -> Unit = {},
 ) {
-    val navigator = rememberListDetailPaneScaffoldNavigator<T>()
+    // issue #260: rememberListDetailPaneScaffoldNavigator's directive doesn't default to
+    // anything window-size-aware in material3-adaptive 1.2.0 -- that auto-wiring is what the
+    // (unavailable to us, see class doc) NavigableListDetailPaneScaffold convenience composable
+    // added in 1.3.0. Without passing this explicitly, the navigator's scaffoldValue never
+    // reflects the actual window size and the scaffold always renders single-pane regardless of
+    // width.
+    val navigator = rememberListDetailPaneScaffoldNavigator<T>(calculatePaneScaffoldDirective(currentWindowAdaptiveInfo()))
     val scope = rememberCoroutineScope()
 
     // Drives the navigator's pane visibility (list-only vs. list+detail) from the caller's own
