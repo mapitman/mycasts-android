@@ -78,6 +78,7 @@
     <!-- Next Up queue -->
     <string name="queue_title">Next Up</string>
     <string name="queue_empty">Nothing queued</string>
+    <string name="queue_no_current_episode">Nothing playing</string>
     <string name="cd_sort_queue_oldest_first">Sort by publish date, oldest first</string>
     <string name="cd_sort_queue_newest_first">Sort by publish date, newest first</string>
     <string name="queue_feedback_added">Added to Next Up</string>

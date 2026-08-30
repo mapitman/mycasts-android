@@ -36,6 +36,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -515,11 +516,74 @@ class MainActivity : ComponentActivity() {
                             DownloadsScreen()
                         }
                         composable("queue") {
-                            QueueScreen(
-                                onOpenEpisode = { episode -> openEpisodeDetails(episode.item.feedId, episode.item.id) },
-                                onOpenCurrentEpisode = onOpenCurrentEpisode,
-                                miniPlayerViewModel = miniPlayerViewModel,
-                            )
+                            // issue #232/#262: on a wide window, the Next Up list shows beside the
+                            // currently-playing episode's full details instead of only its own
+                            // bottom-sheet player -- unlike the other two pane pairs, there's no
+                            // list-tap-driven detail target here; the detail pane instead just
+                            // tracks whatever PlaybackController says is currently playing,
+                            // including when a different Next Up row is tapped to play it (see
+                            // QueueScreen's hostedAsPane doc).
+                            val currentEpisodeKey = playbackState.feedId?.let { feedId ->
+                                playbackState.currentItemId?.let { itemId -> feedId to itemId }
+                            }
+                            if (isExpandedWidth) {
+                                ListDetailPaneHost(
+                                    listContent = {
+                                        QueueScreen(
+                                            onOpenEpisode = { episode -> openEpisodeDetails(episode.item.feedId, episode.item.id) },
+                                            onOpenCurrentEpisode = onOpenCurrentEpisode,
+                                            hostedAsPane = true,
+                                            miniPlayerViewModel = miniPlayerViewModel,
+                                        )
+                                    },
+                                    detailKey = currentEpisodeKey,
+                                    detailContent = { (feedId, itemId) ->
+                                        // A small nested NavHost, mirroring the top-level
+                                        // episodeDetails/{feedId}/{itemId} destination's own route
+                                        // shape -- see the identical pattern on #260/#261's own
+                                        // detail panes for why.
+                                        val detailNavController = rememberNavController()
+                                        NavHost(
+                                            navController = detailNavController,
+                                            startDestination = "episodeDetails/$feedId/$itemId",
+                                        ) {
+                                            composable(
+                                                "episodeDetails/{feedId}/{itemId}",
+                                                arguments = listOf(
+                                                    navArgument("feedId") { type = NavType.LongType },
+                                                    navArgument("itemId") { type = NavType.StringType },
+                                                ),
+                                            ) {
+                                                EpisodeDetailsScreen(onQueueClick = onQueueClick)
+                                            }
+                                        }
+                                        // Re-targets the detail pane's own inner NavHost when the
+                                        // currently-playing episode changes -- see the identical
+                                        // comment on #260/#261's own detail panes for why this is
+                                        // needed.
+                                        LaunchedEffect(feedId, itemId) {
+                                            detailNavController.navigate("episodeDetails/$feedId/$itemId") {
+                                                popUpTo(detailNavController.graph.findStartDestination().id) { inclusive = true }
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    },
+                                    emptyDetailContent = {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Text(
+                                                stringResource(R.string.queue_no_current_episode),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    },
+                                )
+                            } else {
+                                QueueScreen(
+                                    onOpenEpisode = { episode -> openEpisodeDetails(episode.item.feedId, episode.item.id) },
+                                    onOpenCurrentEpisode = onOpenCurrentEpisode,
+                                    miniPlayerViewModel = miniPlayerViewModel,
+                                )
+                            }
                         }
                         composable(
                             "feedProperties/{feedId}",

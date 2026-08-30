@@ -74,6 +74,7 @@
     <!-- Next Up queue -->
     <string name="queue_title">À suivre</string>
     <string name="queue_empty">Aucun élément en file d\'attente</string>
+    <string name="queue_no_current_episode">Aucune lecture en cours</string>
     <string name="cd_sort_queue_oldest_first">Trier par date de publication, du plus ancien au plus récent</string>
     <string name="cd_sort_queue_newest_first">Trier par date de publication, du plus récent au plus ancien</string>
     <string name="queue_feedback_added">Ajouté à À suivre</string>
