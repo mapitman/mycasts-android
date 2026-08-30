@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -83,6 +85,15 @@ fun QueueScreen(
     onOpenEpisode: (QueuedEpisode) -> Unit,
     onOpenCurrentEpisode: () -> Unit,
     modifier: Modifier = Modifier,
+    // issue #262: on a wide window, this screen is shown as the list pane of a
+    // ListDetailPaneHost pair, with the currently-playing episode's full EpisodeDetailsScreen
+    // in the second pane owning all playback UI -- so this screen's own bottom-sheet player
+    // (peeked mini-strip / dragged-up MiniPlayerBar) would just be a duplicate and is suppressed
+    // entirely. Tapping a row plays it immediately (retargeting the detail pane, same as a
+    // compact-mode long-press) rather than navigating to that episode's details, since there's
+    // no separate details destination to navigate to here -- the detail pane already shows
+    // whichever episode is playing.
+    hostedAsPane: Boolean = false,
     viewModel: QueueViewModel = hiltViewModel(),
     miniPlayerViewModel: MiniPlayerViewModel = hiltViewModel(),
 ) {
@@ -124,39 +135,104 @@ fun QueueScreen(
 
     val hasCurrentItem = playbackState.currentItemId != null
 
-    // Expands the player sheet once landing here from a mini-strip tap elsewhere in the app
-    // (issue #96) -- MainActivity sets this before navigating, since arriving on the Next Up tab
-    // still just peeked would defeat the point of tapping the strip to begin with.
-    val pendingExpand by miniPlayerViewModel.pendingExpand.collectAsState()
-    LaunchedEffect(pendingExpand) {
-        if (pendingExpand) {
-            scaffoldState.bottomSheetState.expand()
-            miniPlayerViewModel.consumeExpandRequest()
-        }
-    }
-
-    // Collapses the player sheet back down whenever it lands here having been left expanded
-    // (issue #148) -- see MainActivity's "leaving queue" LaunchedEffect for why this is needed
-    // instead of just relying on the sheet's own remembered state.
-    val pendingCollapse by miniPlayerViewModel.pendingCollapse.collectAsState()
-    LaunchedEffect(pendingCollapse) {
-        if (pendingCollapse) {
-            scaffoldState.bottomSheetState.partialExpand()
-            miniPlayerViewModel.consumeCollapseRequest()
-        }
-    }
-
-    // Flips the sheet between peeked and expanded on each repeated Next Up tab tap (issue #148)
-    // -- MainActivity's NavigationBarItem fires this instead of navigating again once already on
-    // this screen, since re-navigating to the already-current destination is a no-op.
-    LaunchedEffect(Unit) {
-        miniPlayerViewModel.toggleSheetRequests.collect {
-            if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-                scaffoldState.bottomSheetState.partialExpand()
-            } else {
+    // The sheet-driving effects below only matter when this screen owns the player sheet itself
+    // -- when hosted as a pane's list content (issue #262), there's no BottomSheetScaffold here
+    // for any of these to act on, so they're skipped entirely rather than driving a sheet state
+    // nothing renders.
+    if (!hostedAsPane) {
+        // Expands the player sheet once landing here from a mini-strip tap elsewhere in the app
+        // (issue #96) -- MainActivity sets this before navigating, since arriving on the Next Up
+        // tab still just peeked would defeat the point of tapping the strip to begin with.
+        val pendingExpand by miniPlayerViewModel.pendingExpand.collectAsState()
+        LaunchedEffect(pendingExpand) {
+            if (pendingExpand) {
                 scaffoldState.bottomSheetState.expand()
+                miniPlayerViewModel.consumeExpandRequest()
             }
         }
+
+        // Collapses the player sheet back down whenever it lands here having been left expanded
+        // (issue #148) -- see MainActivity's "leaving queue" LaunchedEffect for why this is
+        // needed instead of just relying on the sheet's own remembered state.
+        val pendingCollapse by miniPlayerViewModel.pendingCollapse.collectAsState()
+        LaunchedEffect(pendingCollapse) {
+            if (pendingCollapse) {
+                scaffoldState.bottomSheetState.partialExpand()
+                miniPlayerViewModel.consumeCollapseRequest()
+            }
+        }
+
+        // Flips the sheet between peeked and expanded on each repeated Next Up tab tap (issue
+        // #148) -- MainActivity's NavigationBarItem fires this instead of navigating again once
+        // already on this screen, since re-navigating to the already-current destination is a
+        // no-op.
+        LaunchedEffect(Unit) {
+            miniPlayerViewModel.toggleSheetRequests.collect {
+                if (scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+                    scaffoldState.bottomSheetState.partialExpand()
+                } else {
+                    scaffoldState.bottomSheetState.expand()
+                }
+            }
+        }
+    }
+
+    // Shared between the paned (issue #262) and standalone renderings below so the two can't
+    // drift apart -- only the surrounding scaffold (and whether a player sheet exists at all)
+    // differs between them.
+    val topBarContent: @Composable () -> Unit = {
+        // No title (issue #127): the bottom nav's highlighted "Next Up" tab already conveys this
+        // is the queue screen. CompactTopBar replaces TopAppBar here too, so the sort action's
+        // own ~48dp touch target governs this bar's height instead of Material's taller ~64dp
+        // component height on top of it.
+        CompactTopBar {
+            Spacer(modifier = Modifier.weight(1f))
+            if (queue.isNotEmpty()) {
+                IconButton(onClick = viewModel::downloadAll) {
+                    Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_download_all_queued))
+                }
+            }
+            if (queue.size > 1) {
+                IconButton(onClick = viewModel::sortByPublishDate) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Sort,
+                        contentDescription = stringResource(
+                            if (sortAscending) {
+                                R.string.cd_sort_queue_oldest_first
+                            } else {
+                                R.string.cd_sort_queue_newest_first
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+    }
+    val bodyContent: @Composable (PaddingValues) -> Unit = { innerPadding ->
+        if (queue.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.queue_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else {
+            ReorderableQueueList(
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                queue = queue,
+                currentItemId = currentItemId,
+                onReorder = { ids, onComplete -> viewModel.reorder(ids, onComplete) },
+                onRemove = viewModel::remove,
+                onOpen = if (hostedAsPane) viewModel::playNow else onOpenEpisode,
+                onPlay = viewModel::playNow,
+            )
+        }
+    }
+
+    if (hostedAsPane) {
+        Scaffold(
+            modifier = modifier,
+            topBar = topBarContent,
+            snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
+        ) { innerPadding -> bodyContent(innerPadding) }
+        return
     }
 
     BottomSheetScaffold(
@@ -228,50 +304,7 @@ fun QueueScreen(
                 }
             }
         },
-        topBar = {
-            // No title (issue #127): the bottom nav's highlighted "Next Up" tab already conveys
-            // this is the queue screen. CompactTopBar replaces TopAppBar here too, so the sort
-            // action's own ~48dp touch target governs this bar's height instead of Material's
-            // taller ~64dp component height on top of it.
-            CompactTopBar {
-                Spacer(modifier = Modifier.weight(1f))
-                if (queue.isNotEmpty()) {
-                    IconButton(onClick = viewModel::downloadAll) {
-                        Icon(Icons.Filled.Download, contentDescription = stringResource(R.string.cd_download_all_queued))
-                    }
-                }
-                if (queue.size > 1) {
-                    IconButton(onClick = viewModel::sortByPublishDate) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Sort,
-                            contentDescription = stringResource(
-                                if (sortAscending) {
-                                    R.string.cd_sort_queue_oldest_first
-                                } else {
-                                    R.string.cd_sort_queue_newest_first
-                                },
-                            ),
-                        )
-                    }
-                }
-            }
-        },
+        topBar = topBarContent,
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
-    ) { innerPadding ->
-        if (queue.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.queue_empty), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        } else {
-            ReorderableQueueList(
-                modifier = Modifier.fillMaxSize().padding(innerPadding),
-                queue = queue,
-                currentItemId = currentItemId,
-                onReorder = { ids, onComplete -> viewModel.reorder(ids, onComplete) },
-                onRemove = viewModel::remove,
-                onOpen = onOpenEpisode,
-                onPlay = viewModel::playNow,
-            )
-        }
-    }
+    ) { innerPadding -> bodyContent(innerPadding) }
 }
