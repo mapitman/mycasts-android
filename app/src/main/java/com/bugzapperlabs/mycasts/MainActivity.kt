@@ -51,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +90,8 @@ import com.bugzapperlabs.mycasts.queue.QueueScreen
 import com.bugzapperlabs.mycasts.episodedetails.EpisodeDetailsScreen
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduler
 import com.bugzapperlabs.mycasts.settings.SettingsScreen
+import com.bugzapperlabs.mycasts.ui.adaptive.ListDetailPaneHost
+import com.bugzapperlabs.mycasts.ui.adaptive.isExpandedWindowWidth
 import com.bugzapperlabs.mycasts.ui.theme.MyCastsTheme
 import com.bugzapperlabs.mycasts.widget.UnreadWidget
 import kotlinx.coroutines.flow.first
@@ -418,10 +421,78 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize().padding(innerPadding),
                     ) {
                         composable("feedList") {
-                            FeedListScreen(
-                                onAddFeedClick = { navController.navigate("addFeed") },
-                                onFeedClick = { feedId -> navController.navigate("episodeList/$feedId") },
-                            )
+                            // issue #232/#260: on a wide window, a tapped feed shows its episodes
+                            // in a second pane instead of pushing a full-screen episodeList
+                            // route. selectedFeedId is rememberSaveable (not just remember) so it
+                            // survives a size-class change mid-session (e.g. rotating a tablet) --
+                            // narrowing back to compact re-enters the same feed's episode list
+                            // full-screen instead of dropping back to the feed list.
+                            var selectedFeedId by rememberSaveable { mutableStateOf<Long?>(null) }
+                            if (isExpandedWindowWidth()) {
+                                ListDetailPaneHost(
+                                    listContent = {
+                                        FeedListScreen(
+                                            onAddFeedClick = { navController.navigate("addFeed") },
+                                            onFeedClick = { feedId -> selectedFeedId = feedId },
+                                        )
+                                    },
+                                    detailKey = selectedFeedId,
+                                    detailContent = { feedId ->
+                                        // A small nested NavHost, mirroring the top-level
+                                        // episodeList/{feedId} destination's own route shape, so
+                                        // EpisodeListViewModel's SavedStateHandle-based feedId
+                                        // lookup works completely unmodified even though this
+                                        // instance isn't a top-level NavHost destination.
+                                        val detailNavController = rememberNavController()
+                                        NavHost(
+                                            navController = detailNavController,
+                                            startDestination = "episodeList/$feedId",
+                                        ) {
+                                            composable(
+                                                "episodeList/{feedId}",
+                                                arguments = listOf(navArgument("feedId") { type = NavType.LongType }),
+                                            ) { backStackEntry ->
+                                                val innerFeedId = backStackEntry.arguments?.getLong("feedId") ?: feedId
+                                                EpisodeListScreen(
+                                                    onEpisodeClick = { itemId -> openEpisodeDetails(innerFeedId, itemId) },
+                                                    onFeedSettingsClick = { navController.navigate("feedProperties/$innerFeedId") },
+                                                )
+                                            }
+                                        }
+                                        // Re-targets the detail pane's own inner NavHost when a
+                                        // different feed is selected -- NavHost only reads
+                                        // startDestination once, so changing it alone (without
+                                        // this) wouldn't re-navigate on a later selection change.
+                                        // Also fires (harmlessly, as a same-destination no-op via
+                                        // launchSingleTop) on the very first composition, where
+                                        // startDestination above has already set the right feed.
+                                        LaunchedEffect(feedId) {
+                                            detailNavController.navigate("episodeList/$feedId") {
+                                                popUpTo(detailNavController.graph.findStartDestination().id) { inclusive = true }
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    },
+                                )
+                            } else {
+                                // Falling back to compact with a feed already selected (e.g.
+                                // narrowing a resizable/tablet window mid-session) re-enters that
+                                // feed's episode list full-screen once, preserving the selection
+                                // across the size-class change, instead of silently dropping back
+                                // to the plain feed list. Cleared right after so pressing back
+                                // from that full-screen episode list doesn't immediately
+                                // re-navigate into it again.
+                                LaunchedEffect(Unit) {
+                                    selectedFeedId?.let { feedId ->
+                                        navController.navigate("episodeList/$feedId")
+                                        selectedFeedId = null
+                                    }
+                                }
+                                FeedListScreen(
+                                    onAddFeedClick = { navController.navigate("addFeed") },
+                                    onFeedClick = { feedId -> navController.navigate("episodeList/$feedId") },
+                                )
+                            }
                         }
                         composable("downloads") {
                             DownloadsScreen()
