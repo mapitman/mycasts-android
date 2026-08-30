@@ -11,14 +11,17 @@ import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.exclude
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -121,113 +124,126 @@ fun SettingsScreen(
         // TopAppBar with one that reserves only the status-bar inset.
         topBar = { CompactTopBar() },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            SectionHeader(stringResource(R.string.settings_section_general))
-            UpdateIntervalSetting(settings, viewModel)
-            SwitchRow(stringResource(R.string.settings_show_images), settings.enableImageDisplay, viewModel::setEnableImageDisplay)
-            SwitchRow(
-                stringResource(R.string.settings_use_device_theme_colors),
-                settings.useDeviceThemeColors,
-                viewModel::setUseDeviceThemeColors,
-            )
-            SwitchRow(
-                stringResource(R.string.settings_default_to_all_items),
-                settings.defaultToAllItemsView,
-                viewModel::setDefaultToAllItemsView,
-            )
-            SwitchRow(
-                stringResource(R.string.settings_notify_on_new_items),
-                settings.notifyOnNewItems,
-                onCheckedChange = { enabled ->
-                    viewModel.setNotifyOnNewItems(enabled)
-                    if (enabled &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                        PackageManager.PERMISSION_GRANTED
-                    ) {
-                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                },
-            )
-            MaxItemsPerFeedSetting(settings, viewModel)
+        // issue #232: on a wide window, the settings list otherwise stretches full-width -- rows,
+        // sliders, and text fields all the way from one edge to the other read poorly once the
+        // window is much wider than a phone. Capped and centered rather than switched to a
+        // second column: unlike feed list/episode list/queue, there's no natural master-detail
+        // split here, just a single settings list, so a plain reading-width cap (no window-size-
+        // class branch needed -- widthIn(max=) is already a no-op below that width) is enough.
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.TopCenter) {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = SETTINGS_MAX_WIDTH)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                SectionHeader(stringResource(R.string.settings_section_general))
+                UpdateIntervalSetting(settings, viewModel)
+                SwitchRow(stringResource(R.string.settings_show_images), settings.enableImageDisplay, viewModel::setEnableImageDisplay)
+                SwitchRow(
+                    stringResource(R.string.settings_use_device_theme_colors),
+                    settings.useDeviceThemeColors,
+                    viewModel::setUseDeviceThemeColors,
+                )
+                SwitchRow(
+                    stringResource(R.string.settings_default_to_all_items),
+                    settings.defaultToAllItemsView,
+                    viewModel::setDefaultToAllItemsView,
+                )
+                SwitchRow(
+                    stringResource(R.string.settings_notify_on_new_items),
+                    settings.notifyOnNewItems,
+                    onCheckedChange = { enabled ->
+                        viewModel.setNotifyOnNewItems(enabled)
+                        if (enabled &&
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                            PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    },
+                )
+                MaxItemsPerFeedSetting(settings, viewModel)
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            SectionHeader(stringResource(R.string.settings_section_fonts))
-            FontSizeRow(settings.fontSize, viewModel::setFontSize)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                SectionHeader(stringResource(R.string.settings_section_fonts))
+                FontSizeRow(settings.fontSize, viewModel::setFontSize)
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            SectionHeader(stringResource(R.string.settings_section_downloads))
-            SwitchRow(
-                stringResource(R.string.settings_download_on_add_to_next_up),
-                settings.downloadOnAddToNextUp,
-                viewModel::setDownloadOnAddToNextUp,
-            )
-            SwitchRow(
-                stringResource(R.string.settings_download_on_battery),
-                settings.allowPodcastDownloadOnBattery,
-                viewModel::setAllowPodcastDownloadOnBattery,
-            )
-            // BatteryOptimizationSetting lives here rather than under Mobile Data or Storage: its
-            // whole purpose is exempting the app from Doze so background downloads (and queue
-            // auto-advance) keep working reliably, not a podcast-specific toggle of its own.
-            BatteryOptimizationSetting()
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                SectionHeader(stringResource(R.string.settings_section_downloads))
+                SwitchRow(
+                    stringResource(R.string.settings_download_on_add_to_next_up),
+                    settings.downloadOnAddToNextUp,
+                    viewModel::setDownloadOnAddToNextUp,
+                )
+                SwitchRow(
+                    stringResource(R.string.settings_download_on_battery),
+                    settings.allowPodcastDownloadOnBattery,
+                    viewModel::setAllowPodcastDownloadOnBattery,
+                )
+                // BatteryOptimizationSetting lives here rather than under Mobile Data or Storage: its
+                // whole purpose is exempting the app from Doze so background downloads (and queue
+                // auto-advance) keep working reliably, not a podcast-specific toggle of its own.
+                BatteryOptimizationSetting()
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            SectionHeader(stringResource(R.string.settings_section_mobile_data))
-            SwitchRow(
-                stringResource(R.string.settings_download_on_mobile_data),
-                settings.allowPodcastDownloadOnMobileData,
-                viewModel::setAllowPodcastDownloadOnMobileData,
-            )
-            SwitchRow(
-                stringResource(R.string.settings_always_allow_streaming_on_mobile_data),
-                settings.alwaysAllowPodcastStreamingOnMobileData,
-                viewModel::setAlwaysAllowPodcastStreamingOnMobileData,
-            )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                SectionHeader(stringResource(R.string.settings_section_mobile_data))
+                SwitchRow(
+                    stringResource(R.string.settings_download_on_mobile_data),
+                    settings.allowPodcastDownloadOnMobileData,
+                    viewModel::setAllowPodcastDownloadOnMobileData,
+                )
+                SwitchRow(
+                    stringResource(R.string.settings_always_allow_streaming_on_mobile_data),
+                    settings.alwaysAllowPodcastStreamingOnMobileData,
+                    viewModel::setAlwaysAllowPodcastStreamingOnMobileData,
+                )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            SectionHeader(stringResource(R.string.settings_section_storage))
-            SwitchRow(
-                stringResource(R.string.settings_auto_delete_finished_downloads),
-                settings.autoDeleteFinishedDownloads,
-                viewModel::setAutoDeleteFinishedDownloads,
-            )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                SectionHeader(stringResource(R.string.settings_section_storage))
+                SwitchRow(
+                    stringResource(R.string.settings_auto_delete_finished_downloads),
+                    settings.autoDeleteFinishedDownloads,
+                    viewModel::setAutoDeleteFinishedDownloads,
+                )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            SectionHeader(stringResource(R.string.settings_section_podcast_search))
-            PodcastSearchSetting(settings, viewModel)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                SectionHeader(stringResource(R.string.settings_section_podcast_search))
+                PodcastSearchSetting(settings, viewModel)
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            SectionHeader(stringResource(R.string.settings_section_actions))
-            ActionsSection(viewModel, snackbarHostState)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                SectionHeader(stringResource(R.string.settings_section_actions))
+                ActionsSection(viewModel, snackbarHostState)
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            SectionHeader(stringResource(R.string.settings_section_about))
-            Text(
-                stringResource(R.string.app_name),
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(vertical = 4.dp),
-            )
-            Text(
-                stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp),
-            )
-            Text(
-                stringResource(R.string.settings_about_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 24.dp),
-            )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                SectionHeader(stringResource(R.string.settings_section_about))
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+                Text(
+                    stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp),
+                )
+                Text(
+                    stringResource(R.string.settings_about_description),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 24.dp),
+                )
+            }
         }
     }
 }
+
+/** Reading-width cap for the settings list on wide windows (issue #232) -- a no-op via
+ *  [widthIn]'s max on any window narrower than this, so phone layouts are unaffected. */
+private val SETTINGS_MAX_WIDTH = 640.dp
 
 @Composable
 private fun SectionHeader(title: String) {
