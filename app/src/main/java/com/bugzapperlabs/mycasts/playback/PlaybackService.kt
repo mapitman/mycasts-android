@@ -28,6 +28,7 @@ import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import androidx.media3.exoplayer.source.preload.TargetPreloadStatusControl
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
@@ -85,6 +86,20 @@ private const val FEED_NODE_ID_PREFIX = "feed:"
 private fun feedNodeId(feedId: Long) = "$FEED_NODE_ID_PREFIX$feedId"
 
 private val browserRootItem: MediaItem = browsableFolder(BROWSER_ROOT_ID, title = null)
+
+/** issue #249: hints Android Auto to render both the root's folders (Next Up/Podcasts) and any
+ *  playable episode list as plain lists rather than its grid-of-artwork default -- the standard
+ *  presentation for a podcast/episode app per Android for Cars' content-style guidance
+ *  (https://developer.android.com/training/cars/media/create-media-browser/content-styles). */
+@OptIn(markerClass = [UnstableApi::class])
+private val rootLibraryParams: MediaLibraryService.LibraryParams = MediaLibraryService.LibraryParams.Builder()
+    .setExtras(
+        Bundle().apply {
+            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_BROWSABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
+            putInt(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_PLAYABLE, MediaConstants.EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM)
+        },
+    )
+    .build()
 private val queueFolderItem: MediaItem = browsableFolder(QUEUE_NODE_ID, title = "Next Up")
 private val feedsFolderItem: MediaItem = browsableFolder(FEEDS_NODE_ID, title = "Podcasts")
 
@@ -384,7 +399,7 @@ class PlaybackService : MediaLibraryService() {
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?,
         ): ListenableFuture<LibraryResult<MediaItem>> =
-            Futures.immediateFuture(LibraryResult.ofItem(browserRootItem, params))
+            Futures.immediateFuture(LibraryResult.ofItem(browserRootItem, rootLibraryParams))
 
         // issue #250: resolves the actual Next Up / Podcasts / episodes tree. MediaLibrarySession
         // methods return a ListenableFuture rather than being suspend functions themselves, so the
