@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.audiofx.LoudnessEnhancer
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
@@ -38,10 +39,12 @@ import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
 import com.bugzapperlabs.mycasts.MainActivity
 import com.bugzapperlabs.mycasts.R
+import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
+import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -70,19 +73,49 @@ private const val PRELOAD_TARGET_MS = 15_000L
 // through the same entries.
 private const val MAX_ADVANCE_ATTEMPTS = 50
 
-// issue #246: placeholder browse-tree root so Android Auto has something to connect to before
-// the real tree (Next Up + feeds/episodes) lands in issue #250.
+// issue #246/#250: Android Auto's browse tree. Root has two browsable children -- Next Up
+// (the queue) and Podcasts (one node per subscribed feed, expanding into that feed's episodes).
+// Playable leaf items reuse FeedItem.id as their media ID (issue #250) so a later browse-tree tap
+// (issue #247) can resolve the same way PlaybackMediaItemFactory already does elsewhere.
 private const val BROWSER_ROOT_ID = "root"
+private const val QUEUE_NODE_ID = "queue"
+private const val FEEDS_NODE_ID = "feeds"
+private const val FEED_NODE_ID_PREFIX = "feed:"
 
-private val browserRootItem: MediaItem = MediaItem.Builder()
-    .setMediaId(BROWSER_ROOT_ID)
-    .setMediaMetadata(
-        MediaMetadata.Builder()
-            .setIsBrowsable(true)
-            .setIsPlayable(false)
-            .build(),
-    )
-    .build()
+private fun feedNodeId(feedId: Long) = "$FEED_NODE_ID_PREFIX$feedId"
+
+private val browserRootItem: MediaItem = browsableFolder(BROWSER_ROOT_ID, title = null)
+private val queueFolderItem: MediaItem = browsableFolder(QUEUE_NODE_ID, title = "Next Up")
+private val feedsFolderItem: MediaItem = browsableFolder(FEEDS_NODE_ID, title = "Podcasts")
+
+private fun browsableFolder(id: String, title: String?, artworkUri: Uri? = null): MediaItem =
+    MediaItem.Builder()
+        .setMediaId(id)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(title)
+                .setArtworkUri(artworkUri)
+                .setIsBrowsable(true)
+                .setIsPlayable(false)
+                .build(),
+        )
+        .build()
+
+/** A playable leaf in the browse tree (issue #250) -- actually starting playback when one of
+ *  these is tapped is issue #247, not implemented yet. */
+private fun episodeBrowseItem(item: FeedItem, feedTitle: String?, feedArtworkUrl: String?): MediaItem =
+    MediaItem.Builder()
+        .setMediaId(item.id)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(item.title)
+                .setArtist(feedTitle)
+                .setArtworkUri((item.imageUrl ?: feedArtworkUrl)?.let(Uri::parse))
+                .setIsBrowsable(false)
+                .setIsPlayable(true)
+                .build(),
+        )
+        .build()
 
 /**
  * Trivial by design (issue #87): this app only ever preloads a single candidate at a time (the
@@ -319,9 +352,9 @@ class PlaybackService : MediaLibraryService() {
 
     /** Grants [CUSTOM_COMMAND_SET_VOLUME_BOOST] to controllers (issue #202) and applies it live to
      *  [loudnessEnhancer], since it's not a standard [MediaSession]/[Player] command. Also
-     *  implements the [MediaLibrarySession.Callback] browse-tree methods (issue #246) so Android
-     *  Auto can connect to this session at all -- a real browse tree (issue #250) and item
-     *  resolution (issue #247) are still a stub here; this is scaffolding only. */
+     *  implements the [MediaLibrarySession.Callback] browse-tree methods (issue #246/#250) so
+     *  Android Auto can browse Next Up and feeds/episodes -- actually starting playback from a
+     *  tapped browse item is still issue #247, not implemented yet ([onGetItem] below). */
     private val mediaSessionCallback = object : MediaLibrarySession.Callback {
         @OptIn(markerClass = [UnstableApi::class]) // DEFAULT_SESSION_AND_LIBRARY_COMMANDS / accept() (issue #212)
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
@@ -346,8 +379,6 @@ class PlaybackService : MediaLibraryService() {
             return MediaSession.ConnectionResult.accept(sessionCommands, playerCommands)
         }
 
-        // Stub root (issue #246): just enough for Android Auto to recognize this app as a media
-        // source and connect. The real browse tree (Next Up + feeds/episodes) is issue #250.
         override fun onGetLibraryRoot(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
@@ -355,8 +386,10 @@ class PlaybackService : MediaLibraryService() {
         ): ListenableFuture<LibraryResult<MediaItem>> =
             Futures.immediateFuture(LibraryResult.ofItem(browserRootItem, params))
 
-        // No children yet (issue #246 is scaffolding only) -- issue #250 replaces this with the
-        // real Next Up / feeds / episodes tree.
+        // issue #250: resolves the actual Next Up / Podcasts / episodes tree. MediaLibrarySession
+        // methods return a ListenableFuture rather than being suspend functions themselves, so the
+        // lookup runs on serviceScope and reports back through a SettableFuture (issue #212's
+        // Futures.immediateFuture won't do here since this needs to await real DB reads).
         override fun onGetChildren(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
@@ -364,8 +397,13 @@ class PlaybackService : MediaLibraryService() {
             page: Int,
             pageSize: Int,
             params: LibraryParams?,
-        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
-            Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params))
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+            val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
+            serviceScope.launch {
+                future.set(LibraryResult.ofItemList(ImmutableList.copyOf(browseChildren(parentId)), params))
+            }
+            return future
+        }
 
         // Item lookup by ID isn't implemented yet -- issue #247 wires this to
         // PlaybackMediaItemFactory.resolve so a browse-tree item (issue #250) can actually play.
@@ -624,6 +662,23 @@ class PlaybackService : MediaLibraryService() {
         settingsDataStore.setLastPlayingItem(feedId, itemId)
         preloadedNext = null
         preloadManager.reset()
+    }
+
+    /** Resolves one level of the Android Auto browse tree (issue #250) -- see the top-of-file
+     *  comment above [browserRootItem] for the tree shape. Returns an empty list for an unknown/
+     *  stale [parentId] (e.g. a feed node for a feed unsubscribed since the client last browsed)
+     *  rather than erroring, matching how a browser client generally expects a since-emptied node
+     *  to look. */
+    private suspend fun browseChildren(parentId: String): List<MediaItem> = when (parentId) {
+        BROWSER_ROOT_ID -> listOf(queueFolderItem, feedsFolderItem)
+        QUEUE_NODE_ID -> queueRepository.observeQueue().first()
+            .map { queued -> episodeBrowseItem(queued.item, queued.feedTitle, queued.feedImageUrl) }
+        FEEDS_NODE_ID -> feedRepository.getAllFeeds()
+            .map { feed -> browsableFolder(feedNodeId(feed.id), feed.userTitle ?: feed.title, feed.imageUrl?.let(Uri::parse)) }
+        else -> parentId.removePrefix(FEED_NODE_ID_PREFIX).takeIf { it != parentId }?.toLongOrNull()?.let { feedId ->
+            val feed = feedRepository.getFeed(feedId)
+            feedRepository.getItems(feedId).map { item -> episodeBrowseItem(item, feed?.userTitle ?: feed?.title, feed?.imageUrl) }
+        } ?: emptyList()
     }
 
     private fun startPositionSaveLoop() {
