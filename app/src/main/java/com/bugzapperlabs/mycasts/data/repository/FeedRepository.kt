@@ -53,6 +53,11 @@ class FeedRepository @Inject constructor(
 
     fun observeItems(feedId: Long): Flow<List<FeedItem>> = feedItemDao.observeByFeed(feedId)
 
+    /** One-shot snapshot of [observeItems] (issue #250): the Android Auto browse tree resolves a
+     *  feed's episode list on demand per [androidx.media3.session.MediaLibraryService.MediaLibrarySession.Callback.onGetChildren]
+     *  call rather than holding a live subscription open per browsed node. */
+    suspend fun getItems(feedId: Long): List<FeedItem> = feedItemDao.getByFeed(feedId)
+
     fun observeUnreadItems(feedId: Long): Flow<List<FeedItem>> = feedItemDao.observeUnreadByFeed(feedId)
 
     fun observeItems(feedIds: List<Long>): Flow<List<FeedItem>> = feedItemDao.observeByFeeds(feedIds)
