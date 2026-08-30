@@ -41,6 +41,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import com.bugzapperlabs.mycasts.MainActivity
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.data.local.FeedItem
+import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
@@ -52,7 +53,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
@@ -73,6 +73,22 @@ private const val PRELOAD_TARGET_MS = 15_000L
 // unplayable right now (e.g. nothing downloaded and no Wi-Fi) can't recurse forever cycling back
 // through the same entries.
 private const val MAX_ADVANCE_ATTEMPTS = 50
+
+// issue #256: how many upcoming Next Up entries get materialized into the player's own Timeline
+// (indices 1..N, index 0 always being whatever's actually playing) so Android Auto's/the system
+// notification's native queue view -- which Media3 builds directly from the player's Timeline,
+// not from QueueRepository -- has more than just the current episode to show. Deliberately bounded
+// rather than materializing the whole (effectively unbounded) queue: each entry costs a real
+// resolve() (DB reads, mobile-data gating, URL resolution) on every queue mutation, for a car UI
+// that's attention-limited anyway. The in-app Next Up screen (and the browse tree's own "Next Up"
+// node, issue #250) remain the only place to see the full queue.
+private const val TIMELINE_LOOKAHEAD_WINDOW = 10
+
+// issue #256: caps how many queue entries the window-fill will look at (skipping over any that
+// fail to resolve) while trying to fill TIMELINE_LOOKAHEAD_WINDOW slots, so a long queue that's
+// mostly unplayable right now (offline, mostly mobile-data-gated) can't turn every single queue
+// mutation into an unbounded scan.
+private const val TIMELINE_LOOKAHEAD_SCAN_LIMIT = 20
 
 // issue #246/#250: Android Auto's browse tree. Root has two browsable children -- Next Up
 // (the queue) and Podcasts (one node per subscribed feed, expanding into that feed's episodes).
@@ -175,12 +191,22 @@ class PlaybackService : MediaLibraryService() {
     private lateinit var advanceWakeLock: PowerManager.WakeLock
     private var mediaSession: MediaLibrarySession? = null
 
-    // The Next Up head's resolved media, kept in sync with the queue by preloadQueueHeadJob below
-    // (issue #87) -- cached (rather than re-resolving at transition time) so playNextQueued() can
-    // look its MediaItem up in preloadManager by reference-equal match, and so a resolve() that
-    // depends on settings/position doesn't drift between when it was registered for preload and
-    // when it's actually needed a few seconds/minutes later.
-    private var preloadedNext: Pair<String, ResolvedPlaybackMedia>? = null
+    // Resolved media for whatever's currently materialized into the player's Timeline lookahead
+    // window (issue #256, indices 1..TIMELINE_LOOKAHEAD_WINDOW), keyed by FeedItem id -- kept in
+    // sync with the queue by startSyncingTimelineToQueue below. Cached (rather than re-resolving at
+    // transition time) both so a resolve() that depends on settings/position doesn't drift between
+    // when an item entered the window and when it's actually needed, and so playNextQueued's
+    // fallback path and onPlayerError can reuse an already-resolved entry instead of a redundant DB
+    // read. A LinkedHashMap preserves queue order, which the preload manager (only ever fed the
+    // first/immediate-next entry, same as before this issue) relies on.
+    private val lookaheadCache = LinkedHashMap<String, ResolvedPlaybackMedia>()
+
+    // Id of whichever lookaheadCache entry is currently fed into preloadManager (issue #256) --
+    // distinct from lookaheadCache's own membership, since preloadManager only ever holds one
+    // candidate (issue #87) while lookaheadCache can hold up to TIMELINE_LOOKAHEAD_WINDOW. Used to
+    // avoid resetting/re-adding the preload candidate (discarding its warmed-up buffering progress)
+    // on every single queue mutation -- only when the immediate-next item itself actually changes.
+    private var preloadedHeadId: String? = null
 
     // Boosts loudness beyond ExoPlayer's unity-gain volume cap (issue #199), keyed to the
     // player's audio session ID which is fixed for the lifetime of this ExoPlayer instance. Some
@@ -240,7 +266,7 @@ class PlaybackService : MediaLibraryService() {
         )
         player.addListener(playerListener)
         loudnessEnhancer = runCatching { LoudnessEnhancer(player.audioSessionId) }.getOrNull()
-        startPreloadingQueueHead()
+        startSyncingTimelineToQueue()
 
         // ExoPlayer's own WAKE_MODE_NETWORK lock only covers actively-playing time -- it releases
         // the instant an episode hits STATE_ENDED, before the auto-advance coroutine below has run
@@ -296,43 +322,75 @@ class PlaybackService : MediaLibraryService() {
         return DefaultDataSource.Factory(this, cacheDataSourceFactory)
     }
 
+    /** Starts [refreshTimelineWindow] reacting to every [QueueRepository.observeQueue] emission
+     *  (issue #256) -- add/remove/reorder/auto-queue eviction all flow through it. Runs for the
+     *  service's whole lifetime, not gated on anything currently playing. */
+    private fun startSyncingTimelineToQueue() {
+        serviceScope.launch {
+            queueRepository.observeQueue().collect { queue -> refreshTimelineWindow(queue) }
+        }
+    }
+
     /**
-     * Keeps [preloadManager] warming up whatever's next in line after the episode currently
-     * playing (issue #87), reacting to every mutation that can change it -- add/remove/reorder/
-     * auto-queue eviction all flow through [QueueRepository.observeQueue]. Runs for the service's
-     * whole lifetime, not gated on anything currently playing, so the head is already warm by the
-     * time an episode actually finishes and [playNextQueued] needs it.
+     * Materializes up to [TIMELINE_LOOKAHEAD_WINDOW] upcoming Next Up entries into [player]'s own
+     * Timeline (issue #256, indices 1.. -- index 0 always stays whatever's actually playing,
+     * untouched here) so Android Auto's/the system notification's native queue view -- which
+     * Media3 builds directly from the player's Timeline, not from [QueueRepository] -- has more
+     * than just the current episode to show. Also keeps [preloadManager] warming up the immediate
+     * next episode exactly as before this issue (issue #87).
+     *
+     * Called from [startSyncingTimelineToQueue] on every queue mutation, and explicitly (with the
+     * default one-shot [queue] snapshot) wherever the *current* item changes without a queue
+     * mutation of its own -- currently just [onPlaybackResumption], since every other call site
+     * that changes the current item already mutates the queue itself (moveToFront/remove/
+     * moveToEnd), which re-triggers this via [QueueRepository.observeQueue] on its own.
      *
      * Skips the queue's own front entry when it matches [Player.getCurrentMediaItem] (issue #196):
-     * the currently-playing episode is itself a real queue entry now, always at the front, so the
-     * "head" this preloads has to be the entry *after* it -- preloading the front entry itself
-     * would just be re-preloading whatever's already playing.
+     * the currently-playing episode is itself a real queue entry, always at Timeline index 0, so
+     * the window starts at the entry *after* it. An entry that fails to resolve (dangling FeedItem
+     * row, or blocked by the mobile-data gate, issue #222) is skipped without reordering the queue
+     * -- [TIMELINE_LOOKAHEAD_SCAN_LIMIT] bounds how far past the front this looks before giving up
+     * for this pass; a skipped entry is retried on the next mutation.
      *
-     * Also starts a full background download of the head episode (issue #242), unconditionally --
+     * [Player.replaceMediaItems] with `fromIndex = 1` only ever touches the lookahead tail, never
+     * index 0, so a queue edit while something's playing can never interrupt it.
+     *
+     * The immediate-next episode gets a full background download (issue #242), unconditionally --
      * unlike [QueueRepository]'s own downloadOnAddToNextUp-gated auto-download of newly queued
      * episodes, this always runs so the episode auto-advance is about to need is already downloaded
-     * (and so unaffected by the mobile-data streaming gate, see [PlaybackMediaItemFactory.resolve])
-     * regardless of that setting. Still respects the user's actual mobile-data/battery download
-     * preferences via [EnclosureDownloadRepository.ensureDownloaded]'s own WorkManager constraints,
-     * and is a no-op if the episode is already downloaded or mid-download.
+     * regardless of that setting. Only that one entry, not the whole window -- no reason to
+     * force-download episodes the user may never actually reach.
      */
     @OptIn(markerClass = [UnstableApi::class])
-    private fun startPreloadingQueueHead() {
-        serviceScope.launch {
-            queueRepository.observeQueue().map { queue -> queue.firstOrNull { it.item.id != player.currentMediaItem?.mediaId } }
-                .distinctUntilChanged { old, new -> old?.item?.id == new?.item?.id }
-                .collect { head ->
-                    preloadManager.reset()
-                    preloadedNext = null
-                    if (head == null) return@collect
-                    downloadRepository.ensureDownloaded(head.item)
-                    val resolved = PlaybackMediaItemFactory.resolve(head.item, head.feedTitle, feedRepository, settingsDataStore, networkTypeChecker)
-                        ?: return@collect
-                    preloadedNext = head.item.id to resolved
-                    preloadManager.add(resolved.mediaItem, /* rankingData= */ 0)
-                    preloadManager.invalidate()
-                }
+    private suspend fun refreshTimelineWindow(queue: List<QueuedEpisode>? = null) {
+        val upcoming = (queue ?: queueRepository.observeQueue().first()).filter { it.item.id != player.currentMediaItem?.mediaId }
+        val resolvedWindow = mutableListOf<ResolvedPlaybackMedia>()
+        var headItem: FeedItem? = null
+        val staleIds = lookaheadCache.keys.toMutableSet()
+        for ((index, queued) in upcoming.withIndex()) {
+            if (resolvedWindow.size >= TIMELINE_LOOKAHEAD_WINDOW || index >= TIMELINE_LOOKAHEAD_SCAN_LIMIT) break
+            staleIds.remove(queued.item.id)
+            val resolved = lookaheadCache[queued.item.id]
+                ?: PlaybackMediaItemFactory.resolve(queued.item, queued.feedTitle, feedRepository, settingsDataStore, networkTypeChecker)
+                    ?.also { lookaheadCache[queued.item.id] = it }
+                ?: continue
+            if (resolvedWindow.isEmpty()) headItem = queued.item
+            resolvedWindow.add(resolved)
         }
+        staleIds.forEach(lookaheadCache::remove)
+
+        if (player.mediaItemCount > 0) {
+            player.replaceMediaItems(1, player.mediaItemCount, resolvedWindow.map { it.mediaItem })
+        }
+
+        val head = resolvedWindow.firstOrNull()
+        if (head?.mediaItem?.mediaId == preloadedHeadId) return
+        preloadManager.reset()
+        preloadedHeadId = head?.mediaItem?.mediaId
+        if (head == null || headItem == null) return
+        downloadRepository.ensureDownloaded(headItem)
+        preloadManager.add(head.mediaItem, /* rankingData= */ 0)
+        preloadManager.invalidate()
     }
 
     /** Pushes the skip/speed buttons through the session itself, not just the notification
@@ -502,6 +560,11 @@ class PlaybackService : MediaLibraryService() {
                         resolved.mediaItem.mediaId,
                     )
                     future.set(MediaSession.MediaItemsWithStartPosition(listOf(resolved.mediaItem), 0, resolved.startPositionMs))
+                    // issue #256: resumption is the one call site that sets the current item
+                    // without itself mutating the queue (unlike playNextQueued/onSetMediaItems/
+                    // onPlayerError, which all do), so it has to explicitly ask for a fresh
+                    // lookahead window rather than relying on a queue mutation to trigger one.
+                    serviceScope.launch { refreshTimelineWindow() }
                 }
             }
             return future
@@ -577,8 +640,13 @@ class PlaybackService : MediaLibraryService() {
 
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            val millibels = mediaItem?.mediaMetadata?.extras?.getInt(VOLUME_BOOST_EXTRA_KEY, 0) ?: 0
-            applyVolumeBoost(millibels)
+            val extras = mediaItem?.mediaMetadata?.extras
+            applyVolumeBoost(extras?.getInt(VOLUME_BOOST_EXTRA_KEY, 0) ?: 0)
+            // issue #256: reapplies the feed's configured speed on *any* transition, not just the
+            // ones PlaybackService's own call sites explicitly set it for (playNextQueued/
+            // onSetMediaItems/onPlaybackResumption) -- covers the player's own multi-item Timeline
+            // now genuinely navigating on its own, e.g. Android Auto's seekToNextMediaItem().
+            if (extras != null) player.setPlaybackSpeed(extras.getFloat(PLAYBACK_SPEED_EXTRA_KEY, player.playbackParameters.speed))
         }
 
         // Keeps the media button preferences' speed-cycle button label in sync (issue #293),
@@ -632,11 +700,51 @@ class PlaybackService : MediaLibraryService() {
                     // outright: unlike a finished episode, this one never actually played, so it's
                     // still worth surfacing in Next Up for the user to retry later.
                     itemId?.let { queueRepository.moveToEnd(it) }
-                    playNextQueued(excludeItemId = itemId)
+                    // issue #256: if the lookahead window already has a materialized next item,
+                    // just drop the broken one and let the player's own Timeline advance to what's
+                    // already resolved at (former) index 1 -- no redundant resolve. Only fall back
+                    // to playNextQueued's full resolve-and-scan when that window is empty (the
+                    // Timeline would otherwise be left with nothing at all).
+                    if (player.mediaItemCount > 1) {
+                        player.removeMediaItem(0)
+                        player.prepare()
+                        player.play()
+                        player.currentMediaItem?.let { next ->
+                            settingsDataStore.setLastPlayingItem(next.mediaMetadata.extras?.getLong(FEED_ID_EXTRA_KEY), next.mediaId)
+                        }
+                    } else {
+                        playNextQueued(excludeItemId = itemId)
+                    }
                 } finally {
                     advancingFromError = false
                 }
             }
+        }
+
+        // issue #256: fires when the player's own Timeline seamlessly advances from the finished
+        // episode (index 0) to an already-materialized next item in the lookahead window (which
+        // becomes the new index 0) -- the common case now that PlaybackService keeps that window
+        // pre-filled. Playback of the next episode is already underway natively at this point (no
+        // playNextQueued call needed here, unlike onPlaybackStateChanged's STATE_ENDED fallback
+        // below), so this only does the finished episode's bookkeeping. Wake lock acquired here too
+        // (issue #179) since this is now the common advance path -- released the same way as
+        // before, via onIsPlayingChanged/onPlayerError above, or ADVANCE_WAKE_LOCK_TIMEOUT_MS.
+        @OptIn(markerClass = [UnstableApi::class]) // Player.PositionInfo.mediaItem (issue #256)
+        override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+            if (reason != Player.DISCONTINUITY_REASON_AUTO_TRANSITION) return
+            val finishedItemId = oldPosition.mediaItem?.mediaId ?: return
+            if (finishedItemId == newPosition.mediaItem?.mediaId) return
+            // issue #256: ExoPlayer's own Timeline doesn't drop a finished item just because
+            // playback auto-advanced past it -- the finished item stays sitting at index 0 and the
+            // new current item becomes index 1 until something removes it. Every other piece of
+            // this class assumes index 0 is always "now playing" (refreshTimelineWindow's
+            // replaceMediaItems(1, ...) in particular), so that invariant has to be restored here,
+            // immediately and synchronously -- not deferred into the bookkeeping coroutine below --
+            // or a queue mutation landing in that gap would replace the real current item (now at
+            // index 1) instead of the actual lookahead tail.
+            player.removeMediaItem(0)
+            advanceWakeLock.acquire(ADVANCE_WAKE_LOCK_TIMEOUT_MS)
+            serviceScope.launch { onEpisodeFinished(finishedItemId) }
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -655,19 +763,17 @@ class PlaybackService : MediaLibraryService() {
                     // never stopped being "current" until now) -- excluded here rather than
                     // removed upfront (which would reintroduce the silence gap issue #82 just
                     // eliminated), since playNextQueued would otherwise just find this same
-                    // already-finished episode again. The row itself is dropped for real just
-                    // below, alongside the finished-episode bookkeeping it belongs next to.
+                    // already-finished episode again. The row itself is dropped for real by
+                    // onEpisodeFinished just below, alongside the rest of the finished-episode
+                    // bookkeeping it belongs next to.
+                    //
+                    // issue #256: STATE_ENDED now only fires when the Timeline has genuinely run
+                    // out (nothing pre-filled in the lookahead window to auto-transition into) --
+                    // the common case where a next item *was* pre-filled instead fires as
+                    // onPositionDiscontinuity's AUTO_TRANSITION branch above, which never reaches
+                    // STATE_ENDED at all since the player never actually stops.
                     playNextQueued(excludeItemId = itemId)
-                    queueRepository.remove(itemId)
-                    feedRepository.setEnclosurePosition(itemId, null)
-                    feedRepository.markRead(itemId, true)
-                    // Storage cap / auto-cleanup (issue #71): only ever deletes an episode that
-                    // just finished playing in full, never one still in progress or unplayed.
-                    if (settingsDataStore.settings.first().autoDeleteFinishedDownloads) {
-                        feedRepository.getItem(itemId)
-                            ?.takeIf { it.downloadedFilePath != null }
-                            ?.let { downloadRepository.deleteDownload(it) }
-                    }
+                    onEpisodeFinished(itemId)
                     // The wake lock is released once playback actually starts (onIsPlayingChanged
                     // above) or fails (onPlayerError above), not here -- see issue #241. The
                     // ADVANCE_WAKE_LOCK_TIMEOUT_MS cap still bounds it if neither ever fires.
@@ -675,6 +781,24 @@ class PlaybackService : MediaLibraryService() {
                     advancingFromEnded = false
                 }
             }
+        }
+    }
+
+    /** Bookkeeping for an episode that has genuinely finished playing in full (issue #256,
+     *  extracted from the old STATE_ENDED-only handling so [playerListener]'s
+     *  `onPositionDiscontinuity` AUTO_TRANSITION branch can share it): clears its saved position,
+     *  marks it read, removes it from the queue, and applies the storage-cap auto-delete (issue
+     *  #71). */
+    private suspend fun onEpisodeFinished(itemId: String) {
+        queueRepository.remove(itemId)
+        feedRepository.setEnclosurePosition(itemId, null)
+        feedRepository.markRead(itemId, true)
+        // Storage cap / auto-cleanup (issue #71): only ever deletes an episode that just finished
+        // playing in full, never one still in progress or unplayed.
+        if (settingsDataStore.settings.first().autoDeleteFinishedDownloads) {
+            feedRepository.getItem(itemId)
+                ?.takeIf { it.downloadedFilePath != null }
+                ?.let { downloadRepository.deleteDownload(it) }
         }
     }
 
@@ -715,12 +839,10 @@ class PlaybackService : MediaLibraryService() {
         // is now deferred to here so it doesn't add to the silence gap ahead of the *success*
         // path's player.prepare()/play() below.
         //
-        // Reuses startPreloadingQueueHead's cached resolve for this exact item id if it's still
-        // current (issue #87), rather than resolving fresh -- both to avoid a redundant DB read
-        // and because getMediaSource() below matches by the same MediaItem instance passed to
-        // preloadManager.add(), so a freshly re-resolved MediaItem wouldn't match it anyway.
-        val cachedPreload = preloadedNext?.takeIf { it.first == itemId }?.second
-        val resolved = cachedPreload ?: run {
+        // Reuses refreshTimelineWindow's cached resolve for this exact item id if it's still
+        // current (issue #87/#256), rather than resolving fresh -- avoids a redundant DB read.
+        val cachedResolve = lookaheadCache[itemId]
+        val resolved = cachedResolve ?: run {
             // issue #240: a dangling queue entry (its FeedItem row is already gone) -- drop it and
             // keep looking rather than leaving the player stuck on whatever just finished.
             val item = feedRepository.getItem(itemId) ?: run {
@@ -741,7 +863,11 @@ class PlaybackService : MediaLibraryService() {
                 }
         }
         val feedId = resolved.mediaItem.mediaMetadata.extras?.getLong(FEED_ID_EXTRA_KEY)
-        val preloadedSource = cachedPreload?.let { preloadManager.getMediaSource(resolved.mediaItem) }
+        // getMediaSource() below only matches preloadManager's own held candidate (issue #256:
+        // lookaheadCache can hold many entries, but preloadManager -- like before this issue --
+        // only ever warms up one, tracked by preloadedHeadId) by the same MediaItem instance
+        // passed to preloadManager.add(), so a freshly re-resolved MediaItem wouldn't match it.
+        val preloadedSource = if (itemId == preloadedHeadId) preloadManager.getMediaSource(resolved.mediaItem) else null
         if (preloadedSource != null) {
             player.setMediaSource(preloadedSource)
             player.seekTo(resolved.startPositionMs)
@@ -752,7 +878,7 @@ class PlaybackService : MediaLibraryService() {
         player.prepare()
         player.play()
         settingsDataStore.setLastPlayingItem(feedId, itemId)
-        preloadedNext = null
+        preloadedHeadId = null
         preloadManager.reset()
     }
 
