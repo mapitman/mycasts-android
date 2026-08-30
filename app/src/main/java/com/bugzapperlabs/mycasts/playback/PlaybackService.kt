@@ -405,15 +405,64 @@ class PlaybackService : MediaLibraryService() {
             return future
         }
 
-        // Item lookup by ID isn't implemented yet -- issue #247 wires this to
-        // PlaybackMediaItemFactory.resolve so a browse-tree item (issue #250) can actually play.
+        // issue #247: looks up a single browse-tree item's *metadata* by ID (e.g. a controller
+        // resolving what's currently playing back to a display item) -- this is separate from
+        // actually starting playback, which onSetMediaItems below handles.
         @OptIn(markerClass = [UnstableApi::class]) // SessionError (issue #212)
         override fun onGetItem(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
             mediaId: String,
-        ): ListenableFuture<LibraryResult<MediaItem>> =
-            Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED))
+        ): ListenableFuture<LibraryResult<MediaItem>> {
+            val future = SettableFuture.create<LibraryResult<MediaItem>>()
+            serviceScope.launch {
+                val item = feedRepository.getItem(mediaId)
+                if (item == null) {
+                    future.set(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+                } else {
+                    val feed = feedRepository.getFeed(item.feedId)
+                    future.set(LibraryResult.ofItem(episodeBrowseItem(item, feed?.userTitle ?: feed?.title, feed?.imageUrl), /* params= */ null))
+                }
+            }
+            return future
+        }
+
+        // issue #247: Android Auto (and any other MediaBrowser client) sends only a bare MediaItem
+        // (mediaId set, no playable URI) when a browse-tree item is tapped for playback --
+        // onSetMediaItems is Media3's hook for resolving that into something actually playable,
+        // including the start position PlaybackController.play()'s in-app equivalent (loadMedia)
+        // applies for a resumed episode. Also moves the episode to the front of Next Up (issue
+        // #196), mirroring PlaybackController.play()'s own queue handling. Mobile-data gating
+        // (issue #222) applies with no override -- there's no UI here to show a confirmation
+        // prompt from, matching PlaybackService's own non-interactive auto-advance path
+        // (playNextQueued). A resolution failure (dangling item, or blocked by that gate) fails
+        // the future rather than silently starting nothing, so the requesting client can surface
+        // an error instead of looking like a dead tap.
+        @OptIn(markerClass = [UnstableApi::class])
+        override fun onSetMediaItems(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: List<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            serviceScope.launch {
+                val resolved = mediaItems.mapNotNull { requested -> resolveBrowseTapItem(requested.mediaId) }
+                val head = resolved.firstOrNull()
+                if (head == null) {
+                    future.setException(IllegalStateException("Unable to resolve requested media item(s) for playback"))
+                } else {
+                    player.setPlaybackSpeed(head.speed)
+                    settingsDataStore.setLastPlayingItem(
+                        head.mediaItem.mediaMetadata.extras?.getLong(FEED_ID_EXTRA_KEY),
+                        head.mediaItem.mediaId,
+                    )
+                    future.set(MediaSession.MediaItemsWithStartPosition(resolved.map { it.mediaItem }, 0, head.startPositionMs))
+                }
+            }
+            return future
+        }
 
         // Bluetooth remotes vary in which key codes their forward/back buttons actually send --
         // some send FAST_FORWARD/REWIND, but others (issue #244, confirmed on-device) send
@@ -679,6 +728,22 @@ class PlaybackService : MediaLibraryService() {
             val feed = feedRepository.getFeed(feedId)
             feedRepository.getItems(feedId).map { item -> episodeBrowseItem(item, feed?.userTitle ?: feed?.title, feed?.imageUrl) }
         } ?: emptyList()
+    }
+
+    /** Resolves a browse-tree tap (issue #247) into something actually playable, the same way
+     *  [playNextQueued] resolves the queue's own head -- looks the [FeedItem] up by the media ID
+     *  the browse tree ([episodeBrowseItem]) set, then defers to the shared
+     *  [PlaybackMediaItemFactory]. Moves the episode to the front of Next Up as a side effect
+     *  (issue #196), mirroring [PlaybackController.play]'s own queue handling for an in-app tap.
+     *  Returns null for a dangling item or one blocked by the mobile-data gate (issue #222),
+     *  letting the caller decide how to surface that. */
+    private suspend fun resolveBrowseTapItem(itemId: String): ResolvedPlaybackMedia? {
+        val item = feedRepository.getItem(itemId) ?: return null
+        val feed = feedRepository.getFeed(item.feedId)
+        val resolved = PlaybackMediaItemFactory.resolve(item, feed?.userTitle ?: feed?.title, feedRepository, settingsDataStore, networkTypeChecker)
+            ?: return null
+        queueRepository.moveToFront(item.id)
+        return resolved
     }
 
     private fun startPositionSaveLoop() {
