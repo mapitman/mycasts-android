@@ -464,6 +464,34 @@ class PlaybackService : MediaLibraryService() {
             return future
         }
 
+        // issue #248: when a client (Android Auto on car connect, but also e.g. a Bluetooth
+        // media button after the app's process died) has nothing loaded and asks what to resume,
+        // offers the last-played episode -- the same one PlaybackController.restoreLastPlayingItem
+        // resumes for the in-app mini-player after process death -- or, failing that, the Next Up
+        // head, matching what tapping "Next Up" in the browse tree (issue #250) would play first.
+        // Fails the future if there's truly nothing to resume (empty queue, no prior playback).
+        @OptIn(markerClass = [UnstableApi::class])
+        override fun onPlaybackResumption(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            serviceScope.launch {
+                val resolved = resolveResumptionItem()
+                if (resolved == null) {
+                    future.setException(IllegalStateException("Nothing to resume"))
+                } else {
+                    player.setPlaybackSpeed(resolved.speed)
+                    settingsDataStore.setLastPlayingItem(
+                        resolved.mediaItem.mediaMetadata.extras?.getLong(FEED_ID_EXTRA_KEY),
+                        resolved.mediaItem.mediaId,
+                    )
+                    future.set(MediaSession.MediaItemsWithStartPosition(listOf(resolved.mediaItem), 0, resolved.startPositionMs))
+                }
+            }
+            return future
+        }
+
         // Bluetooth remotes vary in which key codes their forward/back buttons actually send --
         // some send FAST_FORWARD/REWIND, but others (issue #244, confirmed on-device) send
         // NEXT/PREVIOUS instead. Media3's default handling maps NEXT/PREVIOUS to
@@ -744,6 +772,24 @@ class PlaybackService : MediaLibraryService() {
             ?: return null
         queueRepository.moveToFront(item.id)
         return resolved
+    }
+
+    /** Resolves what a fresh client with nothing loaded should be offered to resume (issue #248):
+     *  the last-played episode persisted in [SettingsDataStore] (issue #108), falling back to the
+     *  Next Up head if there's no last-played episode, it's since been removed from its feed, or
+     *  it no longer matches the feed it was saved against. Returns null if neither resolves to
+     *  anything playable (e.g. an empty queue and no prior playback). Doesn't touch the queue
+     *  itself -- unlike [resolveBrowseTapItem], resuming isn't a new tap that should reorder Next
+     *  Up, and the head fallback is already the queue's front entry. */
+    private suspend fun resolveResumptionItem(): ResolvedPlaybackMedia? {
+        val settings = settingsDataStore.settings.first()
+        val lastPlayingItemId = settings.lastPlayingItemId
+        val lastPlaying = lastPlayingItemId?.let { itemId ->
+            feedRepository.getItem(itemId)?.takeIf { it.feedId == settings.lastPlayingFeedId }
+        }
+        val item = lastPlaying ?: queueRepository.peekFront()?.let { feedRepository.getItem(it) } ?: return null
+        val feed = feedRepository.getFeed(item.feedId)
+        return PlaybackMediaItemFactory.resolve(item, feed?.userTitle ?: feed?.title, feedRepository, settingsDataStore, networkTypeChecker)
     }
 
     private fun startPositionSaveLoop() {
