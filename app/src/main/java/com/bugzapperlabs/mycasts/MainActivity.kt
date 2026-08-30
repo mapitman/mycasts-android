@@ -191,6 +191,10 @@ class MainActivity : ComponentActivity() {
             // down for the battery-optimization prompt below, reusing this single subscription.
             val settings by settingsDataStore.settings.collectAsState(initial = null)
             MyCastsTheme(dynamicColor = settings?.useDeviceThemeColors ?: true) {
+                // Read once per composition here (issue #261) rather than calling the
+                // @Composable isExpandedWindowWidth() from inside plain event-handler lambdas
+                // like openEpisodeDetails below, which isn't allowed.
+                val isExpandedWidth = isExpandedWindowWidth()
                 val navController = rememberNavController()
                 val miniPlayerViewModel: MiniPlayerViewModel = hiltViewModel()
                 val playbackState by miniPlayerViewModel.playbackState.collectAsState()
@@ -279,20 +283,33 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                // issue #232/#261: on a wide window, the "episodeList/{feedId}" destination
+                // below shows episode details in a second pane instead of a separate pushed
+                // route -- when openEpisodeDetails is about to land there fresh (e.g. from
+                // #260's feed-list pane, where tapping an episode transitions away from that
+                // pane rather than nesting a third one, per design: the feed list steps aside
+                // once browsing a feed's episodes), this is how it tells that destination which
+                // episode to pre-select. Cleared once consumed.
+                var pendingEpisodeDetailsSelection by remember { mutableStateOf<Pair<Long, String>?>(null) }
+
                 // Opening episode details always collapses the back stack down to
-                // feedList -> episodeList/{feedId} -> episodeDetails/{feedId}/{itemId} first
-                // (issue #55), regardless of how many episodes were viewed previously or which
-                // screen this was opened from (episode list, Next Up queue, or the mini-player
-                // below) -- otherwise each new episode opened while already deep in a
-                // details/queue/mini-player loop stacks another entry on top forever, so
-                // pressing back cycles through every previously-viewed episode instead of
-                // landing on this one's episode list after a single press.
+                // feedList -> episodeList/{feedId} [-> episodeDetails/{feedId}/{itemId} on
+                // compact windows only] first (issue #55), regardless of how many episodes were
+                // viewed previously or which screen this was opened from (episode list, Next Up
+                // queue, or the mini-player below) -- otherwise each new episode opened while
+                // already deep in a details/queue/mini-player loop stacks another entry on top
+                // forever, so pressing back cycles through every previously-viewed episode
+                // instead of landing on this one's episode list after a single press.
                 val openEpisodeDetails: (Long, String) -> Unit = { feedId, itemId ->
                     navController.navigate("episodeList/$feedId") {
                         popUpTo("feedList") { inclusive = false }
                         launchSingleTop = true
                     }
-                    navController.navigate("episodeDetails/$feedId/$itemId")
+                    if (isExpandedWidth) {
+                        pendingEpisodeDetailsSelection = feedId to itemId
+                    } else {
+                        navController.navigate("episodeDetails/$feedId/$itemId")
+                    }
                 }
                 // Tapping the expanded player's artwork/title area on the Next Up tab (issue #96)
                 // opens the currently-playing episode's own details, not a queue row's.
@@ -561,10 +578,75 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("feedId") { type = NavType.LongType }),
                         ) { backStackEntry ->
                             val feedId = backStackEntry.arguments?.getLong("feedId") ?: 0L
-                            EpisodeListScreen(
-                                onEpisodeClick = { itemId -> openEpisodeDetails(feedId, itemId) },
-                                onFeedSettingsClick = { navController.navigate("feedProperties/$feedId") },
-                            )
+                            // issue #232/#261: on a wide window, a tapped episode shows its
+                            // details in a second pane instead of pushing a full-screen
+                            // episodeDetails route. selectedItemId seeds from
+                            // pendingEpisodeDetailsSelection (set by openEpisodeDetails above)
+                            // when landing here already meaning to show a specific episode --
+                            // e.g. reached from #260's feed-list pane.
+                            var selectedItemId by rememberSaveable { mutableStateOf<String?>(null) }
+                            LaunchedEffect(Unit) {
+                                pendingEpisodeDetailsSelection?.takeIf { it.first == feedId }?.let { (_, itemId) ->
+                                    selectedItemId = itemId
+                                    pendingEpisodeDetailsSelection = null
+                                }
+                            }
+                            if (isExpandedWidth) {
+                                ListDetailPaneHost(
+                                    listContent = {
+                                        EpisodeListScreen(
+                                            onEpisodeClick = { itemId -> selectedItemId = itemId },
+                                            onFeedSettingsClick = { navController.navigate("feedProperties/$feedId") },
+                                        )
+                                    },
+                                    detailKey = selectedItemId,
+                                    detailContent = { itemId ->
+                                        // A small nested NavHost, mirroring the top-level
+                                        // episodeDetails/{feedId}/{itemId} destination's own route
+                                        // shape, so EpisodeDetailsViewModel's SavedStateHandle-based
+                                        // feedId/itemId lookup works completely unmodified.
+                                        val detailNavController = rememberNavController()
+                                        NavHost(
+                                            navController = detailNavController,
+                                            startDestination = "episodeDetails/$feedId/$itemId",
+                                        ) {
+                                            composable(
+                                                "episodeDetails/{feedId}/{itemId}",
+                                                arguments = listOf(
+                                                    navArgument("feedId") { type = NavType.LongType },
+                                                    navArgument("itemId") { type = NavType.StringType },
+                                                ),
+                                            ) {
+                                                EpisodeDetailsScreen(onQueueClick = onQueueClick)
+                                            }
+                                        }
+                                        // Re-targets the detail pane's own inner NavHost when a
+                                        // different episode is selected -- see the identical
+                                        // comment on #260's feed-list pane for why this is needed.
+                                        LaunchedEffect(itemId) {
+                                            detailNavController.navigate("episodeDetails/$feedId/$itemId") {
+                                                popUpTo(detailNavController.graph.findStartDestination().id) { inclusive = true }
+                                                launchSingleTop = true
+                                            }
+                                        }
+                                    },
+                                )
+                            } else {
+                                // Falling back to compact with an episode already selected (e.g.
+                                // narrowing a resizable/tablet window mid-session) re-enters that
+                                // episode's details full-screen once, preserving the selection --
+                                // see the identical pattern on #260's feed-list pane.
+                                LaunchedEffect(Unit) {
+                                    selectedItemId?.let { itemId ->
+                                        navController.navigate("episodeDetails/$feedId/$itemId")
+                                        selectedItemId = null
+                                    }
+                                }
+                                EpisodeListScreen(
+                                    onEpisodeClick = { itemId -> openEpisodeDetails(feedId, itemId) },
+                                    onFeedSettingsClick = { navController.navigate("feedProperties/$feedId") },
+                                )
+                            }
                         }
                         composable(
                             "episodeDetails/{feedId}/{itemId}",
