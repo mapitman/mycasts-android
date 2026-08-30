@@ -16,11 +16,14 @@ import com.google.common.collect.ImmutableList
 /**
  * Adds skip-forward/skip-backward/cycle-speed buttons to the media notification (issue #293), in
  * place of Media3's default seek-to-next/seek-to-previous actions, which the notification would
- * otherwise show given [MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS] -- those only
- * operate on the player's own timeline, but Next Up is managed externally with only ever one
- * [androidx.media3.common.MediaItem] loaded at a time (issue #179), so they'd never actually do
- * anything. [getMediaButtons] is the documented extension point for customizing which buttons
- * a [DefaultMediaNotificationProvider] shows.
+ * otherwise show given [MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS] -- those act on
+ * the player's own timeline, which for most of this app's history only ever held one
+ * [androidx.media3.common.MediaItem] at a time (issue #179), so they'd never have done anything.
+ * Since issue #256, the player's timeline does hold a real (bounded) lookahead of upcoming Next Up
+ * episodes for Android Auto's/the notification's own queue view -- but this override still fully
+ * replaces the notification's buttons regardless, so that doesn't change what's shown here.
+ * [getMediaButtons] is the documented extension point for customizing which buttons a
+ * [DefaultMediaNotificationProvider] shows.
  */
 @UnstableApi
 class MyCastsMediaNotificationProvider(private val context: Context) : DefaultMediaNotificationProvider(context) {

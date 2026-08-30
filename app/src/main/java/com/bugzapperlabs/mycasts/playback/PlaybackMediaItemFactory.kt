@@ -30,6 +30,22 @@ const val FEED_ID_EXTRA_KEY = "com.bugzapperlabs.mycasts.feedId"
  *  from its player listener, the same way [FEED_ID_EXTRA_KEY] is read back. */
 const val VOLUME_BOOST_EXTRA_KEY = "com.bugzapperlabs.mycasts.volumeBoostMillibels"
 
+/** Key into [MediaMetadata.extras] carrying the feed's configured playback speed (issue #256):
+ *  lets [PlaybackService]'s player listener reapply the right speed on *any* media item
+ *  transition -- including one Android Auto/a MediaController triggers directly via the player's
+ *  own multi-item timeline (e.g. `seekToNextMediaItem()`), which bypasses the explicit
+ *  `player.setPlaybackSpeed(...)` calls at each of [PlaybackService]'s own call sites. */
+const val PLAYBACK_SPEED_EXTRA_KEY = "com.bugzapperlabs.mycasts.playbackSpeed"
+
+/** Key into [MediaMetadata.extras] carrying the resolved start position in milliseconds (issue
+ *  #256) -- carried for reference/parity with [PLAYBACK_SPEED_EXTRA_KEY] and
+ *  [VOLUME_BOOST_EXTRA_KEY], but deliberately *not* applied generically on every transition the
+ *  way those two are: unlike speed/volume, re-seeking on every transition would fight a user's own
+ *  in-progress seek, so start position stays an explicit one-time seek at each existing call site
+ *  ([PlaybackController.loadMedia], [PlaybackService.playNextQueued]/onSetMediaItems/
+ *  onPlaybackResumption) instead. */
+const val START_POSITION_MS_EXTRA_KEY = "com.bugzapperlabs.mycasts.startPositionMs"
+
 /** Custom [androidx.media3.session.SessionCommand] letting [PlaybackController] change the
  *  volume boost of whatever's currently playing (issue #202) without a full media item reload --
  *  ordinary [androidx.media3.common.Player] commands have no notion of the
@@ -40,11 +56,12 @@ const val CUSTOM_COMMAND_SET_VOLUME_BOOST = "com.bugzapperlabs.mycasts.SET_VOLUM
 const val EXTRA_VOLUME_BOOST_MILLIBELS = "millibels"
 
 /** Custom [androidx.media3.session.SessionCommand]s backing the media notification's
- *  skip-forward/skip-backward/cycle-speed buttons (issue #293). Standard seek-to-next/previous
- *  player commands don't apply here since Next Up is managed externally rather than through
- *  ExoPlayer's own timeline (issue #179), so [PlaybackService] can't rely on Media3's default
- *  notification actions for them and instead handles these directly in its session callback,
- *  the same way [CUSTOM_COMMAND_SET_VOLUME_BOOST] is handled. */
+ *  skip-forward/skip-backward/cycle-speed buttons (issue #293). These are fixed-amount seeks, not
+ *  standard seek-to-next/previous player commands -- deliberately, to stay consistent with the
+ *  hardware media-button handling in [PlaybackService]'s `onMediaButtonEvent` (issue #244), even
+ *  though a real "next episode" now exists on the player's own timeline (issue #256).
+ *  [PlaybackService] handles these directly in its session callback, the same way
+ *  [CUSTOM_COMMAND_SET_VOLUME_BOOST] is handled. */
 const val CUSTOM_COMMAND_SKIP_FORWARD = "com.bugzapperlabs.mycasts.SKIP_FORWARD"
 const val CUSTOM_COMMAND_SKIP_BACKWARD = "com.bugzapperlabs.mycasts.SKIP_BACKWARD"
 const val CUSTOM_COMMAND_CYCLE_SPEED = "com.bugzapperlabs.mycasts.CYCLE_SPEED"
@@ -96,6 +113,12 @@ object PlaybackMediaItemFactory {
         val artworkUrl = item.imageUrl ?: feed?.imageUrl
         val volumeBoostMillibels = feed?.volumeBoostMillibels ?: 0
 
+        // issue #200: only skip the feed's configured intro length on a genuinely fresh start --
+        // enclosurePosition being set means either a real resume point or a completed episode
+        // being replayed, neither of which should jump forward automatically.
+        val startPositionMs = item.enclosurePosition?.let { (it * 1000).toLong() }
+            ?: (feed?.startSkipSeconds ?: 0).toLong() * 1000L
+
         val mediaItem = MediaItem.Builder()
             .setMediaId(item.id)
             .setUri(uri)
@@ -108,17 +131,13 @@ object PlaybackMediaItemFactory {
                         Bundle().apply {
                             putLong(FEED_ID_EXTRA_KEY, item.feedId)
                             putInt(VOLUME_BOOST_EXTRA_KEY, volumeBoostMillibels)
+                            putFloat(PLAYBACK_SPEED_EXTRA_KEY, speed)
+                            putLong(START_POSITION_MS_EXTRA_KEY, startPositionMs)
                         },
                     )
                     .build(),
             )
             .build()
-
-        // issue #200: only skip the feed's configured intro length on a genuinely fresh start --
-        // enclosurePosition being set means either a real resume point or a completed episode
-        // being replayed, neither of which should jump forward automatically.
-        val startPositionMs = item.enclosurePosition?.let { (it * 1000).toLong() }
-            ?: (feed?.startSkipSeconds ?: 0).toLong() * 1000L
 
         return ResolvedPlaybackMedia(
             mediaItem = mediaItem,
