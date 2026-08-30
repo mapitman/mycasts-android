@@ -25,6 +25,11 @@
         android:label="@string/app_name"
         android:theme="@style/Theme.MyCasts"
         android:supportsRtl="true">
+
+        <!-- issue #246: required for the app to be offered as a media source in Android Auto. -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -68,6 +73,13 @@
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService" />
+                <!-- issue #246: legacy android.media.browse.MediaBrowserService action, required
+                     for Android Auto's compatibility layer to recognize this as a browsable media
+                     app, even though Media3's own discovery goes through the action above. -->
+                <action android:name="android.media.browse.MediaBrowserService" />
+                <!-- issue #246: lets Android Auto route a voice "play X" search here (real
+                     handling of the search query itself is issue #248). -->
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
             </intent-filter>
         </service>
 

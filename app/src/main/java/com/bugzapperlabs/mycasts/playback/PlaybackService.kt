@@ -12,6 +12,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -25,11 +26,13 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.preload.DefaultPreloadManager
 import androidx.media3.exoplayer.source.preload.TargetPreloadStatusControl
 import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import dagger.hilt.android.AndroidEntryPoint
@@ -67,6 +70,20 @@ private const val PRELOAD_TARGET_MS = 15_000L
 // through the same entries.
 private const val MAX_ADVANCE_ATTEMPTS = 50
 
+// issue #246: placeholder browse-tree root so Android Auto has something to connect to before
+// the real tree (Next Up + feeds/episodes) lands in issue #250.
+private const val BROWSER_ROOT_ID = "root"
+
+private val browserRootItem: MediaItem = MediaItem.Builder()
+    .setMediaId(BROWSER_ROOT_ID)
+    .setMediaMetadata(
+        MediaMetadata.Builder()
+            .setIsBrowsable(true)
+            .setIsPlayable(false)
+            .build(),
+    )
+    .build()
+
 /**
  * Trivial by design (issue #87): this app only ever preloads a single candidate at a time (the
  * Next Up head), unlike a carousel with many ranked candidates, so there's no need to track a
@@ -86,7 +103,7 @@ private class NextEpisodePreloadStatusControl : TargetPreloadStatusControl<Int> 
  * TrackEnded's `SavePosition(0)` + `SetItemAsRead`.
  */
 @AndroidEntryPoint
-class PlaybackService : MediaSessionService() {
+class PlaybackService : MediaLibraryService() {
 
     @Inject
     lateinit var feedRepository: FeedRepository
@@ -108,7 +125,7 @@ class PlaybackService : MediaSessionService() {
     @UnstableApi
     private lateinit var preloadManager: DefaultPreloadManager
     private lateinit var advanceWakeLock: PowerManager.WakeLock
-    private var mediaSession: MediaSession? = null
+    private var mediaSession: MediaLibrarySession? = null
 
     // The Next Up head's resolved media, kept in sync with the queue by preloadQueueHeadJob below
     // (issue #87) -- cached (rather than re-resolving at transition time) so playNextQueued() can
@@ -203,9 +220,8 @@ class PlaybackService : MediaSessionService() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE,
         )
-        mediaSession = MediaSession.Builder(this, player)
+        mediaSession = MediaLibrarySession.Builder(this, player, mediaSessionCallback)
             .setSessionActivity(sessionActivityIntent)
-            .setCallback(mediaSessionCallback)
             .build()
         updateMediaButtonPreferences()
     }
@@ -283,7 +299,7 @@ class PlaybackService : MediaSessionService() {
         )
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaSession
 
     @OptIn(markerClass = [UnstableApi::class])
     override fun onDestroy() {
@@ -302,8 +318,11 @@ class PlaybackService : MediaSessionService() {
     }
 
     /** Grants [CUSTOM_COMMAND_SET_VOLUME_BOOST] to controllers (issue #202) and applies it live to
-     *  [loudnessEnhancer], since it's not a standard [MediaSession]/[Player] command. */
-    private val mediaSessionCallback = object : MediaSession.Callback {
+     *  [loudnessEnhancer], since it's not a standard [MediaSession]/[Player] command. Also
+     *  implements the [MediaLibrarySession.Callback] browse-tree methods (issue #246) so Android
+     *  Auto can connect to this session at all -- a real browse tree (issue #250) and item
+     *  resolution (issue #247) are still a stub here; this is scaffolding only. */
+    private val mediaSessionCallback = object : MediaLibrarySession.Callback {
         @OptIn(markerClass = [UnstableApi::class]) // DEFAULT_SESSION_AND_LIBRARY_COMMANDS / accept() (issue #212)
         override fun onConnect(session: MediaSession, controller: MediaSession.ControllerInfo): MediaSession.ConnectionResult {
             val sessionCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
@@ -326,6 +345,37 @@ class PlaybackService : MediaSessionService() {
                 .build()
             return MediaSession.ConnectionResult.accept(sessionCommands, playerCommands)
         }
+
+        // Stub root (issue #246): just enough for Android Auto to recognize this app as a media
+        // source and connect. The real browse tree (Next Up + feeds/episodes) is issue #250.
+        override fun onGetLibraryRoot(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<MediaItem>> =
+            Futures.immediateFuture(LibraryResult.ofItem(browserRootItem, params))
+
+        // No children yet (issue #246 is scaffolding only) -- issue #250 replaces this with the
+        // real Next Up / feeds / episodes tree.
+        override fun onGetChildren(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            parentId: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?,
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> =
+            Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params))
+
+        // Item lookup by ID isn't implemented yet -- issue #247 wires this to
+        // PlaybackMediaItemFactory.resolve so a browse-tree item (issue #250) can actually play.
+        @OptIn(markerClass = [UnstableApi::class]) // SessionError (issue #212)
+        override fun onGetItem(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            mediaId: String,
+        ): ListenableFuture<LibraryResult<MediaItem>> =
+            Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_NOT_SUPPORTED))
 
         // Bluetooth remotes vary in which key codes their forward/back buttons actually send --
         // some send FAST_FORWARD/REWIND, but others (issue #244, confirmed on-device) send
