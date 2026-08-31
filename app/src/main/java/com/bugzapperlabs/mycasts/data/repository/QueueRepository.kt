@@ -50,13 +50,30 @@ class QueueRepository @Inject constructor(
      * of the queue depending on the feed's `autoQueuePosition`), so this end also needs to be able
      * to mark entries as auto-queued for [enforceFeedCap] eviction to see them.
      *
+     * "Front" means directly after the currently-playing episode, not the absolute front of the
+     * queue (issue #271) -- [moveToFront] pins that episode at the true front position so it shows
+     * up in Next Up itself, and inserting an even-lower position here would silently bump it out of
+     * the "now playing" slot. [SettingsDataStore.lastPlayingItemId] is how the currently-playing
+     * episode is identified: it's set/cleared by [com.bugzapperlabs.mycasts.playback.PlaybackController]
+     * around the same "now playing" transitions [moveToFront] itself is called for, and survives
+     * process death, so it reflects "now playing" here reliably even across a fresh process. Falls
+     * back to the true front when nothing is currently playing, same as before.
+     *
      * Also starts the episode downloading (issue #219), same as [addToEnd].
      */
     suspend fun addToFront(itemId: String, autoQueued: Boolean = false) {
         if (queueDao.findItemId(itemId) != null) return
+        val currentItemId = settingsDataStore.settings.first().lastPlayingItemId
+            ?.takeIf { it != itemId && queueDao.findItemId(it) != null }
         queueDao.insert(
             QueueEntry(itemId, position = queueDao.minPosition() - 1, addedAt = System.currentTimeMillis(), autoQueued = autoQueued),
         )
+        if (currentItemId != null) {
+            val ordered = queueDao.orderedItemIds().toMutableList()
+            ordered.remove(itemId)
+            ordered.add(ordered.indexOf(currentItemId) + 1, itemId)
+            reorder(ordered)
+        }
         triggerDownload(itemId)
     }
 

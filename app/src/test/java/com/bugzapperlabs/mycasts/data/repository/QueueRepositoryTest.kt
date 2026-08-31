@@ -115,6 +115,46 @@ class QueueRepositoryTest {
     }
 
     @Test
+    fun addToFront_currentlyPlaying_insertsAfterItRatherThanDisplacingIt() = runTest {
+        // issue #271: "front" means directly after the currently-playing episode, not the
+        // absolute front of the queue -- moveToFront pins the playing episode at the true front so
+        // it's still shown as "now playing" in Next Up, and a lower-positioned front-queue insert
+        // would silently knock it out of that slot.
+        queueRepository.addToEnd("ep-1")
+        queueRepository.moveToFront("ep-1")
+        settingsDataStore.setLastPlayingItem(feedId, "ep-1")
+
+        queueRepository.addToFront("ep-2")
+
+        val queue = queueRepository.observeQueue().first()
+        assertEquals(listOf("ep-1", "ep-2"), queue.map { it.item.id })
+    }
+
+    @Test
+    fun addToFront_currentlyPlaying_multipleFrontQueuedEpisodesStayAfterIt() = runTest {
+        queueRepository.addToEnd("ep-1")
+        queueRepository.moveToFront("ep-1")
+        settingsDataStore.setLastPlayingItem(feedId, "ep-1")
+
+        queueRepository.addToFront("ep-2")
+        queueRepository.addToFront("ep-3")
+
+        val queue = queueRepository.observeQueue().first()
+        assertEquals(listOf("ep-1", "ep-3", "ep-2"), queue.map { it.item.id })
+    }
+
+    @Test
+    fun addToFront_nothingPlaying_stillInsertsAtTrueFront() = runTest {
+        queueRepository.addToEnd("ep-1")
+        queueRepository.addToEnd("ep-2")
+
+        queueRepository.addToFront("ep-3")
+
+        val queue = queueRepository.observeQueue().first()
+        assertEquals(listOf("ep-3", "ep-1", "ep-2"), queue.map { it.item.id })
+    }
+
+    @Test
     fun addToFront_autoQueuedTrue_isEvictionCandidate() = runTest {
         // issue #166: addToFront needs its own autoQueued flag, matching addToEnd, so front-inserted
         // auto-queue entries are still subject to a feed's autoQueueMaxCount eviction.
