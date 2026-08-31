@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+# Cancels a superseded pull_request run so its later flaky-test data doesn't compete for the same
+# runner pool as the newer push -- never cancels a push to main, so every commit on main keeps its
+# own CI record (issue #258 wants a full failure-rate history to compare against).
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -16,7 +23,7 @@ jobs:
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew assembleDebug testDebugUnitTest lintDebug
-      - if: failure()
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reports

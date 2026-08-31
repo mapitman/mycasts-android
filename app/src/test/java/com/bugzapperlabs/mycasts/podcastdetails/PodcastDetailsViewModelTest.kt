@@ -1,9 +1,8 @@
 package com.bugzapperlabs.mycasts.podcastdetails
 
 import androidx.lifecycle.SavedStateHandle
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.mycasts.TrackedViewModelStore
+import com.bugzapperlabs.mycasts.ViewModelTestEnvironment
 import com.bugzapperlabs.mycasts.addfeed.AddFeedUiState
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
@@ -12,7 +11,6 @@ import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -40,12 +38,11 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class PodcastDetailsViewModelTest {
-    private val testDispatcher = UnconfinedTestDispatcher()
-
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
-    // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
+    // Dispatchers.resetMain runs -- see ViewModelTestEnvironment's doc for the full leak mechanics
     // behind the #54/#60 flakiness this prevents.
-    private val viewModelStore = TrackedViewModelStore()
+    private val env = ViewModelTestEnvironment()
+    private val testDispatcher = env.mainDispatcher
     private var nextViewModelKey = 0
 
     @get:Rule
@@ -81,7 +78,7 @@ class PodcastDetailsViewModelTest {
             feedRepository = repository,
             feedUpdateEngine = feedUpdateEngine,
             context = context,
-        ).also { viewModelStore.put("podcastDetails-${nextViewModelKey++}", it) }
+        ).also { env.put("podcastDetails-${nextViewModelKey++}", it) }
 
     @Before
     fun setUp() {
@@ -89,22 +86,20 @@ class PodcastDetailsViewModelTest {
         server = MockWebServer()
         server.start()
         context = ApplicationProvider.getApplicationContext()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        db = env.database(context)
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
-        )
+        val dataStore: DataStore<Preferences> = env.preferences(File(tempFolder.newFolder(), "test.preferences_pb"))
         val settingsDataStore = SettingsDataStore(dataStore)
         val httpClient = OkHttpClient()
-        feedFetcher = FeedFetcher(httpClient)
+        feedFetcher = FeedFetcher(httpClient, testDispatcher)
         feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
     }
 
     @After
     fun tearDown() {
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
-        // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
-        runTest(testDispatcher) { viewModelStore.clearAndJoin() }
+        // pumped while tearDown waits out in-flight ViewModel coroutines (issues #54/#60/#258).
+        runTest(testDispatcher) { env.tearDown() }
         server.shutdown()
         db.close()
         Dispatchers.resetMain()

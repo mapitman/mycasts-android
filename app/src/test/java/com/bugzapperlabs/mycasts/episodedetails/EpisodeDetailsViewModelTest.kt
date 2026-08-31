@@ -2,12 +2,10 @@ package com.bugzapperlabs.mycasts.episodedetails
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.lifecycle.SavedStateHandle
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.bugzapperlabs.mycasts.R
-import com.bugzapperlabs.mycasts.TrackedViewModelStore
+import com.bugzapperlabs.mycasts.ViewModelTestEnvironment
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedItem
@@ -47,15 +45,15 @@ import java.io.File
  * Config pins Robolectric to API 35 -- Robolectric 4.14 doesn't support compileSdk 36 yet.
  *
  * The test dispatcher is shared between setMain and runTest, and ViewModels are routed through
- * a TrackedViewModelStore that's cleared *and joined* in tearDown before resetMain -- see that
+ * a ViewModelTestEnvironment that's cleared *and joined* in tearDown before resetMain -- see that
  * class's doc for the full leak mechanics behind the #54/#60 flakiness this prevents.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class EpisodeDetailsViewModelTest {
-    private val testDispatcher = UnconfinedTestDispatcher()
-    private val viewModelStore = TrackedViewModelStore()
+    private val env = ViewModelTestEnvironment()
+    private val testDispatcher = env.mainDispatcher
     private var nextViewModelKey = 0
 
     @get:Rule
@@ -76,11 +74,9 @@ class EpisodeDetailsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         appContext = context
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        db = env.database(context)
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
-        )
+        val dataStore: DataStore<Preferences> = env.preferences(File(tempFolder.newFolder(), "test.preferences_pb"))
         settingsDataStore = SettingsDataStore(dataStore)
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
@@ -125,7 +121,7 @@ class EpisodeDetailsViewModelTest {
         // PlaybackController's own Main-bound scope has to be drained too -- it isn't a
         // ViewModel, so the store's clear doesn't cover it.
         runTest(testDispatcher) {
-            viewModelStore.clearAndJoin()
+            env.tearDown()
             playbackController.awaitShutdownForTest()
             downloadFeedbackCoordinator.cancelForTest()
         }
@@ -143,7 +139,7 @@ class EpisodeDetailsViewModelTest {
             queueRepository = queueRepository,
             settingsDataStore = settingsDataStore,
             context = appContext,
-        ).also { viewModelStore.put("episodeDetails-${nextViewModelKey++}", it) }
+        ).also { env.put("episodeDetails-${nextViewModelKey++}", it) }
 
     @Test
     fun uiState_loadsAllItemsOrderedByPublishDateDescending() = runTest(testDispatcher) {

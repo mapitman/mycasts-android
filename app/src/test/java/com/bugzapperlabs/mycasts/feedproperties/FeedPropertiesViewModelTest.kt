@@ -2,11 +2,9 @@ package com.bugzapperlabs.mycasts.feedproperties
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.lifecycle.SavedStateHandle
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.mycasts.TrackedViewModelStore
+import com.bugzapperlabs.mycasts.ViewModelTestEnvironment
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
@@ -42,8 +40,6 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class FeedPropertiesViewModelTest {
-    private val testDispatcher = UnconfinedTestDispatcher()
-
     @get:Rule
     val tempFolder = TemporaryFolder()
 
@@ -53,26 +49,25 @@ class FeedPropertiesViewModelTest {
     private var feedId: Long = 0
 
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
-    // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
+    // Dispatchers.resetMain runs -- see ViewModelTestEnvironment's doc for the full leak mechanics
     // behind the #54/#60 flakiness this prevents.
-    private val viewModelStore = TrackedViewModelStore()
+    private val env = ViewModelTestEnvironment()
+    private val testDispatcher = env.mainDispatcher
 
     private fun createViewModel(): FeedPropertiesViewModel =
         FeedPropertiesViewModel(
             savedStateHandle = SavedStateHandle(mapOf("feedId" to feedId)),
             feedRepository = repository,
             settingsDataStore = settingsDataStore,
-        ).also { viewModelStore.put("feedProperties", it) }
+        ).also { env.put("feedProperties", it) }
 
     @Before
     fun setUp() = runTest(testDispatcher) {
         Dispatchers.setMain(testDispatcher)
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        db = env.database(context)
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
-        )
+        val dataStore: DataStore<Preferences> = env.preferences(File(tempFolder.newFolder(), "test.preferences_pb"))
         settingsDataStore = SettingsDataStore(dataStore)
 
         feedId = repository.subscribe(Feed(title = "A Feed", feedUrl = "https://example.com/feed.xml"))
@@ -81,8 +76,8 @@ class FeedPropertiesViewModelTest {
     @After
     fun tearDown() {
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
-        // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
-        runTest(testDispatcher) { viewModelStore.clearAndJoin() }
+        // pumped while tearDown waits out in-flight ViewModel coroutines (issues #54/#60/#258).
+        runTest(testDispatcher) { env.tearDown() }
         db.close()
         Dispatchers.resetMain()
     }

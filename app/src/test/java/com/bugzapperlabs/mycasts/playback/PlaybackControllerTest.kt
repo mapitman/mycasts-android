@@ -80,7 +80,7 @@ class PlaybackControllerTest {
     @After
     fun tearDown() {
         // Drains the controller's Main-bound scope so nothing leaked from this class can touch
-        // a TestMainDispatcher a later test class installs -- see TrackedViewModelStore's doc
+        // a TestMainDispatcher a later test class installs -- see ViewModelTestEnvironment's doc
         // for the leak mechanics (issues #54/#60).
         runTest { playbackController.awaitShutdownForTest() }
         db.close()

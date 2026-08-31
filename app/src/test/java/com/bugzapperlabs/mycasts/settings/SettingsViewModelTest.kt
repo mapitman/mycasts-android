@@ -2,10 +2,8 @@ package com.bugzapperlabs.mycasts.settings
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.mycasts.TrackedViewModelStore
+import com.bugzapperlabs.mycasts.ViewModelTestEnvironment
 import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
@@ -59,7 +57,7 @@ import kotlin.time.Duration.Companion.seconds
  * never reproduced locally despite many repeated full-suite and CPU-constrained runs. Originally
  * tracked in https://github.com/mapitman/myfeeds-android/issues/54, carried forward as issue #77.
  *
- * The quiescent tearDown below (clear + join before resetMain, via TrackedViewModelStore) fixes
+ * The quiescent tearDown below (clear + join before resetMain, via ViewModelTestEnvironment) fixes
  * one real source of cross-test corruption -- see that class's doc -- but CI still hangs even
  * with it in place, so the skip stays. See issue #215 for further diagnostics on this general
  * class of timing-dependent coroutine-test flakiness.
@@ -92,8 +90,6 @@ import kotlin.time.Duration.Companion.seconds
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class SettingsViewModelTest {
-    private val testDispatcher = UnconfinedTestDispatcher()
-
     @get:Rule
     val tempFolder = TemporaryFolder()
 
@@ -105,9 +101,10 @@ class SettingsViewModelTest {
     private lateinit var viewModel: SettingsViewModel
 
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
-    // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
+    // Dispatchers.resetMain runs -- see ViewModelTestEnvironment's doc for the full leak mechanics
     // behind the #54/#60 flakiness this prevents.
-    private val viewModelStore = TrackedViewModelStore()
+    private val env = ViewModelTestEnvironment()
+    private val testDispatcher = env.mainDispatcher
 
     // Includes an audio enclosure (issue #122: OpmlImporter now rejects feeds with no audio
     // episodes as not-a-podcast) so this is podcast-valid.
@@ -139,11 +136,9 @@ class SettingsViewModelTest {
     private fun runTestBody() = runTest(testDispatcher, timeout = 120.seconds) {
         Dispatchers.setMain(testDispatcher)
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        db = env.database(context)
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
-        )
+        val dataStore: DataStore<Preferences> = env.preferences(File(tempFolder.newFolder(), "test.preferences_pb"))
         settingsDataStore = SettingsDataStore(dataStore)
         // OPML import now validates each feed by actually fetching it (issue #231) -- default_feeds.opml
         // lists real external hosts, so every outgoing request is rewritten to this local server
@@ -162,7 +157,7 @@ class SettingsViewModelTest {
                 chain.proceed(original.newBuilder().url(rewritten).build())
             }
             .build()
-        val feedFetcher = FeedFetcher(httpClient)
+        val feedFetcher = FeedFetcher(httpClient, testDispatcher)
         val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
         val downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
@@ -193,7 +188,7 @@ class SettingsViewModelTest {
             },
             context = context,
         )
-        viewModelStore.put("settings", viewModel)
+        env.put("settings", viewModel)
     }
 
     @After
@@ -202,9 +197,9 @@ class SettingsViewModelTest {
         // uninitialized -- guard against that so the skip doesn't itself register as a failure.
         if (!::db.isInitialized) return
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
-        // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
+        // pumped while tearDown waits out in-flight ViewModel coroutines (issues #54/#60/#258).
         runTest(testDispatcher) {
-            viewModelStore.clearAndJoin()
+            env.tearDown()
             // OpmlImportCoordinator runs on its own real (non-test-scheduler) scope (issue #105),
             // same reason DownloadFeedbackCoordinator needs this -- nothing should be left mid-flight
             // against db below.

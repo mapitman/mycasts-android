@@ -2,10 +2,8 @@ package com.bugzapperlabs.mycasts.addfeed
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.mycasts.TrackedViewModelStore
+import com.bugzapperlabs.mycasts.ViewModelTestEnvironment
 import com.bugzapperlabs.mycasts.data.directory.FeedDirectory
 import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
@@ -48,12 +46,11 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class AddFeedViewModelTest {
-    private val testDispatcher = UnconfinedTestDispatcher()
-
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
-    // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
+    // Dispatchers.resetMain runs -- see ViewModelTestEnvironment's doc for the full leak mechanics
     // behind the #54/#60 flakiness this prevents.
-    private val viewModelStore = TrackedViewModelStore()
+    private val env = ViewModelTestEnvironment()
+    private val testDispatcher = env.mainDispatcher
 
     @get:Rule
     val tempFolder = TemporaryFolder()
@@ -107,14 +104,12 @@ class AddFeedViewModelTest {
         server = MockWebServer()
         server.start()
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        db = env.database(context)
         val repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
-        )
+        val dataStore: DataStore<Preferences> = env.preferences(File(tempFolder.newFolder(), "test.preferences_pb"))
         val settingsDataStore = SettingsDataStore(dataStore)
         val httpClient = OkHttpClient()
-        val feedFetcher = FeedFetcher(httpClient)
+        val feedFetcher = FeedFetcher(httpClient, testDispatcher)
         val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
         val downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
@@ -140,14 +135,14 @@ class AddFeedViewModelTest {
             settingsDataStore = settingsDataStore,
             context = context,
         )
-        viewModelStore.put("addFeed", viewModel)
+        env.put("addFeed", viewModel)
     }
 
     @After
     fun tearDown() {
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
-        // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
-        runTest(testDispatcher) { viewModelStore.clearAndJoin() }
+        // pumped while tearDown waits out in-flight ViewModel coroutines (issues #54/#60/#258).
+        runTest(testDispatcher) { env.tearDown() }
         server.shutdown()
         db.close()
         Dispatchers.resetMain()
