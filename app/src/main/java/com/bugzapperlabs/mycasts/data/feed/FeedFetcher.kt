@@ -1,5 +1,6 @@
 package com.bugzapperlabs.mycasts.data.feed
 
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -14,8 +15,19 @@ import javax.inject.Inject
  * fetch-discover-refetch flow (bounded here to avoid infinite discovery loops).
  */
 class FeedFetcher @Inject constructor(private val httpClient: OkHttpClient) {
+    // Test-only entry point (issue #258): lets ViewModelTestEnvironment route this off
+    // Dispatchers.IO onto the shared test scheduler, so a MockWebServer round trip is
+    // deterministically flushed by advanceUntilIdle() instead of racing a real thread. Kept as a
+    // plain secondary constructor (not @Inject) so Dagger's generated factory still only ever
+    // sees the single-param constructor above and never needs a CoroutineDispatcher binding.
+    private var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
+    internal constructor(httpClient: OkHttpClient, ioDispatcher: CoroutineDispatcher) : this(httpClient) {
+        this.ioDispatcher = ioDispatcher
+    }
+
     suspend fun fetchFeed(url: String, discoveryDepth: Int = 0): FeedFetchResult =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             if (discoveryDepth > MAX_DISCOVERY_DEPTH) {
                 return@withContext FeedFetchResult.Failure("Too many HTML discovery redirects")
             }

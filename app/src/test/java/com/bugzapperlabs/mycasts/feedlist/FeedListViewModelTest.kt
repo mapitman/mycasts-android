@@ -2,10 +2,8 @@ package com.bugzapperlabs.mycasts.feedlist
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.mycasts.TrackedViewModelStore
+import com.bugzapperlabs.mycasts.ViewModelTestEnvironment
 import com.bugzapperlabs.mycasts.data.feed.AutoQueueAndDownloadEnforcer
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
 import com.bugzapperlabs.mycasts.data.feed.FeedRefreshLocks
@@ -55,13 +53,11 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class FeedListViewModelTest {
-    private val testDispatcher = UnconfinedTestDispatcher()
-
-    // This file previously never cleared its ViewModels at all -- their leaked viewModelScope
-    // coroutines could dispatch onto whatever Dispatchers.Main a *later* test class had
-    // installed. Cleared *and joined* in tearDown; see TrackedViewModelStore's doc for the full
-    // leak mechanics behind the #54/#60 flakiness this prevents.
-    private val viewModelStore = TrackedViewModelStore()
+    // Owns the shared test scheduler (backs Dispatchers.Main, Room's executors, and DataStore's
+    // scope) plus ViewModel/DataStore teardown; see ViewModelTestEnvironment's doc for the full
+    // #54/#60/#258 leak mechanics this prevents.
+    private val env = ViewModelTestEnvironment()
+    private val testDispatcher = env.mainDispatcher
 
     @get:Rule
     val tempFolder = TemporaryFolder()
@@ -75,19 +71,18 @@ class FeedListViewModelTest {
     private lateinit var viewModel: FeedListViewModel
 
     // OpmlImportCoordinator runs on its own real (non-viewModelScope) scope, so every one created
-    // by newViewModel(WithCoordinator) below needs cancelForTest() explicitly in tearDown --
-    // viewModelStore's own clearAndJoin() only reaches viewModelScope coroutines, not this
-    // separate one.
+    // by newViewModel(WithCoordinator) below needs cancelForTest() explicitly in tearDown -- env's
+    // own tearDown() only reaches viewModelScope coroutines, not this separate one.
     private val coordinators = mutableListOf<OpmlImportCoordinator>()
 
     private fun newViewModel(
         feedRefreshState: FeedRefreshState,
-        feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient()),
+        feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient(), testDispatcher),
     ): FeedListViewModel = newViewModelWithCoordinator(feedRefreshState, feedFetcher).first
 
     private fun newViewModelWithCoordinator(
         feedRefreshState: FeedRefreshState,
-        feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient()),
+        feedFetcher: FeedFetcher = FeedFetcher(OkHttpClient(), testDispatcher),
     ): Pair<FeedListViewModel, OpmlImportCoordinator> {
         val feedUpdateEngine = FeedUpdateEngine(feedFetcher, repository, settingsDataStore, FeedRefreshLocks())
         val enforcer = AutoQueueAndDownloadEnforcer(repository, queueRepository)
@@ -112,11 +107,9 @@ class FeedListViewModelTest {
     fun setUp() = runTest(testDispatcher) {
         Dispatchers.setMain(testDispatcher)
         context = ApplicationProvider.getApplicationContext()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        db = env.database(context)
         repository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
-        )
+        val dataStore: DataStore<Preferences> = env.preferences(File(tempFolder.newFolder(), "test.preferences_pb"))
         settingsDataStore = SettingsDataStore(dataStore)
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = repository,
@@ -132,15 +125,16 @@ class FeedListViewModelTest {
         queueRepository = QueueRepository(db.queueDao(), repository, downloadRepository, settingsDataStore)
 
         viewModel = newViewModel(FeedRefreshState())
-        viewModelStore.put("feedList", viewModel)
+        env.put("feedList", viewModel)
     }
 
     @After
     fun tearDown() {
         // Inside runTest (same scheduler as Dispatchers.Main) so the scheduler keeps getting
-        // pumped while clearAndJoin waits out in-flight ViewModel coroutines (issues #54/#60).
+        // pumped while tearDown waits out in-flight ViewModel/DataStore coroutines (issues
+        // #54/#60/#258).
         runTest(testDispatcher) {
-            viewModelStore.clearAndJoin()
+            env.tearDown()
             coordinators.forEach { it.cancelForTest() }
         }
         db.close()
@@ -321,7 +315,7 @@ class FeedListViewModelTest {
         refreshStarted.await()
 
         val freshViewModel = newViewModel(refreshState)
-        viewModelStore.put("freshFeedList", freshViewModel)
+        env.put("freshFeedList", freshViewModel)
         val collectJob = launch { freshViewModel.uiState.collect {} }
 
         val state = freshViewModel.uiState.first { it.feeds.isNotEmpty() }
@@ -452,8 +446,11 @@ class FeedListViewModelTest {
                     chain.proceed(original.newBuilder().url(rewritten).build())
                 }
                 .build()
-            val (freshViewModel, coordinator) = newViewModelWithCoordinator(FeedRefreshState(), feedFetcher = FeedFetcher(httpClient))
-            viewModelStore.put("acceptPrompt", freshViewModel)
+            val (freshViewModel, coordinator) = newViewModelWithCoordinator(
+                FeedRefreshState(),
+                feedFetcher = FeedFetcher(httpClient, testDispatcher),
+            )
+            env.put("acceptPrompt", freshViewModel)
 
             freshViewModel.acceptAddDefaultFeedsPrompt()
 

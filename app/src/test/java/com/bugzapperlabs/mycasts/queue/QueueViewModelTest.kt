@@ -2,10 +2,8 @@ package com.bugzapperlabs.mycasts.queue
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.bugzapperlabs.mycasts.TrackedViewModelStore
+import com.bugzapperlabs.mycasts.ViewModelTestEnvironment
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedItem
@@ -46,12 +44,11 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class QueueViewModelTest {
-    private val testDispatcher = UnconfinedTestDispatcher()
-
     // Cleared *and joined* in tearDown so no ViewModel coroutine is still in flight when
-    // Dispatchers.resetMain runs -- see TrackedViewModelStore's doc for the full leak mechanics
+    // Dispatchers.resetMain runs -- see ViewModelTestEnvironment's doc for the full leak mechanics
     // behind the #54/#60 flakiness this prevents.
-    private val viewModelStore = TrackedViewModelStore()
+    private val env = ViewModelTestEnvironment()
+    private val testDispatcher = env.mainDispatcher
 
     @get:Rule
     val tempFolder = TemporaryFolder()
@@ -69,11 +66,9 @@ class QueueViewModelTest {
     fun setUp() = runTest(testDispatcher) {
         Dispatchers.setMain(testDispatcher)
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
+        db = env.database(context)
         feedRepository = FeedRepository(db.feedDao(), db.feedItemDao(), db.queueDao())
-        val dataStore: DataStore<Preferences> = PreferenceDataStoreFactory.create(
-            produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
-        )
+        val dataStore: DataStore<Preferences> = env.preferences(File(tempFolder.newFolder(), "test.preferences_pb"))
         val settingsDataStore = SettingsDataStore(dataStore)
         downloadRepository = EnclosureDownloadRepository(
             feedRepository = feedRepository,
@@ -109,7 +104,7 @@ class QueueViewModelTest {
         queueRepository.addToEnd("ep-2")
 
         viewModel = QueueViewModel(queueRepository, feedRepository, playbackController, downloadRepository, context)
-            .also { viewModelStore.put("queue", it) }
+            .also { env.put("queue", it) }
     }
 
     @After
@@ -119,7 +114,7 @@ class QueueViewModelTest {
         // PlaybackController's own Main-bound scope (which playNow launches into) has to be
         // drained too -- it isn't a ViewModel, so the store's clear doesn't cover it.
         runTest(testDispatcher) {
-            viewModelStore.clearAndJoin()
+            env.tearDown()
             playbackController.awaitShutdownForTest()
         }
         db.close()

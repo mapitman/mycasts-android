@@ -82,17 +82,6 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
-            // Partial mitigation for the intermittent ViewModel test flakiness tracked in issue
-            // #77 (kotlinx.coroutines.test.UncompletedCoroutinesError, always a different method,
-            // always green on an immediate rerun): kotlinx-coroutines-test's own dead-man's-switch
-            // defaults to 10s real wall-clock time for a background coroutine to finish, which a
-            // resource-constrained CI runner (or this repo's own sandboxed dev environment, where
-            // the same symptom has also been observed) can plausibly blow past under contention
-            // even though nothing is actually hung. Raised well past what any of these tests should
-            // ever legitimately need. Doesn't address the plain-AssertionError half of #77's
-            // symptom (a StateFlow read racing its async update, not a stuck coroutine), so this is
-            // a partial mitigation, not a confirmed fix.
-            all { it.systemProperty("kotlinx.coroutines.test.default_timeout", "60s") }
         }
     }
 
