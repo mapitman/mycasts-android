@@ -179,22 +179,35 @@ fun ReorderableQueueList(
     fun absoluteScrollOffset(): Float =
         listState.firstVisibleItemIndex * itemHeightPx + listState.firstVisibleItemScrollOffset
 
+    // The now-playing episode is always the queue's front entry (issue #196) -- PlaybackService
+    // and QueueRepository.moveToFront both rely on that invariant staying true, so no *other*
+    // episode may be dragged, swiped, or moved-to-top above it (issue #274). Slot 0 is only ever
+    // off-limits to a drag/move that isn't itself the now-playing row -- dragging that row is
+    // unrestricted, same as before this fix.
+    fun minAllowedIndex(draggedId: String?): Int =
+        if (draggedId != null && draggedId != currentItemId && items.firstOrNull()?.item?.id == currentItemId) 1 else 0
+
     fun targetIndexFor(visualTopY: Float): Int =
-        ((absoluteScrollOffset() + visualTopY) / itemHeightPx).roundToInt().coerceIn(0, items.lastIndex)
+        ((absoluteScrollOffset() + visualTopY) / itemHeightPx).roundToInt()
+            .coerceIn(minAllowedIndex(draggedItemId), items.lastIndex)
 
     fun viewportHeight(): Float =
         (listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset).toFloat()
 
     // Keeps the dragged row fully inside the viewport (it can't slide under whatever is laid out
     // above/below the list, e.g. MiniPlayerBar -- issue #209/#163; reaching further content is
-    // auto-scroll's job now) and never past the list's real first/last slot when those are
-    // on-screen, so it comes to rest pinned at the end slot like every other reorderable list.
+    // auto-scroll's job now), never past the list's real first/last slot when those are
+    // on-screen (so it comes to rest pinned at the end slot like every other reorderable list),
+    // and never visually above the now-playing row's slot when that row is locked (issue #274) --
+    // otherwise the dragged row would visibly overlap it despite [targetIndexFor] refusing to
+    // actually drop there.
     fun clampVisualTop(visualTopY: Float): Float {
+        val minTop = (minAllowedIndex(draggedItemId) * itemHeightPx - absoluteScrollOffset()).coerceAtLeast(0f)
         val maxTop = minOf(
             viewportHeight() - itemHeightPx,
             items.lastIndex * itemHeightPx - absoluteScrollOffset(),
-        ).coerceAtLeast(0f)
-        return visualTopY.coerceIn(0f, maxTop)
+        ).coerceAtLeast(minTop)
+        return visualTopY.coerceIn(minTop, maxTop)
     }
 
     // Shared by the drag-handle drop (above) and the swipe-right move actions below -- both just
@@ -206,10 +219,14 @@ fun ReorderableQueueList(
     }
 
     fun moveToTop(itemId: String) {
+        // Lands right after the now-playing row instead of at true index 0 when that row is
+        // locked (issue #274) -- same invariant as the drag path above, reached here via the
+        // swipe-right reveal action or its TalkBack equivalent rather than a drag gesture.
+        val minIndex = minAllowedIndex(itemId)
         val index = items.indexOfFirst { it.item.id == itemId }
-        if (index <= 0) return
+        if (index <= minIndex) return
         val reordered = items.toMutableList()
-        reordered.add(0, reordered.removeAt(index))
+        reordered.add(minIndex, reordered.removeAt(index))
         commitReorder(reordered)
     }
 

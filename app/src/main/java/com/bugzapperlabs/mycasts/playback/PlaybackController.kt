@@ -446,13 +446,19 @@ class PlaybackController @Inject constructor(
     fun stop() {
         // Player.stop() alone halts playback but retains currentMediaItem, which would leave
         // the mini-player (issue #66) stuck on-screen -- clearMediaItems() is what actually
-        // drops it so currentItemId (and therefore mini-player visibility) goes back to null.
+        // drops it. That's a MediaController IPC call, though, so the confirming
+        // Player.Listener.onEvents callback (and with it, the next _uiState refresh) can lag
+        // visibly behind this method returning -- e.g. issue #274's queue drag-lock stayed
+        // engaged for a beat after tapping stop because uiState.currentItemId was still stale.
+        // _uiState is reset synchronously here, the same way handlePlaybackEnded() already does
+        // for natural completion, instead of leaving every observer to wait on that round trip.
         val itemId = currentItemId
         controller?.stop()
         controller?.clearMediaItems()
         currentFeedId = null
         currentItemId = null
         currentChapters = emptyList()
+        _uiState.value = PlaybackUiState()
         positionTickerScope.launch(Dispatchers.IO) {
             settingsDataStore.setLastPlayingItem(null, null)
             // Explicit stop just ends "now playing" -- unlike natural completion, the episode
