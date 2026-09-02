@@ -14,15 +14,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CI (`.github/workflows/build.yml`) runs `./gradlew assembleDebug testDebugUnitTest lintDebug` on every push/PR to `main` — run the same before considering work done. There is no separate ktlint/detekt step; `lintDebug` is the only static check.
 
-Unit tests live under `app/src/test` and run on the JVM via Robolectric (`isIncludeAndroidResources = true`, so Android resources are usable in tests). Instrumented tests (`app/src/androidTest`, run via `connectedAndroidTest` on a device) are limited to Room migration tests — most feature testing happens in the Robolectric unit tests instead.
+Unit tests for `:app` live under `app/src/test`; unit tests for `:core` live under `core/src/test` — both run on the JVM via Robolectric (`isIncludeAndroidResources = true`, so Android resources are usable in tests). Instrumented tests (`connectedAndroidTest` on a device) are limited to Room migration tests, now under `core/src/androidTest` — most feature testing happens in the Robolectric unit tests instead.
 
 ## Architecture
 
-Single-module Android app (`app/`), Kotlin, Jetpack Compose UI, Hilt DI, Room for persistence, Media3 for podcast playback. Package root: `com.bugzapperlabs.mycasts`.
+Two-module Android app: `:app` (the phone UI, playback, feed ingestion, downloads) and `:core` (an Android library module holding the Room database, repositories, and settings, shared with the Wear OS module planned in issues #276/#277). Kotlin, Jetpack Compose UI, Hilt DI, Room for persistence, Media3 for podcast playback. Package root: `com.bugzapperlabs.mycasts`.
 
 **Navigation**: One `NavHost` in `MainActivity`, routes are plain strings (`"articleList/{feedId}"`, `"reader/{feedId}/{itemId}"`, etc.) — see the `composable(...)` blocks in `MainActivity.kt` for the full route table. Each screen package (`feedlist`, `articlelist`, `reader`, `queue`, `settings`, `addfeed`, `feedproperties`) follows Screen (Compose) + ViewModel (Hilt `@HiltViewModel`), with the ViewModel exposing a `StateFlow` of UI state.
 
-**Data layer**: Room database (`data/local/AppDatabase.kt`, entities `Category`, `Feed`, `FeedItem`, `QueueEntry`) accessed through DAOs, wrapped by `data/repository/FeedRepository.kt` and `QueueRepository.kt` — screens/viewmodels go through the repositories, not the DAOs directly. Schema changes require a bump to `AppDatabase`'s `version` plus a matching entry in `data/local/Migrations.kt` (exported schemas live in `app/schemas/`, used by the Room migration instrumented tests). App settings (playback speed defaults, font size, streaming toggle, etc.) live in `data/settings/AppSettings.kt` / `SettingsDataStore.kt`, backed by Jetpack DataStore rather than Room.
+**Data layer** (`:core`): Room database (`data/local/AppDatabase.kt`, entities `Category`, `Feed`, `FeedItem`, `QueueEntry`) accessed through DAOs, wrapped by `data/repository/FeedRepository.kt` and `QueueRepository.kt` — screens/viewmodels go through the repositories, not the DAOs directly. Schema changes require a bump to `AppDatabase`'s `version` plus a matching entry in `data/local/Migrations.kt` (exported schemas live in `core/schemas/`, used by the Room migration instrumented tests). App settings (playback speed defaults, font size, streaming toggle, etc.) live in `data/settings/AppSettings.kt` / `SettingsDataStore.kt`, backed by Jetpack DataStore rather than Room. `QueueRepository` triggers downloads through the `QueueDownloadTrigger` interface (also in `:core`) rather than depending on the download subsystem directly, since that stays `:app`-only (WorkManager-based, not needed by a streaming-only Wear OS build) — `:app`'s `EnclosureDownloadRepository` implements it, bound in `di/WorkModule.kt`.
 
 **Feed ingestion**: `data/feed/FeedFetcher.kt` + `FeedParser.kt` fetch and parse RSS/Atom, `FeedUpdateEngine.kt` reconciles parsed results into the database, `refresh/FeedRefreshWorker.kt` (WorkManager) runs this periodically — scheduled from `MainActivity.onCreate` via `refresh/FeedRefreshScheduler.kt`, using the interval from `SettingsDataStore`. `data/opml/` handles OPML import/export. `data/directory/FeedDirectory.kt` backs offline feed-directory search.
 
@@ -30,7 +30,7 @@ Single-module Android app (`app/`), Kotlin, Jetpack Compose UI, Hilt DI, Room fo
 
 **Widget**: `widget/UnreadWidget.kt` is a Glance app widget showing per-feed unread counts; refreshed on app launch and after scheduled feed refreshes. Tapping a feed in the widget launches `MainActivity` with `WIDGET_FEED_ID_EXTRA` set, which is read in `onCreate` to pick the nav start destination.
 
-**DI**: Hilt modules under `di/` (`DatabaseModule`, `NetworkModule`, `SettingsModule`, `WorkModule`) provide the Room database/DAOs, OkHttp client, DataStore, and WorkManager configuration respectively.
+**DI**: `:core`'s `di/DatabaseModule.kt` and `di/SettingsModule.kt` provide the Room database/DAOs and DataStore respectively. `:app`'s `di/NetworkModule.kt` and `di/WorkModule.kt` provide the OkHttp client and WorkManager configuration.
 
 ## Manual UI verification
 

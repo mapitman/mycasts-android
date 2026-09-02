@@ -8,8 +8,10 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import com.bugzapperlabs.mycasts.data.repository.QueueDownloadTrigger
 import com.bugzapperlabs.mycasts.download.DownloadManager
 import com.bugzapperlabs.mycasts.download.DownloadScheduling
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduler
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
 import javax.inject.Singleton
@@ -30,4 +32,9 @@ abstract class WorkBindingModule {
 
     @Binds
     abstract fun bindDownloadScheduling(impl: DownloadManager): DownloadScheduling
+
+    /** Lets `:core`'s [com.bugzapperlabs.mycasts.data.repository.QueueRepository] trigger
+     *  downloads without depending on the download subsystem directly (issue #276). */
+    @Binds
+    abstract fun bindQueueDownloadTrigger(impl: EnclosureDownloadRepository): QueueDownloadTrigger
 }
