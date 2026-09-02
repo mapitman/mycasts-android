@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "MyCasts"
 include(":app")
 include(":core")
+include(":wear")
