@@ -3,33 +3,41 @@ package com.bugzapperlabs.mycasts.wear
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.material.MaterialTheme
-import androidx.wear.compose.material.Text
+import androidx.wear.compose.navigation.SwipeDismissableNavHost
+import androidx.wear.compose.navigation.composable
+import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import com.bugzapperlabs.mycasts.wear.nowplaying.NowPlayingScreen
+import com.bugzapperlabs.mycasts.wear.queue.QueueScreen
 import dagger.hilt.android.AndroidEntryPoint
 
-/**
- * Placeholder entry point (issue #276 step 3) -- real queue/now-playing screens land in step 6,
- * once the sync bridge (step 4) and watch playback service (step 5) exist to back them.
- */
+private const val ROUTE_QUEUE = "queue"
+private const val ROUTE_NOW_PLAYING = "nowPlaying"
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            WearPlaceholderScreen()
+            WearApp()
         }
     }
 }
 
+/** Two screens (issue #276): [QueueScreen] (start) and [NowPlayingScreen], reached by tapping a
+ *  queued episode -- swipe-to-dismiss (standard Wear OS back gesture) returns to the queue. */
 @Composable
-private fun WearPlaceholderScreen() {
+private fun WearApp() {
+    val navController = rememberSwipeDismissableNavController()
     MaterialTheme {
-        ScalingLazyColumn(modifier = Modifier.fillMaxSize()) {
-            item { Text("MyCasts") }
+        SwipeDismissableNavHost(navController = navController, startDestination = ROUTE_QUEUE) {
+            composable(ROUTE_QUEUE) {
+                QueueScreen(onEpisodeStarted = { navController.navigate(ROUTE_NOW_PLAYING) })
+            }
+            composable(ROUTE_NOW_PLAYING) {
+                NowPlayingScreen()
+            }
         }
     }
 }
