@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches :app's launcher background (see app/src/main/res/values/colors.xml) so the
+         watch app reads as the same product. -->
+    <color name="ic_launcher_background">#FF7D00</color>
+</resources>
