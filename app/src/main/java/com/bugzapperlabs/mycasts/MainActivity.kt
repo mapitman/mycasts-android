@@ -91,6 +91,7 @@ import com.bugzapperlabs.mycasts.queue.QueueScreen
 import com.bugzapperlabs.mycasts.episodedetails.EpisodeDetailsScreen
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduler
 import com.bugzapperlabs.mycasts.settings.SettingsScreen
+import com.bugzapperlabs.mycasts.sync.QueueSyncPublisher
 import com.bugzapperlabs.mycasts.ui.adaptive.ListDetailPaneHost
 import com.bugzapperlabs.mycasts.ui.adaptive.isExpandedWindowWidth
 import com.bugzapperlabs.mycasts.ui.theme.MyCastsTheme
@@ -130,6 +131,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var playbackController: PlaybackController
 
+    @Inject
+    lateinit var queueSyncPublisher: QueueSyncPublisher
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -142,6 +146,12 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             feedRefreshScheduler.schedule(settingsDataStore.settings.first().updateIntervalMinutes)
         }
+
+        // Same reasoning as the refresh scheduling above (issue #276) -- kept off
+        // Application.onCreate() so Robolectric-hosted unit tests never start a real background
+        // sync to a real database/Play Services. start() is idempotent (QueueSyncPublisher is a
+        // Hilt singleton), so a config-change recreation of this Activity is harmless.
+        queueSyncPublisher.start()
 
         // Refreshes the home-screen widget's unread counts on every app launch (issue #24); the
         // other trigger is FeedRefreshWorker completing a scheduled background refresh.

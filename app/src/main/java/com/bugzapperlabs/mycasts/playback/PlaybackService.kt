@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.util.Log
 import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -46,6 +47,7 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.repository.QueueRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
+import com.bugzapperlabs.mycasts.sync.WearSyncClient
 import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +63,7 @@ import javax.inject.Inject
 
 // Safety cap on the advance-to-next-episode wake lock below, so a stuck/crashed advance can't
 // hold it forever.
+private const val TAG = "PlaybackService"
 private const val ADVANCE_WAKE_LOCK_TIMEOUT_MS = 30_000L
 
 // How much of the Next Up head episode to keep buffered ahead of time (issue #87). The observed
@@ -183,6 +186,9 @@ class PlaybackService : MediaLibraryService() {
 
     @Inject
     lateinit var networkTypeChecker: NetworkTypeChecker
+
+    @Inject
+    lateinit var wearSyncClient: WearSyncClient
 
     private lateinit var player: ExoPlayer
 
@@ -956,7 +962,15 @@ class PlaybackService : MediaLibraryService() {
 
     private fun saveCurrentPosition() {
         val itemId = player.currentMediaItem?.mediaId ?: return
-        val positionSeconds = player.currentPosition / 1000.0
-        serviceScope.launch { feedRepository.setEnclosurePosition(itemId, positionSeconds) }
+        val positionMs = player.currentPosition
+        serviceScope.launch { feedRepository.setEnclosurePosition(itemId, positionMs / 1000.0) }
+        // issue #276: pushed on the same 5s cadence as the local save above, so a paired watch's
+        // resume point never drifts far behind whichever device is actually playing. Failures
+        // (no paired watch, Play Services unavailable) are swallowed -- this is best-effort and
+        // must never affect local playback/position saving above.
+        serviceScope.launch {
+            runCatching { wearSyncClient.putPosition(itemId, positionMs, System.currentTimeMillis()) }
+                .onFailure { Log.w(TAG, "Failed to push position to watch", it) }
+        }
     }
 }

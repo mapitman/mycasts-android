@@ -1,8 +1,8 @@
-package com.bugzapperlabs.mycasts.wear.di
+package com.bugzapperlabs.mycasts.di
 
 import android.content.Context
+import com.bugzapperlabs.mycasts.sync.PlayServicesWearSyncClient
 import com.bugzapperlabs.mycasts.sync.WearSyncClient
-import com.bugzapperlabs.mycasts.wear.sync.PlayServicesWearSyncClient
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.Wearable
 import dagger.Binds
@@ -13,6 +13,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
+/**
+ * Shared by `:app` and `:wear` (issue #276) -- `@InstallIn(SingletonComponent::class)` applies
+ * per hosting Android application, so defining this once in `:core` wires a [WearSyncClient]
+ * into both apps' Hilt components instead of needing an identical module in each.
+ */
 @Module
 @InstallIn(SingletonComponent::class)
 object WearDataClientModule {

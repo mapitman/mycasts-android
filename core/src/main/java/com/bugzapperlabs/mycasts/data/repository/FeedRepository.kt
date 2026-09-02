@@ -37,6 +37,13 @@ class FeedRepository @Inject constructor(
      */
     suspend fun subscribe(feed: Feed): Long = feed.feedUrl?.let { feedDao.findByFeedUrl(it)?.id } ?: feedDao.insert(feed)
 
+    /** Applying a synced [com.bugzapperlabs.mycasts.sync.SyncQueueItem]'s parent feed on a Wear OS
+     *  watch (issue #276) -- unlike [subscribe], the watch already knows the phone-assigned
+     *  [Feed.id] and just needs its own local row to exist/stay current for the FK on `feed_items`
+     *  and for queue display (title/artwork), so this always writes rather than de-duplicating by
+     *  URL. */
+    suspend fun upsertSyncedFeed(feed: Feed) = feedDao.upsert(feed)
+
     /**
      * Deleting the feed cascades to `feed_items` via a raw SQL `ON DELETE CASCADE` foreign key at
      * the database level (issue #183), bypassing all application code -- including the eviction

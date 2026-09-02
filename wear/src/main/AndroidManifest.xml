@@ -33,5 +33,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Wakes this app to apply an incoming queue/position sync from the phone (issue #276)
+             even when it isn't already running; see WearSyncListenerService's own doc. Filtered
+             by path (rather than the deprecated catch-all BIND_LISTENER) so the system only wakes
+             this app for paths it actually handles. -->
+        <service
+            android:name=".sync.WearSyncListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/queue" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/position" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

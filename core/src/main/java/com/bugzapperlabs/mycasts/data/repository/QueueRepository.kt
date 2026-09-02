@@ -163,4 +163,13 @@ class QueueRepository @Inject constructor(
      *  cascade-delete of the previous feeds/items/queue, so this only needs to insert the backup's
      *  own queue rows back afterward. */
     suspend fun replaceAllEntries(entries: List<QueueEntry>) = queueDao.insertAll(entries)
+
+    /** Applying a synced Next Up snapshot on a Wear OS watch (issue #276): unlike
+     *  [replaceAllEntries] (restoring into an already-empty DB), a repeat sync needs stale
+     *  entries -- removed from the queue on the phone since the last sync -- actually cleared
+     *  first, not just left behind alongside the new ones. */
+    suspend fun replaceQueueFromSync(entries: List<QueueEntry>) {
+        queueDao.clear()
+        queueDao.insertAll(entries)
+    }
 }

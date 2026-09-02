@@ -64,13 +64,13 @@ dependencies {
     implementation(libs.androidx.wear.compose.material)
     implementation(libs.androidx.wear.compose.foundation)
     implementation(libs.androidx.wear.compose.navigation)
-    implementation(libs.play.services.wearable)
+    // play-services-wearable and kotlinx-coroutines-play-services come transitively from :core's
+    // api dependency (PlayServicesWearSyncClient lives there) -- no need to redeclare.
     implementation(libs.hilt.android)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
     implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.coroutines.play.services)
     ksp(libs.hilt.android.compiler)
 
     testImplementation(libs.junit)
