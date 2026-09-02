@@ -101,6 +101,22 @@
                 android:resource="@xml/unread_widget_info" />
         </receiver>
 
+        <!-- Wakes this app to apply an incoming position report from the watch (issue #276) even
+             when it isn't already running; see PhoneSyncListenerService's own doc. Filtered by
+             path (rather than the deprecated catch-all BIND_LISTENER) so the system only wakes
+             this app for paths it actually handles. -->
+        <service
+            android:name=".sync.PhoneSyncListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/position" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

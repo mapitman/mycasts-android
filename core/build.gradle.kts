@@ -49,6 +49,11 @@ dependencies {
     api(libs.androidx.room.runtime)
     api(libs.androidx.room.ktx)
     api(libs.androidx.datastore.preferences)
+    // api: :app's and :wear's own code doesn't reference DataClient directly today, but PlayServicesWearSyncClient's
+    // constructor and WearSyncModule's @Provides both do, and those live in :core -- api keeps that resolvable
+    // without every dependent module redeclaring the same Play Services dependency.
+    api(libs.play.services.wearable)
+    implementation(libs.kotlinx.coroutines.play.services)
     ksp(libs.hilt.android.compiler)
     ksp(libs.androidx.room.compiler)
 

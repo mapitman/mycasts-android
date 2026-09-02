@@ -10,6 +10,11 @@ import kotlinx.coroutines.flow.asStateFlow
  * and [putPosition] record what was sent (via [sentQueueSnapshots]/[sentPositions]) and separately
  * feed [observeQueueSnapshots]/[observePositionUpdates], so a test can drive both "what did we send
  * out" and "what did we receive" without a real two-device round trip.
+ *
+ * Lives in `main`, not `test`, even though it's only ever used from tests: `:app` and `:wear`
+ * both need it in their own test source sets, and neither can see another module's `test`
+ * sourceSet without `:core` publishing a `testFixtures` variant -- not worth the extra Gradle
+ * wiring for one small fake class.
  */
 class FakeWearSyncClient : WearSyncClient {
     val sentQueueSnapshots = mutableListOf<List<SyncQueueItem>>()
