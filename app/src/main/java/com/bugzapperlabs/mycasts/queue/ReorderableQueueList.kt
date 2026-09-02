@@ -620,9 +620,10 @@ private fun RowScope.QueueRowContent(
             color = if (isCurrentlyPlaying) MaterialTheme.colorScheme.primary else Color.Unspecified,
             maxLines = 1,
         )
-        if (episode.feedTitle != null) {
+        val feedTitle = episode.feedTitle
+        if (feedTitle != null) {
             Text(
-                text = episode.feedTitle,
+                text = feedTitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

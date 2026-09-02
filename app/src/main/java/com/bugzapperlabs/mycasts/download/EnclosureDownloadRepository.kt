@@ -4,6 +4,7 @@ import android.content.Context
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.repository.FeedRepository
+import com.bugzapperlabs.mycasts.data.repository.QueueDownloadTrigger
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -15,7 +16,7 @@ class EnclosureDownloadRepository @Inject constructor(
     private val feedRepository: FeedRepository,
     private val downloadScheduling: DownloadScheduling,
     private val settingsDataStore: SettingsDataStore,
-) {
+) : QueueDownloadTrigger {
     suspend fun startDownload(item: FeedItem, autoDownloaded: Boolean = false) {
         if (!item.isPodcastEpisode) return
         feedRepository.setAutoDownloaded(item.id, autoDownloaded)
@@ -38,7 +39,7 @@ class EnclosureDownloadRepository @Inject constructor(
      * whether the job actually runs, so this never bypasses the user's mobile-data/battery
      * preferences even when triggered unconditionally.
      */
-    suspend fun ensureDownloaded(item: FeedItem) {
+    override suspend fun ensureDownloaded(item: FeedItem) {
         if (!item.isPodcastEpisode) return
         if (item.downloadedFilePath != null || item.downloadedBytes != null) return
         startDownload(item, autoDownloaded = true)

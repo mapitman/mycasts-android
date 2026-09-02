@@ -269,7 +269,7 @@ class FeedUpdateEngine @Inject constructor(
         // already had -- an item with no publishDate is kept (can't tell its age) but sorts last,
         // behind everything whose date we do know (issue #238).
         val recentNewItemIds = newItems
-            .filter { previousMaxPublishDate == null || it.publishDate == null || it.publishDate >= previousMaxPublishDate }
+            .filter { val publishDate = it.publishDate; previousMaxPublishDate == null || publishDate == null || publishDate >= previousMaxPublishDate }
             .sortedByDescending { it.publishDate ?: Long.MIN_VALUE }
             .map { it.id }
 

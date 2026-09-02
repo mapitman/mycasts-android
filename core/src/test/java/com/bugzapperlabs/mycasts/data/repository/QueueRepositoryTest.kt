@@ -9,11 +9,6 @@ import com.bugzapperlabs.mycasts.data.local.AppDatabase
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
-import com.bugzapperlabs.mycasts.download.DownloadScheduling
-import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
-import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -54,20 +49,12 @@ class QueueRepositoryTest {
             produceFile = { File(tempFolder.newFolder(), "test.preferences_pb") },
         )
         settingsDataStore = SettingsDataStore(dataStore)
-        val downloadRepository = EnclosureDownloadRepository(
-            feedRepository = feedRepository,
-            downloadScheduling = object : DownloadScheduling {
-                override fun enqueueDownload(itemId: String, allowMobileData: Boolean, allowOnBattery: Boolean) {
-                    enqueuedDownloadItemIds += itemId
-                }
-                override fun cancelDownload(itemId: String) {}
-                override fun cancelAllDownloads() {}
-                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
-                override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
-            },
-            settingsDataStore = settingsDataStore,
-        )
-        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository, settingsDataStore)
+        val downloadTrigger = object : QueueDownloadTrigger {
+            override suspend fun ensureDownloaded(item: FeedItem) {
+                enqueuedDownloadItemIds += item.id
+            }
+        }
+        queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadTrigger, settingsDataStore)
 
         feedId = feedRepository.subscribe(Feed(title = "A Feed"))
         feedRepository.insertItems(
@@ -352,7 +339,6 @@ class QueueRepositoryTest {
         queueRepository.addToEnd("podcast-1")
 
         assertEquals(listOf("podcast-1"), enqueuedDownloadItemIds)
-        assertTrue(feedRepository.getItem("podcast-1")!!.autoDownloaded)
     }
 
     @Test
@@ -371,30 +357,11 @@ class QueueRepositoryTest {
         assertEquals(listOf("podcast-1"), enqueuedDownloadItemIds)
     }
 
-    @Test
-    fun addToEnd_alreadyDownloaded_doesNotRestartDownload() = runTest {
-        feedRepository.insertItems(
-            listOf(
-                FeedItem(
-                    id = "podcast-1", feedId = feedId, title = "Podcast Episode", itemGuid = "gp1",
-                    enclosureUrl = "https://example.com/1.mp3", enclosureType = "audio/mpeg",
-                    downloadedFilePath = "/tmp/already.mp3",
-                ),
-            ),
-        )
-
-        queueRepository.addToEnd("podcast-1")
-
-        assertTrue(enqueuedDownloadItemIds.isEmpty())
-    }
-
-    @Test
-    fun addToEnd_nonPodcastEpisode_doesNotStartDownload() = runTest {
-        // ep-1 (from setUp) has no enclosure.
-        queueRepository.addToEnd("ep-1")
-
-        assertTrue(enqueuedDownloadItemIds.isEmpty())
-    }
+    // "Already downloaded"/"non-podcast episode" guards are QueueDownloadTrigger's own contract,
+    // not QueueRepository's -- covered by EnclosureDownloadRepositoryTest's
+    // ensureDownloaded_alreadyDownloaded_doesNotRestartDownload and
+    // ensureDownloaded_nonPodcastEpisode_doesNothing. QueueRepository's own contract is just
+    // "call the trigger when downloadOnAddToNextUp is on", verified above and below.
 
     @Test
     fun moveToFront_doesNotStartDownload() = runTest {

@@ -5,7 +5,6 @@ import com.bugzapperlabs.mycasts.data.local.QueueEntry
 import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
-import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -15,7 +14,7 @@ import javax.inject.Inject
 class QueueRepository @Inject constructor(
     private val queueDao: QueueDao,
     private val feedRepository: FeedRepository,
-    private val downloadRepository: EnclosureDownloadRepository,
+    private val downloadRepository: QueueDownloadTrigger,
     private val settingsDataStore: SettingsDataStore,
 ) {
     fun observeQueue(): Flow<List<QueuedEpisode>> = queueDao.observeQueue()
@@ -83,7 +82,7 @@ class QueueRepository @Inject constructor(
      * #219 follow-up: added so this can be turned off, falling back to episodes only ever
      * downloading via an explicit single-episode download tap) -- not called from [moveToFront],
      * since that just marks an already-queued (or not) episode as "now playing" rather than the
-     * user/auto-queue actually adding it to Next Up. See [EnclosureDownloadRepository.ensureDownloaded]
+     * user/auto-queue actually adding it to Next Up. See [QueueDownloadTrigger.ensureDownloaded]
      * for the actual already-downloaded/mid-download guard.
      */
     private suspend fun triggerDownload(itemId: String) {
