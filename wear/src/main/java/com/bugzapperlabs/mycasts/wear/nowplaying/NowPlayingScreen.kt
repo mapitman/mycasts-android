@@ -1,7 +1,7 @@
 package com.bugzapperlabs.mycasts.wear.nowplaying
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,11 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.wear.compose.material.Button
@@ -45,37 +41,33 @@ import androidx.wear.compose.material.Text
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToLong
 
-// One rotary "tick" is a handful of scroll pixels (device-dependent); scaling by this amount
-// gives a seek granularity that feels proportional to how far the crown/bezel is turned, rather
-// than jumping by a huge or imperceptibly small amount per tick.
-private const val ROTARY_MS_PER_PIXEL = 40L
-
 /** The watch's transport screen (issue #276/#285): play/pause, skip forward/backward, a
- *  draggable/rotary-seekable progress bar, next/previous-episode, and a speed toggle -- trimmed
- *  from `:app`'s in-page player only in that there's no chapters UI, since chapters aren't part of
- *  the synced [com.bugzapperlabs.mycasts.data.local.Feed]/[com.bugzapperlabs.mycasts.data.local.FeedItem]
- *  snapshot on the watch. */
+ *  draggable seek bar, next/previous-episode, and a speed toggle -- trimmed from `:app`'s in-page
+ *  player only in that there's no chapters UI, since chapters aren't part of the synced
+ *  [com.bugzapperlabs.mycasts.data.local.Feed]/[com.bugzapperlabs.mycasts.data.local.FeedItem]
+ *  snapshot on the watch.
+ *
+ *  Deliberately doesn't claim the rotary input (crown/bezel) for seeking: that's the system's own
+ *  volume control on Wear OS (with its own rounded volume indicator), and hijacking it away from
+ *  that expectation surprised real-device testing more than it helped. */
 @Composable
 fun NowPlayingScreen(viewModel: NowPlayingViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp)
-            .onRotaryScrollEvent { event ->
-                val deltaMs = (event.verticalScrollPixels * ROTARY_MS_PER_PIXEL).roundToLong()
-                viewModel.seekTo((uiState.positionMs + deltaMs).coerceIn(0L, uiState.durationMs))
-                true
-            }
-            .focusRequester(focusRequester)
-            .focusable(),
+            .padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(uiState.title ?: "Nothing playing", maxLines = 2)
+        // basicMarquee (issue #285 follow-up): matches how Wear OS's own system media control
+        // card scrolls a title too long to fit, rather than truncating it.
+        Text(
+            uiState.title ?: "Nothing playing",
+            maxLines = 1,
+            modifier = Modifier.basicMarquee(),
+        )
         uiState.feedTitle?.let { Text(it, maxLines = 1) }
 
         SeekBar(
@@ -140,8 +132,7 @@ fun NowPlayingScreen(viewModel: NowPlayingViewModel = hiltViewModel()) {
 
 /** A draggable progress indicator (issue #285) -- position updates live while dragging and the
  *  actual seek fires once on release, so a slow drag doesn't spam the player with intermediate
- *  seeks. Rotary input (the screen's own [Modifier.onRotaryScrollEvent]) is the other way to seek,
- *  for watches without (or in addition to) a touchscreen-friendly drag target this small. */
+ *  seeks. */
 @Composable
 private fun SeekBar(positionMs: Long, durationMs: Long, onSeek: (Long) -> Unit) {
     var dragFraction by remember { mutableStateOf<Float?>(null) }
