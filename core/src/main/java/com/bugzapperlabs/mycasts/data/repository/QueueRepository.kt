@@ -140,6 +140,10 @@ class QueueRepository @Inject constructor(
      *  advancing to it shouldn't also dequeue it the way the old pop-and-remove semantics did. */
     suspend fun peekFront(): String? = queueDao.firstItemId()
 
+    /** All queued item ids in position order (issue #285), for a "next episode" transport control
+     *  to find whatever comes after the currently-playing (front) entry. */
+    suspend fun orderedItemIds(): List<String> = queueDao.orderedItemIds()
+
     /**
      * Evicts this feed's oldest *auto-queued* episodes (earliest added, not earliest published)
      * down to [maxCount] (issue #68) -- manually-queued entries are never evicted by this, so a

@@ -205,6 +205,20 @@ class QueueRepositoryTest {
     }
 
     @Test
+    fun orderedItemIds_returnsQueueInPositionOrder() = runTest {
+        queueRepository.addToEnd("ep-1")
+        queueRepository.addToEnd("ep-2")
+        queueRepository.addToEnd("ep-3")
+
+        assertEquals(listOf("ep-1", "ep-2", "ep-3"), queueRepository.orderedItemIds())
+    }
+
+    @Test
+    fun orderedItemIds_emptyQueue_returnsEmptyList() = runTest {
+        assertEquals(emptyList<String>(), queueRepository.orderedItemIds())
+    }
+
+    @Test
     fun moveToFront_alreadyQueued_movesExistingEntryToFront() = runTest {
         queueRepository.addToEnd("ep-1")
         queueRepository.addToEnd("ep-2")
