@@ -62,16 +62,24 @@ jobs:
       # AGP's default app-release.apk name (issue #199) doesn't say what app or version it is --
       # every release would otherwise download to the same generic filename, colliding with (and
       # silently shadowing) whichever earlier release the browser/OS already saved under it.
-      - name: Rename APK with app name and version
+      - name: Rename APKs with app name and version
         id: apk
         run: |
-          RENAMED="app/build/outputs/apk/release/mycasts-v${{ steps.version.outputs.name }}.apk"
-          mv app/build/outputs/apk/release/app-release.apk "$RENAMED"
-          echo "path=$RENAMED" >> "$GITHUB_OUTPUT"
+          RENAMED_APP="app/build/outputs/apk/release/mycasts-v${{ steps.version.outputs.name }}.apk"
+          mv app/build/outputs/apk/release/app-release.apk "$RENAMED_APP"
+          echo "app_path=$RENAMED_APP" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release and upload APK
+          # issue #289: :wear now has a signingConfig too, so this is a signed, installable APK
+          # rather than the wear-release-unsigned.apk AGP produces without one.
+          RENAMED_WEAR="wear/build/outputs/apk/release/mycasts-wear-v${{ steps.version.outputs.name }}.apk"
+          mv wear/build/outputs/apk/release/wear-release.apk "$RENAMED_WEAR"
+          echo "wear_path=$RENAMED_WEAR" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release and upload APKs
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.apk.outputs.path }}
+          files: |
+            ${{ steps.apk.outputs.app_path }}
+            ${{ steps.apk.outputs.wear_path }}
           name: "v${{ steps.version.outputs.name }}"
           generate_release_notes: true
