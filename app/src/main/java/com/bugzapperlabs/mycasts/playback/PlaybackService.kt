@@ -749,6 +749,15 @@ class PlaybackService : MediaLibraryService() {
             // or a queue mutation landing in that gap would replace the real current item (now at
             // index 1) instead of the actual lookahead tail.
             player.removeMediaItem(0)
+            // issue #287: START_POSITION_MS_EXTRA_KEY is a custom extra PlaybackMediaItemFactory
+            // bakes into each resolved MediaItem's metadata -- ExoPlayer's own Timeline has no
+            // native concept of a per-item start position, so a seamless native auto-transition
+            // like this one never seeks there on its own (unlike playNextQueued's manual
+            // setMediaItem(item, startPositionMs)/seekTo below, which does). Without this, an
+            // episode resumed via this fast path always started over from 0 regardless of whatever
+            // position was actually saved for it.
+            val startPositionMs = newPosition.mediaItem?.mediaMetadata?.extras?.getLong(START_POSITION_MS_EXTRA_KEY) ?: 0L
+            if (startPositionMs > 0L) player.seekTo(startPositionMs)
             advanceWakeLock.acquire(ADVANCE_WAKE_LOCK_TIMEOUT_MS)
             serviceScope.launch { onEpisodeFinished(finishedItemId) }
         }
