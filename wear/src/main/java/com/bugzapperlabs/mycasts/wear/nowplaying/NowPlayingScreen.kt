@@ -65,8 +65,11 @@ private const val ROTARY_PIXELS_PER_VOLUME_STEP = 15f
  *  snapshot on the watch.
  *
  *  The rotary input (crown/bezel) drives system media volume here, not seeking -- that's the
- *  Wear OS convention (with its own rounded volume indicator), and it isn't automatic: a media
- *  app has to explicitly forward rotary events to [AudioManager.adjustStreamVolume] itself. */
+ *  Wear OS convention, and it isn't automatic: a media app has to explicitly forward rotary
+ *  events to [AudioManager.adjustStreamVolume] itself. No `FLAG_SHOW_UI` (issue #285 follow-up):
+ *  that flag launches the system's own `VolumeActivity` as a separate, focus-stealing Activity on
+ *  Wear OS (unlike the lightweight overlay `FLAG_SHOW_UI` produces on phones), which took window
+ *  focus away from this screen after the first crown tick and silently ate every tick after that. */
 @Composable
 fun NowPlayingScreen(viewModel: NowPlayingViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
@@ -84,7 +87,7 @@ fun NowPlayingScreen(viewModel: NowPlayingViewModel = hiltViewModel()) {
                 accumulatedScrollPixels += event.verticalScrollPixels
                 if (accumulatedScrollPixels.absoluteValue >= ROTARY_PIXELS_PER_VOLUME_STEP) {
                     val direction = if (accumulatedScrollPixels.sign > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
-                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI)
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
                     accumulatedScrollPixels = 0f
                 }
                 true
