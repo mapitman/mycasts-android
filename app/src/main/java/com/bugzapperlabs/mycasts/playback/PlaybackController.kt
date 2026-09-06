@@ -248,8 +248,27 @@ class PlaybackController @Inject constructor(
             _pendingMobileDataConfirmation.value = PendingMobileDataConfirmation(item, feedTitle)
             return false
         }
+        persistOutgoingPositionIfSwitching(item.id)
         queueRepository.moveToFront(item.id)
         return loadMedia(item, feedTitle, autoPlay = true)
+    }
+
+    /**
+     * Saves whatever's currently playing at its live-tracked position (issue #287) before
+     * switching to a different episode -- without this, the outgoing episode's position was only
+     * ever persisted by [PlaybackService]'s periodic 5-second save loop (or its own
+     * on-pause save), both of which act on `player.currentMediaItem`, which typically already
+     * reflects the *new* episode by the time either fires (the switch's own `setMediaItem` call
+     * updates it synchronously, before the pause/transition listener callback is even dispatched).
+     * So the outgoing episode's last few seconds -- or, if switched away from soon after starting
+     * it, its entire progress -- never made it to `enclosurePosition`, and playing it again later
+     * (e.g. Next Up auto-advancing back to it once the episode switched to finishes) resumed from
+     * that stale value instead of where it was actually left off. [uiState]'s positionMs is ticked
+     * every 500ms in this process and reflects the true outgoing position regardless of that race.
+     */
+    private suspend fun persistOutgoingPositionIfSwitching(newItemId: String) {
+        val outgoingItemId = currentItemId?.takeIf { it != newItemId } ?: return
+        feedRepository.setEnclosurePosition(outgoingItemId, uiState.value.positionMs / 1000.0)
     }
 
     /**
@@ -262,6 +281,7 @@ class PlaybackController @Inject constructor(
         val pending = _pendingMobileDataConfirmation.value ?: return
         _pendingMobileDataConfirmation.value = null
         if (alwaysAllow) settingsDataStore.setAlwaysAllowPodcastStreamingOnMobileData(true)
+        persistOutgoingPositionIfSwitching(pending.item.id)
         queueRepository.moveToFront(pending.item.id)
         loadMedia(pending.item, pending.feedTitle, autoPlay = true, forceAllowStreaming = true)
     }

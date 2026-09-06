@@ -177,6 +177,56 @@ class PlaybackControllerTest {
         assertTrue(queueRepository.isQueued(item.id))
     }
 
+    /** Issue #287: switching away from an episode to play a different one must persist the
+     *  outgoing episode's position rather than leaving it for [PlaybackService]'s own save loop --
+     *  that loop only ever acts on `player.currentMediaItem`, which by the time either its
+     *  periodic tick or its on-pause save fires typically already reflects the *new* episode, so
+     *  without this the outgoing episode's progress was silently lost. */
+    @Test
+    fun play_switchingToADifferentEpisode_persistsOutgoingEpisodesPosition() = runTest {
+        val feedId = feedRepository.subscribe(Feed(title = "Feed"))
+        val outgoing = FeedItem(
+            id = "episode-1", feedId = feedId, itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg",
+            enclosurePosition = 987.0,
+        )
+        val incoming = FeedItem(
+            id = "episode-2", feedId = feedId, itemGuid = "g2",
+            enclosureUrl = "https://example.com/ep2.mp3", enclosureType = "audio/mpeg",
+        )
+        feedRepository.insertItems(listOf(outgoing, incoming))
+        playbackController.play(outgoing, "Feed")
+
+        playbackController.play(incoming, "Feed")
+
+        // No real MediaController is connected in this Robolectric setup, so the tracked
+        // positionMs a real switch would persist is 0 here -- what matters is that a write for the
+        // outgoing episode happens at all (overwriting its earlier stale value) rather than never
+        // happening, which is what issue #287 was about.
+        assertEquals(0.0, feedRepository.getItem(outgoing.id)?.enclosurePosition)
+        playbackController.awaitShutdownForTest()
+    }
+
+    /** Playing the same episode that's already current is not a "switch", so it must not overwrite
+     *  that episode's own just-loaded position with whatever happened to be tracked before it. */
+    @Test
+    fun play_sameEpisodeAlreadyPlaying_doesNotOverwriteItsOwnPosition() = runTest {
+        val feedId = feedRepository.subscribe(Feed(title = "Feed"))
+        val item = FeedItem(
+            id = "episode-1", feedId = feedId, itemGuid = "g1",
+            enclosureUrl = "https://example.com/ep1.mp3", enclosureType = "audio/mpeg",
+            enclosurePosition = 987.0,
+        )
+        feedRepository.insertItems(listOf(item))
+        playbackController.play(item, "Feed")
+        feedRepository.setEnclosurePosition(item.id, 42.0)
+
+        playbackController.play(item, "Feed")
+
+        assertEquals(42.0, feedRepository.getItem(item.id)?.enclosurePosition)
+        playbackController.awaitShutdownForTest()
+    }
+
     private fun newController(networkTypeChecker: NetworkTypeChecker) = PlaybackController(
         context,
         settingsDataStore,
