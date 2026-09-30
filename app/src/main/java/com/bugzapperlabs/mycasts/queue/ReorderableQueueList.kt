@@ -65,6 +65,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.ui.haptics.rememberHaptics
 
 val QUEUE_ROW_HEIGHT = 84.dp
 private val THUMBNAIL_SIZE = 48.dp
@@ -162,6 +164,7 @@ fun ReorderableQueueList(
     val swipeRevealWidthPx = with(LocalDensity.current) { SWIPE_REVEAL_WIDTH.toPx() }
     val swipeRemoveThresholdPx = with(LocalDensity.current) { SWIPE_REMOVE_THRESHOLD.toPx() }
     val listState = rememberLazyListState()
+    val haptics = rememberHaptics()
     val coroutineScope = rememberCoroutineScope()
     val playLabel = stringResource(R.string.cd_play_queue_item)
     val removeLabel = stringResource(R.string.cd_remove_from_queue)
@@ -208,6 +211,12 @@ fun ReorderableQueueList(
             items.lastIndex * itemHeightPx - absoluteScrollOffset(),
         ).coerceAtLeast(minTop)
         return visualTopY.coerceIn(minTop, maxTop)
+    }
+
+    // issue #292: a tick each time the dragged row crosses into a new slot.
+    fun moveTarget(newTarget: Int) {
+        if (newTarget != targetIndex) haptics.perform(HapticEvent.Tick)
+        targetIndex = newTarget
     }
 
     // Shared by the drag-handle drop (above) and the swipe-right move actions below -- both just
@@ -264,7 +273,7 @@ fun ReorderableQueueList(
             // The overlay (dragVisualTopY) is viewport-relative and the finger isn't moving, so
             // the row stays put on its own -- only the drop target shifts as new slots scroll in
             // under it.
-            targetIndex = targetIndexFor(dragVisualTopY)
+            moveTarget(targetIndexFor(dragVisualTopY))
             delay(AUTO_SCROLL_TICK_MS)
         }
     }
@@ -448,12 +457,15 @@ fun ReorderableQueueList(
                                         coroutineScope.launch { swipeOffsetX.animateTo(0f) }
                                     },
                                     onHorizontalDrag = { _, dragAmount ->
-                                        coroutineScope.launch {
-                                            swipeOffsetX.snapTo(
-                                                (swipeOffsetX.value + dragAmount)
-                                                    .coerceIn(-swipeRemoveThresholdPx * 1.5f, swipeRevealWidthPx),
-                                            )
-                                        }
+                                        val before = swipeOffsetX.value
+                                        val after = (before + dragAmount)
+                                            .coerceIn(-swipeRemoveThresholdPx * 1.5f, swipeRevealWidthPx)
+                                        // issue #292: one tick per crossing of the remove or
+                                        // reveal commit point, in either direction.
+                                        val removeCrossed = (before <= -swipeRemoveThresholdPx) != (after <= -swipeRemoveThresholdPx)
+                                        val revealCrossed = (before >= swipeRevealWidthPx / 2f) != (after >= swipeRevealWidthPx / 2f)
+                                        if (removeCrossed || revealCrossed) haptics.perform(HapticEvent.GestureThreshold)
+                                        coroutineScope.launch { swipeOffsetX.snapTo(after) }
                                     },
                                 )
                             }
@@ -472,6 +484,7 @@ fun ReorderableQueueList(
                                 // there's nothing useful for it to do there.
                                 onLongClick = if (isCurrentlyPlaying) null else {
                                     {
+                                        haptics.perform(HapticEvent.LongPress) // issue #292
                                         // Arms the scroll-to-top effect above for whatever episode
                                         // is playing right now -- PlaybackController requeues it to
                                         // the front of Next Up (issue #106) as part of this switch.
@@ -506,6 +519,7 @@ fun ReorderableQueueList(
                                     onDragStart = {
                                         val info = listState.layoutInfo.visibleItemsInfo
                                             .find { it.key == episode.item.id }
+                                        haptics.perform(HapticEvent.GestureStart) // issue #292
                                         draggedItemId = episode.item.id
                                         dragVisualTopY = (info?.offset ?: 0).toFloat()
                                         targetIndex = items.indexOfFirst { it.item.id == episode.item.id }
@@ -513,6 +527,7 @@ fun ReorderableQueueList(
                                     onDragEnd = {
                                         val originIdx = items.indexOfFirst { it.item.id == episode.item.id }
                                         val drop = targetIndex
+                                        haptics.perform(HapticEvent.GestureEnd) // issue #292
                                         draggedItemId = null
                                         targetIndex = -1
                                         autoScrollDirection = 0
@@ -540,7 +555,7 @@ fun ReorderableQueueList(
                                             return@detectDragGestures
                                         }
                                         dragVisualTopY = clampVisualTop(dragVisualTopY + dragAmount.y)
-                                        targetIndex = targetIndexFor(dragVisualTopY)
+                                        moveTarget(targetIndexFor(dragVisualTopY))
                                         // Edge proximity for auto-scroll (issue #211).
                                         val edge = itemHeightPx * AUTO_SCROLL_EDGE_FRACTION
                                         autoScrollDirection = when {

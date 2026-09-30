@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.bugzapperlabs.mycasts.R
 import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.ui.haptics.rememberHaptics
 
 /** issue #186: bigger than the default 48dp/24dp IconButton so transport controls stay easy to
  *  hit at a glance (e.g. while driving), with play/pause sized up further as the primary action. */
@@ -76,6 +78,13 @@ fun MiniPlayerBar(
     modifier: Modifier = Modifier,
     applyNavigationBarsPadding: Boolean = true,
 ) {
+    val haptics = rememberHaptics()
+    val onTogglePlayPause = { haptics.perform(HapticEvent.Click); onTogglePlayPause() } // issue #292
+    val onSkipBackward = { haptics.perform(HapticEvent.Click); onSkipBackward() } // issue #292
+    val onSkipForward = { haptics.perform(HapticEvent.Click); onSkipForward() } // issue #292
+    val onStop = { haptics.perform(HapticEvent.Click); onStop() } // issue #292
+    val onNextChapter = { haptics.perform(HapticEvent.Click); onNextChapter() } // issue #292
+    val onPreviousChapter = { haptics.perform(HapticEvent.Click); onPreviousChapter() } // issue #292
     val hasChapters = playbackState.chapters.isNotEmpty()
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -302,6 +311,10 @@ fun NowPlayingMiniStrip(
     // would just be the same three buttons twice on screen at once.
     showControls: Boolean = true,
 ) {
+    val haptics = rememberHaptics()
+    val onTogglePlayPause = { haptics.perform(HapticEvent.Click); onTogglePlayPause() } // issue #292
+    val onSkipBackward = { haptics.perform(HapticEvent.Click); onSkipBackward() } // issue #292
+    val onSkipForward = { haptics.perform(HapticEvent.Click); onSkipForward() } // issue #292
     Surface(
         modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
         // issue #96: inverseOnSurface, not another neutral surfaceContainer* step -- this app's

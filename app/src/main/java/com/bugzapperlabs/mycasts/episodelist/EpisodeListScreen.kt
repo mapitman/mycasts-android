@@ -41,7 +41,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import com.bugzapperlabs.mycasts.ui.components.HapticPullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -66,6 +66,8 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.isPodcastEpisode
 import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
 import com.bugzapperlabs.mycasts.ui.components.SwipeToToggleReadBox
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.ui.haptics.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -179,7 +181,7 @@ fun EpisodeListScreen(
                     text = { Text(stringResource(R.string.article_list_tab_all)) },
                 )
             }
-            PullToRefreshBox(
+            HapticPullToRefreshBox(
                 isRefreshing = uiState.isRefreshing,
                 onRefresh = viewModel::refresh,
                 modifier = Modifier.fillMaxSize(),
@@ -256,11 +258,12 @@ private fun EpisodeRow(
     onLongClick: () -> Unit,
     onAddToQueue: () -> Unit,
 ) {
+    val haptics = rememberHaptics()
     val isRowSelected = selected
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(onClick = onClick, onLongClick = { haptics.perform(HapticEvent.LongPress); onLongClick() })
             .then(if (selectionMode) Modifier.semantics { this.selected = isRowSelected } else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

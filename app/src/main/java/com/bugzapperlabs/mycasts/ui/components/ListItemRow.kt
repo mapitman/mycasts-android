@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.ui.haptics.rememberHaptics
 
 /**
  * Reusable row for feed-list and article-list screens (issues #13, #15): an optional leading
@@ -54,11 +56,16 @@ fun ListItemRow(
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = rememberHaptics()
     val isRowSelected = selected
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(
+                onClick = onClick,
+                // issue #292
+                onLongClick = onLongClick?.let { action -> { haptics.perform(HapticEvent.LongPress); action() } },
+            )
             .then(if (selectionMode) Modifier.semantics { this.selected = isRowSelected } else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

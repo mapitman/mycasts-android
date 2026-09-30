@@ -59,6 +59,8 @@ import com.bugzapperlabs.mycasts.ui.components.ConfirmDeleteDialog
 import java.util.Locale
 import kotlin.math.log10
 import kotlin.math.pow
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.ui.haptics.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -221,10 +223,11 @@ private fun DownloadedEpisodeRow(
     onLongClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val haptics = rememberHaptics()
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(onClick = onClick, onLongClick = { haptics.perform(HapticEvent.LongPress); onLongClick() })
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

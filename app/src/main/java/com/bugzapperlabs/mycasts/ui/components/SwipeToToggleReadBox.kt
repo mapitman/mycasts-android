@@ -15,6 +15,12 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.ui.haptics.rememberHaptics
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -35,12 +41,21 @@ fun SwipeToToggleReadBox(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val haptics = rememberHaptics()
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
             if (value != SwipeToDismissBoxValue.Settled) onToggleRead()
             false
         },
     )
+    // issue #292: one tick when the swipe passes the commit point (and again if the user swipes
+    // back under it), not when the action fires on release.
+    LaunchedEffect(state) {
+        snapshotFlow { state.targetValue != SwipeToDismissBoxValue.Settled }
+            .distinctUntilChanged()
+            .drop(1)
+            .collect { haptics.perform(HapticEvent.GestureThreshold) }
+    }
     SwipeToDismissBox(
         state = state,
         modifier = modifier,
