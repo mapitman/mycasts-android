@@ -34,13 +34,13 @@ Two-module Android app: `:app` (the phone UI, playback, feed ingestion, download
 
 ## Manual UI verification
 
-Don't drive the UI yourself via `adb shell input tap`/screenshots to verify a change — scripting taps through screenshot coordinates is very token-intensive and brittle. Instead: build, install, and launch the app on the connected device (`./gradlew installDebug`, then `adb shell am start -n com.bugzapperlabs.mycasts.debug/.MainActivity` -- debug builds carry a `.debug` applicationId suffix so they can coexist with a release-signed install, see "Releases" below), and hand back a numbered list of test steps for the user to perform themselves and report results.
+Don't drive the UI yourself via `adb shell input tap`/screenshots to verify a change — scripting taps through screenshot coordinates is very token-intensive and brittle. Instead: build, install, and launch the app on the connected device (`./gradlew :app:installDebug` -- not bare `installDebug`, which also installs `:wear` under the same applicationId and overwrites the phone app -- then `adb shell monkey -p com.bugzapperlabs.mycasts.debug -c android.intent.category.LAUNCHER 1` -- debug builds carry a `.debug` applicationId suffix so they can coexist with a release-signed install, see "Releases" below), and hand back a numbered list of test steps for the user to perform themselves and report results.
 
 ## Releases
 
 Tag pushes matching `vMAJOR.MINOR.PATCH` (e.g. `v1.2.3`) trigger `.github/workflows/release.yml`,
 which builds a signed release APK, derives `versionName`/`versionCode` from the tag
-(versionCode = major*10000 + minor*100 + patch -- keep minor/patch under 100), and publishes a
+(versionCode = major*10000 + minor*100 + patch -- keep minor/patch under 100; both `:app` and `:wear` read the same `-PreleaseVersionName`/`-PreleaseVersionCode` properties), and publishes a
 GitHub Release with the APK attached and an auto-generated changelog. `scripts/generate-release-keystore.sh`
 creates the signing keystore (wraps `keytool`, prompts for passwords). Signing uses that keystore
 stored (base64) in the `RELEASE_KEYSTORE_BASE64` secret, decoded to a temp file at build time;
