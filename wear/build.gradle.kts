@@ -12,6 +12,12 @@ android {
     namespace = "com.bugzapperlabs.mycasts.wear"
     compileSdk = 36
 
+    // Same -PreleaseVersionName/-PreleaseVersionCode properties and defaults as :app (issue #296),
+    // so the wear APK in a release carries the tag's version instead of a hardcoded 0.1.0/1 --
+    // otherwise every release's wear APK has versionCode 1 and can't upgrade an installed one.
+    val releaseVersionName = (project.findProperty("releaseVersionName") as String?) ?: "0.1.0"
+    val releaseVersionCode = (project.findProperty("releaseVersionCode") as String?)?.toIntOrNull() ?: 1
+
     defaultConfig {
         // Must match :app's applicationId exactly (issue #276): the Wear OS Data Layer API only
         // syncs data between a phone app and a watch app that share the same package name -- two
@@ -23,8 +29,8 @@ android {
         applicationId = "com.bugzapperlabs.mycasts"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = releaseVersionCode
+        versionName = releaseVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
