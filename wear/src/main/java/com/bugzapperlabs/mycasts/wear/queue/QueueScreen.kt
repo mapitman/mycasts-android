@@ -15,6 +15,8 @@ import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.ListHeader
 import androidx.wear.compose.material.Text
 import com.bugzapperlabs.mycasts.data.local.QueuedEpisode
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.wear.haptics.rememberHaptics
 
 /** The watch's Next Up list (issue #276) -- read-only (no reorder/remove; those stay phone-side
  *  edits that sync down), tapping an episode starts playing it. */
@@ -40,8 +42,9 @@ fun QueueScreen(onEpisodeStarted: () -> Unit, viewModel: QueueViewModel = hiltVi
 
 @Composable
 private fun QueueRow(episode: QueuedEpisode, isCurrentlyPlaying: Boolean, onClick: () -> Unit) {
+    val haptics = rememberHaptics()
     Chip(
-        onClick = onClick,
+        onClick = { haptics.perform(HapticEvent.Click); onClick() }, // issue #294
         label = { Text(episode.item.title.orEmpty(), maxLines = 1) },
         secondaryLabel = {
             Text(if (isCurrentlyPlaying) "Now Playing" else episode.feedTitle.orEmpty(), maxLines = 1)
