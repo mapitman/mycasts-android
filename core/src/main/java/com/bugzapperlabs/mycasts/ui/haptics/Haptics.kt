@@ -3,11 +3,8 @@ package com.bugzapperlabs.mycasts.ui.haptics
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalView
 
-/** App-level haptic events (issue #292); [Haptics] maps each to a platform effect. */
+/** App-level haptic events (issue #292); [Haptics] maps each to a platform effect. Shared by `:app` and `:wear` (issue #294). */
 enum class HapticEvent {
     /** A swipe or pull crossed the point where release commits its action. */
     GestureThreshold,
@@ -65,10 +62,4 @@ class Haptics(private val view: View, private val sdkInt: Int = Build.VERSION.SD
     }
 
     fun toggle(on: Boolean) = perform(if (on) HapticEvent.ToggleOn else HapticEvent.ToggleOff)
-}
-
-@Composable
-fun rememberHaptics(): Haptics {
-    val view = LocalView.current
-    return remember(view) { Haptics(view) }
 }

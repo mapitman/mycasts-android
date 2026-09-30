@@ -51,6 +51,8 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 import kotlin.math.roundToLong
 import kotlin.math.sign
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.wear.haptics.rememberHaptics
 
 // Accumulated scroll pixels needed before firing one AudioManager.ADJUST_RAISE/LOWER step.
 // Calibrated against real Pixel Watch 4 hardware (issue #285 follow-up): a single unhurried
@@ -114,16 +116,17 @@ fun NowPlayingScreen(viewModel: NowPlayingViewModel = hiltViewModel()) {
         Text("${formatDuration(uiState.positionMs)} / ${formatDuration(uiState.durationMs)}")
         if (uiState.isBuffering) Text("Buffering…")
 
+        val haptics = rememberHaptics()
         Row(verticalAlignment = Alignment.CenterVertically) {
             Button(
-                onClick = viewModel::skipBackward,
+                onClick = { haptics.perform(HapticEvent.Click); viewModel.skipBackward() }, // issue #294
                 colors = ButtonDefaults.secondaryButtonColors(),
                 modifier = Modifier.size(ButtonDefaults.SmallButtonSize),
             ) {
                 Icon(Icons.Filled.FastRewind, contentDescription = "Back 15 seconds")
             }
             Button(
-                onClick = viewModel::togglePlayPause,
+                onClick = { haptics.perform(HapticEvent.Click); viewModel.togglePlayPause() }, // issue #294
                 modifier = Modifier
                     .padding(horizontal = 8.dp)
                     .size(ButtonDefaults.DefaultButtonSize),
@@ -134,7 +137,7 @@ fun NowPlayingScreen(viewModel: NowPlayingViewModel = hiltViewModel()) {
                 )
             }
             Button(
-                onClick = viewModel::skipForward,
+                onClick = { haptics.perform(HapticEvent.Click); viewModel.skipForward() }, // issue #294
                 colors = ButtonDefaults.secondaryButtonColors(),
                 modifier = Modifier.size(ButtonDefaults.SmallButtonSize),
             ) {
@@ -144,19 +147,19 @@ fun NowPlayingScreen(viewModel: NowPlayingViewModel = hiltViewModel()) {
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Button(
-                onClick = viewModel::previousEpisode,
+                onClick = { haptics.perform(HapticEvent.Click); viewModel.previousEpisode() }, // issue #294
                 colors = ButtonDefaults.secondaryButtonColors(),
                 modifier = Modifier.size(ButtonDefaults.SmallButtonSize),
             ) {
                 Icon(Icons.Filled.SkipPrevious, contentDescription = "Restart episode")
             }
             CompactChip(
-                onClick = viewModel::cycleSpeed,
+                onClick = { haptics.perform(HapticEvent.Click); viewModel.cycleSpeed() }, // issue #294
                 label = { Text("${uiState.speed}x") },
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
             Button(
-                onClick = viewModel::nextEpisode,
+                onClick = { haptics.perform(HapticEvent.Click); viewModel.nextEpisode() }, // issue #294
                 colors = ButtonDefaults.secondaryButtonColors(),
                 modifier = Modifier.size(ButtonDefaults.SmallButtonSize),
             ) {
