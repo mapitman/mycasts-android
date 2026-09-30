@@ -81,6 +81,8 @@ import com.bugzapperlabs.mycasts.ui.components.ReaderText
 import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.ui.haptics.rememberHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -257,10 +259,18 @@ private fun SectionHeader(title: String) {
 
 @Composable
 private fun SwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val haptics = rememberHaptics()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .toggleable(value = checked, onValueChange = onCheckedChange, role = Role.Switch)
+            .toggleable(
+                value = checked,
+                onValueChange = {
+                    haptics.toggle(it) // issue #292
+                    onCheckedChange(it)
+                },
+                role = Role.Switch,
+            )
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -299,6 +309,7 @@ private fun UpdateIntervalSetting(settings: AppSettings, viewModel: SettingsView
 
 @Composable
 private fun MaxItemsPerFeedSetting(settings: AppSettings, viewModel: SettingsViewModel) {
+    val haptics = rememberHaptics()
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text(
             if (settings.maxItemsPerFeed == UNLIMITED_ITEMS_TO_KEEP) {
@@ -314,7 +325,11 @@ private fun MaxItemsPerFeedSetting(settings: AppSettings, viewModel: SettingsVie
             } else {
                 settings.maxItemsPerFeed.toFloat()
             },
-            onValueChange = { viewModel.setMaxItemsPerFeed(itemsToKeepFromSliderPosition(it)) },
+            onValueChange = {
+                val newValue = itemsToKeepFromSliderPosition(it)
+                if (newValue != settings.maxItemsPerFeed) haptics.perform(HapticEvent.Tick) // issue #292
+                viewModel.setMaxItemsPerFeed(newValue)
+            },
             valueRange = 5f..MAX_ARTICLES_SLIDER_UNLIMITED_POSITION,
             steps = 19,
             // Reserves the slider's own bounds from the system back-gesture swipe (issue #302) --
@@ -471,6 +486,7 @@ private fun PodcastSearchDialog(settings: AppSettings, viewModel: SettingsViewMo
 
 @Composable
 private fun FontSizeRow(scale: Float, onScaleChange: (Float) -> Unit) {
+    val haptics = rememberHaptics()
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Text(
             stringResource(R.string.settings_font_size, (scale * 100).roundToInt()),
@@ -478,7 +494,10 @@ private fun FontSizeRow(scale: Float, onScaleChange: (Float) -> Unit) {
         )
         Slider(
             value = scale,
-            onValueChange = onScaleChange,
+            onValueChange = {
+                if (it != scale) haptics.perform(HapticEvent.Tick) // issue #292
+                onScaleChange(it)
+            },
             valueRange = FONT_SCALE_MIN..FONT_SCALE_MAX,
             // FONT_SCALE_STEP-increment stops (issue #125) so 100%/125%/200% land exactly on a
             // stop rather than needing a pixel-precise drag -- Slider's `steps` counts only the

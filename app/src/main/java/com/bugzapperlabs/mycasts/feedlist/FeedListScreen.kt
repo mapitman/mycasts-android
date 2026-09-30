@@ -39,6 +39,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.pullToRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import com.bugzapperlabs.mycasts.ui.components.PullThresholdHaptics
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -212,6 +213,7 @@ fun FeedListScreen(
                 // itself stays -- just requires a more deliberate pull to actually fire.
                 val pullToRefreshThreshold = PullToRefreshDefaults.PositionalThreshold * 2
                 val pullToRefreshState = rememberPullToRefreshState()
+                PullThresholdHaptics(pullToRefreshState, uiState.isRefreshing)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -52,6 +52,8 @@ import com.bugzapperlabs.mycasts.data.settings.itemsToKeepFromSliderPosition
 import com.bugzapperlabs.mycasts.ui.components.excludeFromSystemGestures
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import com.bugzapperlabs.mycasts.ui.haptics.HapticEvent
+import com.bugzapperlabs.mycasts.ui.haptics.rememberHaptics
 
 /** "Skip at start" slider bounds (issue #154), replacing the old fixed 0/15/30/45/60 chips. */
 private const val START_SKIP_SECONDS_MIN = 0f
@@ -66,6 +68,7 @@ fun FeedPropertiesScreen(
     onBack: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val haptics = rememberHaptics()
     var showUnsubscribeConfirm by remember { mutableStateOf(false) }
     var editedTitle by remember { mutableStateOf<String?>(null) }
     val clipboardManager = LocalClipboardManager.current
@@ -133,6 +136,7 @@ fun FeedPropertiesScreen(
 
             val useGlobalMax = uiState.itemsToKeep == null
             val onUseGlobalMaxChange: (Boolean) -> Unit = { checked ->
+                haptics.toggle(checked) // issue #292
                 viewModel.setItemsToKeep(if (checked) null else uiState.globalMaxItems)
             }
             Column(
@@ -163,7 +167,11 @@ fun FeedPropertiesScreen(
                 )
                 Slider(
                     value = if (itemsToKeep == UNLIMITED_ITEMS_TO_KEEP) MAX_ARTICLES_SLIDER_UNLIMITED_POSITION else itemsToKeep.toFloat(),
-                    onValueChange = { viewModel.setItemsToKeep(itemsToKeepFromSliderPosition(it)) },
+                    onValueChange = {
+                        val newValue = itemsToKeepFromSliderPosition(it)
+                        if (newValue != itemsToKeep) haptics.perform(HapticEvent.Tick) // issue #292
+                        viewModel.setItemsToKeep(newValue)
+                    },
                     valueRange = 5f..MAX_ARTICLES_SLIDER_UNLIMITED_POSITION,
                     steps = 19,
                     // Reserves the slider's own bounds from the system back-gesture swipe (issue
@@ -200,7 +208,10 @@ fun FeedPropertiesScreen(
                     .fillMaxWidth()
                     .toggleable(
                         value = uiState.autoQueueEnabled,
-                        onValueChange = viewModel::setAutoQueueEnabled,
+                        onValueChange = {
+                            haptics.toggle(it) // issue #292
+                            viewModel.setAutoQueueEnabled(it)
+                        },
                         role = Role.Switch,
                     )
                     .padding(top = 24.dp),
@@ -306,7 +317,10 @@ fun FeedPropertiesScreen(
             )
             Slider(
                 value = uiState.startSkipSeconds.toFloat(),
-                onValueChange = { viewModel.setStartSkipSeconds(it.roundToInt()) },
+                onValueChange = {
+                    if (it.roundToInt() != uiState.startSkipSeconds) haptics.perform(HapticEvent.Tick) // issue #292
+                    viewModel.setStartSkipSeconds(it.roundToInt())
+                },
                 valueRange = START_SKIP_SECONDS_MIN..START_SKIP_SECONDS_MAX,
                 // START_SKIP_STEP_SECONDS-increment stops (issue #154), mirroring FontSizeRow's
                 // identical formula -- any of 0/5/10/.../60 can land exactly on a stop instead of
