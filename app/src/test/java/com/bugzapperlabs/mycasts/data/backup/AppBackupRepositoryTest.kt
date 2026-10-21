@@ -107,6 +107,20 @@ class AppBackupRepositoryTest {
         assertEquals(1.5f, settingsDataStore.settings.first().fontSize)
     }
 
+    // issue #299: restoring a backup (which carries no credentials) must not wipe this device's own.
+    @Test
+    fun import_keepsThisDevicesPodcastIndexCredentials() = runTest {
+        settingsDataStore.setPodcastIndexApiKey("device-key")
+        settingsDataStore.setPodcastIndexApiSecret("device-secret")
+        val json = backupRepository.export()
+
+        backupRepository.import(json)
+
+        val settings = settingsDataStore.settings.first()
+        assertEquals("device-key", settings.podcastIndexApiKey)
+        assertEquals("device-secret", settings.podcastIndexApiSecret)
+    }
+
     /**
      * issue #197: the currently-playing episode needs no special handling of its own here --
      * since issue #196, it's a real `queue_entries` row like any other (always the front one),

@@ -6,6 +6,7 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.QueueEntry
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -91,7 +92,25 @@ class AppBackupTest {
         assertEquals(listOf(feed), restored.feeds)
         assertEquals(listOf(item), restored.feedItems)
         assertEquals(listOf(queueEntry), restored.queueEntries)
-        assertEquals(settings, restored.settings)
+        // issue #299: the PodcastIndex credentials are intentionally left out of a backup.
+        assertEquals(settings.copy(podcastIndexApiKey = null, podcastIndexApiSecret = null), restored.settings)
+    }
+
+    @Test
+    fun toJson_doesNotContainPodcastIndexCredentials() {
+        val settings = AppSettings(podcastIndexApiKey = "my-key", podcastIndexApiSecret = "my-secret")
+        val json = AppBackup(emptyList(), emptyList(), emptyList(), settings).toJson()
+
+        assertFalse(json.contains("my-key"))
+        assertFalse(json.contains("my-secret"))
+    }
+
+    @Test
+    fun fromJson_ignoresCredentialsInAnOlderBackup() {
+        val json = AppBackup(emptyList(), emptyList(), emptyList(), AppSettings()).toJson()
+            .replace("\"settings\": {", "\"settings\": {\n    \"podcastIndexApiKey\": \"old-key\",")
+
+        assertEquals(null, AppBackup.fromJson(json).settings.podcastIndexApiKey)
     }
 
     @Test

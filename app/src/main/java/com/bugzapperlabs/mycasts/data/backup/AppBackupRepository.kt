@@ -34,6 +34,14 @@ class AppBackupRepository @Inject constructor(
         feedRepository.replaceAllFeeds(backup.feeds)
         feedRepository.insertItems(backup.feedItems)
         queueRepository.replaceAllEntries(backup.queueEntries)
-        settingsDataStore.restore(backup.settings)
+        // issue #299: backups don't contain the PodcastIndex credentials, so keep this device's own
+        // rather than letting the restore's settings wipe them.
+        val current = settingsDataStore.settings.first()
+        settingsDataStore.restore(
+            backup.settings.copy(
+                podcastIndexApiKey = current.podcastIndexApiKey,
+                podcastIndexApiSecret = current.podcastIndexApiSecret,
+            ),
+        )
     }
 }
