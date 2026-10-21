@@ -1,8 +1,17 @@
 # Technical design
 
-MyCasts is a single-module Android app: Kotlin, Jetpack Compose UI, Hilt for dependency
+MyCasts is a multi-module Android project: Kotlin, Jetpack Compose UI, Hilt for dependency
 injection, Room for persistence, Media3 for playback, and WorkManager for background jobs
 (feed refresh, downloads). Package root: `com.bugzapperlabs.mycasts`.
+
+| Module | Contents |
+|---|---|
+| `:app` | The phone app: screens, playback service, feed ingestion, downloads, widget |
+| `:core` | Android library shared with the watch: the Room database, repositories, settings, and the Wear OS sync client |
+| `:wear` | The Wear OS app: now-playing and queue screens, and its own playback service for the Next Up queue synced from the phone |
+
+The data layer and settings described below live in `:core`; everything else lives in `:app`
+unless noted.
 
 ## Screens and navigation
 
@@ -93,22 +102,24 @@ with the feed id set as an extra, read in `onCreate` to pick the nav start desti
 
 Hilt modules under `di/`:
 
-- `DatabaseModule` — Room database and DAOs, wired with all migrations.
+- `DatabaseModule` (`:core`) — Room database and DAOs, wired with all migrations.
 - `NetworkModule` — the shared OkHttp client, plus the separate `@DownloadHttpClient` used only
   by downloads.
 - `PodcastSearchModule` — feed directory / PodcastIndex search providers.
-- `SettingsModule` — the DataStore-backed settings.
+- `SettingsModule` (`:core`) — the DataStore-backed settings.
+- `WearSyncModule` (`:core`) — the Data Layer client used to sync the queue and playback position
+  between phone and watch.
 - `WorkModule` — `WorkManager`, and bindings for `FeedRefreshScheduling` /
   `DownloadScheduling` so callers depend on an interface rather than the concrete
   `FeedRefreshScheduler` / `DownloadManager`.
 
 ## Build and tooling
 
-- Gradle Kotlin DSL, single `:app` module, Kotlin 2.0.21, AGP 8.7.3, KSP for Room/Hilt annotation
-  processing.
+- Gradle Kotlin DSL, modules `:app`, `:core` and `:wear`, Kotlin 2.0.21, AGP 8.13.2, KSP for
+  Room/Hilt annotation processing. Release builds use R8 and resource shrinking.
 - `compileSdk`/`targetSdk` 36, `minSdk` 31.
 - Compose BOM 2024.12.01, Room 2.6.1, Media3 1.5.0, WorkManager 2.10.0, Hilt 2.52, Glance 1.1.1.
-- Unit tests (`app/src/test`) run on the JVM via Robolectric; instrumented tests
+- Unit tests (`app/src/test`, `core/src/test`, `wear/src/test`) run on the JVM via Robolectric; instrumented tests
   (`core/src/androidTest`) are limited to Room migration tests.
 - CI (`.github/workflows/build.yml`) runs `assembleDebug testDebugUnitTest lintDebug` on every
   push/PR to `main`, and a `migration-tests` job runs `:core:connectedDebugAndroidTest` on an
