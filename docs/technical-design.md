@@ -28,11 +28,11 @@ episode isn't already on screen.
 
 ## Data layer
 
-Room database (`data/local/AppDatabase.kt`, currently schema version 14) with entities `Feed`,
+Room database (`data/local/AppDatabase.kt`, currently schema version 15) with entities `Feed`,
 `FeedItem`, `QueueEntry`, and `DownloadedEpisode`, accessed through `FeedDao`, `FeedItemDao`, and
 `QueueDao`. Schema changes require bumping `AppDatabase.version` and adding a matching
-`MIGRATION_n_n+1` in `data/local/Migrations.kt`; exported schemas live in `app/schemas/` and are
-exercised by Room migration tests under `app/src/androidTest`.
+`MIGRATION_n_n+1` in `data/local/Migrations.kt`; exported schemas live in `core/schemas/` and are
+exercised by Room migration tests under `core/src/androidTest`.
 
 Screens and ViewModels never touch the DAOs directly — they go through
 `data/repository/FeedRepository.kt` (feed/article persistence) and `QueueRepository.kt` (queue
@@ -43,7 +43,8 @@ in `data/settings/AppSettings.kt` / `SettingsDataStore.kt`, backed by Jetpack Da
 than Room.
 
 Backup/restore of the whole app's data (`data/backup/AppBackup.kt`, `AppBackupRepository.kt`)
-serializes subscriptions and settings for export/import, separate from OPML.
+serializes subscriptions and settings for export/import, separate from OPML. The PodcastIndex API
+key and secret are deliberately left out of the file, and a restore keeps the device's own.
 
 ## Feed ingestion
 
@@ -108,7 +109,8 @@ Hilt modules under `di/`:
 - `compileSdk`/`targetSdk` 36, `minSdk` 31.
 - Compose BOM 2024.12.01, Room 2.6.1, Media3 1.5.0, WorkManager 2.10.0, Hilt 2.52, Glance 1.1.1.
 - Unit tests (`app/src/test`) run on the JVM via Robolectric; instrumented tests
-  (`app/src/androidTest`) are limited to Room migration tests.
+  (`core/src/androidTest`) are limited to Room migration tests.
 - CI (`.github/workflows/build.yml`) runs `assembleDebug testDebugUnitTest lintDebug` on every
-  push/PR to `main`. `.github/workflows/release.yml` builds and signs a release APK on
+  push/PR to `main`, and a `migration-tests` job runs `:core:connectedDebugAndroidTest` on an
+  emulator. `.github/workflows/release.yml` builds and signs a release APK on
   `vMAJOR.MINOR.PATCH` tags.
