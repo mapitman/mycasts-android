@@ -16,13 +16,14 @@ import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import org.json.JSONException
+
 import java.io.File
 import javax.inject.Inject
 
@@ -227,7 +228,11 @@ class SettingsViewModel @Inject constructor(
             try {
                 appBackupRepository.import(json)
                 _backupMessage.value = context.getString(R.string.settings_backup_restored)
-            } catch (_: JSONException) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Any failure (unreadable file, unsupported version, a database error rolled back
+                // by the restore's transaction) leaves the previous data intact (issue #298).
                 _backupMessage.value = context.getString(R.string.settings_backup_restore_failed)
             }
         }

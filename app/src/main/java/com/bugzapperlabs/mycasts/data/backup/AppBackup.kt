@@ -6,6 +6,7 @@ import com.bugzapperlabs.mycasts.data.local.FeedItem
 import com.bugzapperlabs.mycasts.data.local.QueueEntry
 import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 /**
@@ -34,14 +35,23 @@ data class AppBackup(
     companion object {
         private const val BACKUP_VERSION = 1
 
+        /** Throws [JSONException] for any unreadable backup (issue #298): malformed JSON, a missing
+         *  key, an unsupported [BACKUP_VERSION] or an unknown enum value, so a restore can reject
+         *  the file before it changes any data. */
         fun fromJson(json: String): AppBackup {
             val root = JSONObject(json)
-            return AppBackup(
-                feeds = root.getJSONArray("feeds").objects().map { it.toFeed() },
-                feedItems = root.getJSONArray("feedItems").objects().map { it.toFeedItem() },
-                queueEntries = root.getJSONArray("queueEntries").objects().map { it.toQueueEntry() },
-                settings = root.getJSONObject("settings").toAppSettings(),
-            )
+            val version = root.getInt("backupVersion")
+            if (version != BACKUP_VERSION) throw JSONException("Unsupported backup version $version")
+            return try {
+                AppBackup(
+                    feeds = root.getJSONArray("feeds").objects().map { it.toFeed() },
+                    feedItems = root.getJSONArray("feedItems").objects().map { it.toFeedItem() },
+                    queueEntries = root.getJSONArray("queueEntries").objects().map { it.toQueueEntry() },
+                    settings = root.getJSONObject("settings").toAppSettings(),
+                )
+            } catch (e: IllegalArgumentException) {
+                throw JSONException("Invalid value in backup: ${e.message}")
+            }
         }
     }
 }
