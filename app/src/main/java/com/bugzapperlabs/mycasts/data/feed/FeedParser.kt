@@ -19,6 +19,9 @@ object FeedParser {
         parse(input.readBytes().toString(charset))
 
     fun parse(xml: String): ParsedFeed? {
+        // issue #300: refuses entity declarations outright (entity-expansion attacks) -- no real
+        // podcast feed declares its own entities.
+        if (xml.declaresXmlEntities()) return null
         val document = parseDocument(xml) ?: parseDocument(cleanControlChars(xml)) ?: return null
         val root = document.documentElement ?: return null
 
@@ -38,6 +41,7 @@ object FeedParser {
         DocumentBuilderFactory.newInstance()
             .apply { isNamespaceAware = false }
             .newDocumentBuilder()
+            .apply { setEntityResolver(NoExternalEntitiesResolver) }
             .parse(InputSource(StringReader(xml)))
     } catch (_: Exception) {
         null

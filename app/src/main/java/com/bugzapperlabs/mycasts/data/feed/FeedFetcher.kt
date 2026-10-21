@@ -52,7 +52,14 @@ class FeedFetcher @Inject constructor(private val httpClient: OkHttpClient) {
                     return@withContext FeedFetchResult.Failure("HTTP ${it.code}")
                 }
 
-                val content = it.body?.string().orEmpty()
+                // Capped and caught here (issue #300): reading the body can itself throw (too
+                // large, connection dropped mid-body), which previously escaped as an uncaught
+                // IOException instead of becoming a Failure.
+                val content = try {
+                    it.body?.stringLimited(MAX_FEED_BYTES).orEmpty()
+                } catch (e: IOException) {
+                    return@withContext FeedFetchResult.Failure(e.message ?: "Network error")
+                }
                 if (looksLikeHtml(content)) {
                     val discoveredUrl = HtmlFeedDiscovery.findFeedUrl(content, url)
                         ?: return@withContext FeedFetchResult.Failure("No feed link found at $url")

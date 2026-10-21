@@ -289,4 +289,8 @@
 
     <!-- Widget -->
     <string name="widget_all_caught_up">Tutto letto</string>
+    <!-- OPML received through a share/open intent (issue #300) -->
+    <string name="opml_import_confirm_title">Importare i feed?</string>
+    <string name="opml_import_confirm_message">Feed trovati in questo file: %1$d. Vuoi iscriverti?</string>
+    <string name="opml_import_confirm_action">Importa</string>
 </resources>
