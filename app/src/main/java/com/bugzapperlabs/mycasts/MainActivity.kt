@@ -128,6 +128,10 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var downloadFeedbackCoordinator: DownloadFeedbackCoordinator
 
+    // issue #300: an OPML file received through an intent waits here for the user's confirmation
+    // instead of subscribing to every feed in it right away.
+    private var pendingOpmlImport by mutableStateOf<OpmlDocument?>(null)
+
     @Inject
     lateinit var playbackController: PlaybackController
 
@@ -186,7 +190,8 @@ class MainActivity : ComponentActivity() {
                 } catch (_: Exception) {
                     null
                 } ?: OpmlDocument(emptyList())
-                opmlImportCoordinator.startImport(document)
+                // An empty document starts straight away so the usual "no feeds found" message shows.
+                if (document.feeds.isEmpty()) opmlImportCoordinator.startImport(document) else pendingOpmlImport = document
             }
         }
 
@@ -741,6 +746,26 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                }
+                pendingOpmlImport?.let { document ->
+                    AlertDialog(
+                        onDismissRequest = { pendingOpmlImport = null },
+                        title = { Text(stringResource(R.string.opml_import_confirm_title)) },
+                        text = { Text(stringResource(R.string.opml_import_confirm_message, document.feeds.size)) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                pendingOpmlImport = null
+                                opmlImportCoordinator.startImport(document)
+                            }) {
+                                Text(stringResource(R.string.opml_import_confirm_action))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { pendingOpmlImport = null }) {
+                                Text(stringResource(R.string.action_cancel))
+                            }
+                        },
+                    )
                 }
                 if (showBatteryOptimizationPrompt) {
                     AlertDialog(
