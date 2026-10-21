@@ -42,7 +42,15 @@ class AppBackupRepository @Inject constructor(
             items = backup.feedItems.map { it.withValidatedDownload() },
             queueEntries = backup.queueEntries,
         )
-        settingsDataStore.restore(backup.settings)
+        // issue #299: backups don't contain the PodcastIndex credentials, so keep this device's own
+        // rather than letting the restore's settings wipe them.
+        val current = settingsDataStore.settings.first()
+        settingsDataStore.restore(
+            backup.settings.copy(
+                podcastIndexApiKey = current.podcastIndexApiKey,
+                podcastIndexApiSecret = current.podcastIndexApiSecret,
+            ),
+        )
     }
 
     /** A backup doesn't contain the downloaded files themselves, and its recorded path comes from

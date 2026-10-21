@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- issue #299: states what Auto Backup (cloud) and device-to-device transfer include, instead of
+     taking the allowBackup default of "everything in the app's data directories". Once a section
+     has an <include>, everything not included is left out.
+     Cloud backup includes only the database. The settings DataStore (files/datastore) holds the
+     PodcastIndex API secret in plaintext, so it never leaves the device through Google's backup.
+     Device transfer also includes that DataStore, since it stays between the user's own devices.
+     Downloaded episodes (large, re-fetchable) and the streaming cache are left out of both. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="database" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="database" />
+        <include domain="file" path="datastore" />
+    </device-transfer>
+</data-extraction-rules>

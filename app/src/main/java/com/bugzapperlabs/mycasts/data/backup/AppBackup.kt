@@ -192,8 +192,9 @@ private fun AppSettings.toJson(): JSONObject = JSONObject().apply {
     put("batteryOptimizationPromptShown", batteryOptimizationPromptShown)
     put("notificationPermissionPromptShown", notificationPermissionPromptShown)
     put("addDefaultFeedsPromptShown", addDefaultFeedsPromptShown)
-    putOpt("podcastIndexApiKey", podcastIndexApiKey)
-    putOpt("podcastIndexApiSecret", podcastIndexApiSecret)
+    // issue #299: the PodcastIndex credentials are deliberately not exported -- a backup file is
+    // meant to be copied around and stored, and the secret is a credential. Restoring keeps this
+    // device's own credentials instead (see AppBackupRepository.import).
     put("useDeviceThemeColors", useDeviceThemeColors)
 }
 
@@ -247,8 +248,10 @@ private fun JSONObject.toAppSettings(): AppSettings {
         } else {
             defaults.addDefaultFeedsPromptShown
         },
-        podcastIndexApiKey = optStringOrNull("podcastIndexApiKey"),
-        podcastIndexApiSecret = optStringOrNull("podcastIndexApiSecret"),
+        // issue #299: ignored even if present, so a backup exported before credentials were left
+        // out can't overwrite this device's own credentials.
+        podcastIndexApiKey = null,
+        podcastIndexApiSecret = null,
         useDeviceThemeColors = if (has("useDeviceThemeColors")) getBoolean("useDeviceThemeColors") else defaults.useDeviceThemeColors,
     )
 }
