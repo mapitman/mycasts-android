@@ -24,6 +24,10 @@ interface FeedItemDao {
     @Update
     suspend fun update(item: FeedItem)
 
+    /** Several in-place updates as one transaction (issue #302), for FeedUpdateEngine.persist. */
+    @Update
+    suspend fun updateAll(items: List<FeedItem>)
+
     @Delete
     suspend fun delete(item: FeedItem)
 
@@ -144,14 +148,16 @@ interface FeedItemDao {
     // not currently tracked as downloaded/downloading, checked against files actually present on
     // disk -- deliberately not scoped to autoDownloaded=true/false, since #234 could have wiped
     // either kind's bookkeeping.
-    @Query("SELECT * FROM feed_items WHERE enclosureUrl IS NOT NULL AND downloadedFilePath IS NULL AND downloadedBytes IS NULL")
-    suspend fun itemsMissingDownloadWithEnclosure(): List<FeedItem>
+    // Selects just the columns the callers use (issue #302) -- a full row also carries the
+    // item's description, which can run to hundreds of KB, for every episode in the database.
+    @Query("SELECT id, enclosureUrl, enclosureType FROM feed_items WHERE enclosureUrl IS NOT NULL AND downloadedFilePath IS NULL AND downloadedBytes IS NULL")
+    suspend fun itemsMissingDownloadWithEnclosure(): List<EnclosureRef>
 
     // Every episode a downloaded file could legitimately belong to (issue #234), regardless of
     // its own current download state -- EnclosureDownloadRepository.cleanUpOrphanedDownloadFiles
     // computes each one's expected on-disk filename from this set to find files matching no known
     // episode at all (as opposed to itemsMissingDownloadWithEnclosure's narrower "known episode,
     // lost its own download record" case).
-    @Query("SELECT * FROM feed_items WHERE enclosureUrl IS NOT NULL")
-    suspend fun itemsWithEnclosure(): List<FeedItem>
+    @Query("SELECT id, enclosureUrl, enclosureType FROM feed_items WHERE enclosureUrl IS NOT NULL")
+    suspend fun itemsWithEnclosure(): List<EnclosureRef>
 }

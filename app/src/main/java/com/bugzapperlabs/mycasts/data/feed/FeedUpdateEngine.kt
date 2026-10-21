@@ -147,6 +147,18 @@ class FeedUpdateEngine @Inject constructor(
             parsed.items
         }
 
+        // The feed's stored items, loaded once and indexed (issue #302), instead of up to two
+        // queries per parsed item -- a feed with thousands of episodes otherwise ran thousands of
+        // queries on every refresh. First match wins, like the LIMIT 1 queries these replace.
+        val storedItems = feedRepository.getItemsForFeed(feed.id)
+        val storedByGuid = HashMap<String, FeedItem>()
+        val storedByEnclosureUrl = HashMap<String, FeedItem>()
+        storedItems.forEach { stored ->
+            stored.itemGuid?.let { storedByGuid.putIfAbsent(it, stored) }
+            stored.enclosureUrl?.let { storedByEnclosureUrl.putIfAbsent(it, stored) }
+        }
+        val changedItems = mutableListOf<FeedItem>()
+
         itemsToProcess.forEach { parsedItem ->
             val itemGuid = parsedItem.itemGuid.ifBlank { parsedItem.url }
             if (itemGuid.isBlank()) return@forEach
@@ -163,8 +175,8 @@ class FeedUpdateEngine @Inject constructor(
             // never exceeds itemsToKeep enough to trigger trimToItemsToKeep's eviction. The
             // enclosure url (the actual audio file) is a much more stable identifier in practice
             // than a guid or the item's own page url.
-            val existing = feedRepository.findByItemGuid(feed.id, itemGuid)
-                ?: parsedItem.enclosure?.url?.let { feedRepository.findByEnclosureUrl(feed.id, it) }
+            val existing = storedByGuid[itemGuid]
+                ?: parsedItem.enclosure?.url?.let { storedByEnclosureUrl[it] }
             val firstImage = FirstImageExtractor.extractAndStripFirstImage(parsedItem.description, parsedItem.url)
             val id = existing?.id ?: UUID.randomUUID().toString()
 
@@ -201,9 +213,29 @@ class FeedUpdateEngine @Inject constructor(
             if (existing == null) {
                 newItems += entity
                 newItemIds += id
-            } else {
-                feedRepository.updateItem(entity)
+            } else if (entity != existing) {
+                // Only rows that actually differ are written (issue #302), and as one batch below.
+                changedItems += entity
             }
+        }
+        if (changedItems.isNotEmpty()) {
+            // The user (marking read, playback position) and the download worker can change a row
+            // while the loop above runs, which for a big feed is a while (issue #302). Re-reading
+            // right before the write and carrying those fields over from the fresh row keeps this
+            // batch from reverting them with the stale snapshot taken at the start.
+            val freshById = feedRepository.getItemsForFeed(feed.id).associateBy { it.id }
+            feedRepository.updateItems(
+                changedItems.mapNotNull { entity ->
+                    val fresh = freshById[entity.id] ?: return@mapNotNull null
+                    entity.copy(
+                        isRead = fresh.isRead,
+                        enclosurePosition = fresh.enclosurePosition,
+                        downloadedBytes = fresh.downloadedBytes,
+                        downloadedFilePath = fresh.downloadedFilePath,
+                        autoDownloaded = fresh.autoDownloaded,
+                    ).takeIf { it != fresh }
+                },
+            )
         }
         // Batched into a single bulk insert rather than one insertItems call per new item (issue
         // #106): a feed publishing thousands of episodes at once (e.g. a first-time import of a
