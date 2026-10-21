@@ -175,6 +175,7 @@
     <string name="settings_backup_exported">Sauvegarde enregistrée</string>
     <string name="settings_backup_restored">Sauvegarde restaurée</string>
     <string name="settings_backup_restore_failed">Impossible de restaurer ce fichier de sauvegarde</string>
+    <string name="settings_backup_export_failed">Impossible d\'enregistrer le fichier de sauvegarde</string>
     <string name="settings_confirm_restore_backup_title">Restaurer cette sauvegarde ?</string>
     <string name="settings_confirm_restore_backup_message">Cela remplace tous les podcasts, épisodes, éléments de file d\'attente et paramètres actuellement sur cet appareil par le contenu du fichier de sauvegarde. Cette action est irréversible.</string>
     <string name="settings_add_default_feeds">Ajouter des podcasts de démarrage</string>

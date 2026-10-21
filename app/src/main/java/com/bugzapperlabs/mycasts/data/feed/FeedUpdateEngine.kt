@@ -33,13 +33,7 @@ class FeedUpdateEngine @Inject constructor(
     private val feedRefreshLocks: FeedRefreshLocks,
 ) {
     suspend fun updateFeed(feed: Feed): FeedUpdateResult {
-        val feedUrl = feed.feedUrl
-        if (feedUrl.isNullOrBlank()) return FeedUpdateResult.Failure("Feed has no URL")
-
-        return when (val result = feedFetcher.fetchFeed(feedUrl)) {
-            is FeedFetchResult.Failure -> FeedUpdateResult.Failure(result.message)
-            is FeedFetchResult.Success -> persistSafely(feed, result.feed, settingsDataStore.settings.first())
-        }
+        return fetchAndPersist(feed) { settingsDataStore.settings.first() }
     }
 
     /**
@@ -70,13 +64,18 @@ class FeedUpdateEngine @Inject constructor(
         }.awaitAll()
     }
 
-    private suspend fun updateFeedWithSettings(feed: Feed, settings: AppSettings): FeedUpdateResult {
+    private suspend fun updateFeedWithSettings(feed: Feed, settings: AppSettings): FeedUpdateResult =
+        fetchAndPersist(feed) { settings }
+
+    /** [settings] is only resolved once the fetch has succeeded (issue #305, shared by [updateFeed]
+     *  and [updateFeedWithSettings], which used to duplicate this body). */
+    private suspend fun fetchAndPersist(feed: Feed, settings: suspend () -> AppSettings): FeedUpdateResult {
         val feedUrl = feed.feedUrl
         if (feedUrl.isNullOrBlank()) return FeedUpdateResult.Failure("Feed has no URL")
 
         return when (val result = feedFetcher.fetchFeed(feedUrl)) {
             is FeedFetchResult.Failure -> FeedUpdateResult.Failure(result.message)
-            is FeedFetchResult.Success -> persistSafely(feed, result.feed, settings)
+            is FeedFetchResult.Success -> persistSafely(feed, result.feed, settings())
         }
     }
 

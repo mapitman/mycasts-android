@@ -16,6 +16,7 @@ import com.bugzapperlabs.mycasts.data.settings.AppSettings
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.refresh.FeedRefreshScheduling
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -201,9 +202,20 @@ class SettingsViewModel @Inject constructor(
      */
     fun writeBackupTo(uri: Uri) {
         viewModelScope.launch {
-            val json = appBackupRepository.export()
-            context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
-            _backupMessage.value = context.getString(R.string.settings_backup_exported)
+            // issue #305: UTF-8 explicitly rather than the platform default charset, and a failed
+            // write (destination gone, no space) is reported instead of crashing or staying silent.
+            val saved = try {
+                val json = appBackupRepository.export()
+                val stream = context.contentResolver.openOutputStream(uri)
+                stream?.use { it.write(json.toByteArray(Charsets.UTF_8)) } != null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                false
+            }
+            _backupMessage.value = context.getString(
+                if (saved) R.string.settings_backup_exported else R.string.settings_backup_export_failed,
+            )
         }
     }
 
