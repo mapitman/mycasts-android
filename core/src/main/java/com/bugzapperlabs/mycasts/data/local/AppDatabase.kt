@@ -12,6 +12,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun feedDao(): FeedDao
     abstract fun feedItemDao(): FeedItemDao
     abstract fun queueDao(): QueueDao
+    abstract fun backupDao(): BackupDao
 
     companion object {
         const val NAME = "mycasts.db"
