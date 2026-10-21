@@ -24,6 +24,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Rule
@@ -135,6 +136,104 @@ class EnclosureDownloadWorkerTest {
 
         assertEquals(ListenableWorker.Result.retry(), result)
         assertNull(feedRepository.getItem(item.id)?.downloadedFilePath)
+    }
+
+    // issue #301: permanent client errors fail instead of retrying forever.
+    @Test
+    fun doWork_notFound_failsWithoutRetry() = runTest {
+        server.enqueue(MockResponse().setResponseCode(404))
+        server.start()
+        seedItem(server.url("/episode.mp3").toString())
+
+        val result = buildWorker(ApplicationProvider.getApplicationContext()).doWork()
+
+        assertEquals(ListenableWorker.Result.failure(), result)
+    }
+
+    @Test
+    fun doWork_tooManyRequests_retries() = runTest {
+        server.enqueue(MockResponse().setResponseCode(429))
+        server.start()
+        seedItem(server.url("/episode.mp3").toString())
+
+        val result = buildWorker(ApplicationProvider.getApplicationContext()).doWork()
+
+        assertEquals(ListenableWorker.Result.retry(), result)
+    }
+
+    @Test
+    fun doWork_serverError_givesUpAfterMaxAttempts() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.start()
+        seedItem(server.url("/episode.mp3").toString())
+        val worker = TestListenableWorkerBuilder<EnclosureDownloadWorker>(ApplicationProvider.getApplicationContext<Context>())
+            .setInputData(workDataOf(EnclosureDownloadWorker.KEY_ITEM_ID to "item-1"))
+            .setRunAttemptCount(20)
+            .setWorkerFactory(TestWorkerFactory(feedRepository, downloadRepository, OkHttpClient()))
+            .build()
+
+        assertEquals(ListenableWorker.Result.failure(), worker.doWork())
+    }
+
+    private fun existingPartialFile(url: String, content: String): File {
+        val dir = File(ApplicationProvider.getApplicationContext<Context>().filesDir, EnclosureDownloadWorker.DOWNLOAD_DIR).apply { mkdirs() }
+        return File(dir, EnclosureFileNaming.fileNameFor(url, "audio/mpeg")).apply { writeText(content) }
+    }
+
+    @Test
+    fun doWork_rangeNotSatisfiableForCompleteFile_completesDownload() = runTest {
+        server.enqueue(MockResponse().setResponseCode(416).setHeader("Content-Range", "bytes */5"))
+        server.start()
+        val url = server.url("/episode.mp3").toString()
+        seedItem(url)
+        val file = existingPartialFile(url, "12345")
+
+        val result = buildWorker(ApplicationProvider.getApplicationContext()).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(file.absolutePath, feedRepository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun doWork_rangeNotSatisfiableForStaleFile_discardsItAndRetries() = runTest {
+        server.enqueue(MockResponse().setResponseCode(416).setHeader("Content-Range", "bytes */100"))
+        server.start()
+        val url = server.url("/episode.mp3").toString()
+        seedItem(url)
+        val file = existingPartialFile(url, "12345")
+
+        val result = buildWorker(ApplicationProvider.getApplicationContext()).doWork()
+
+        assertEquals(ListenableWorker.Result.retry(), result)
+        assertFalse(file.exists())
+    }
+
+    @Test
+    fun doWork_resumeWithWrongContentRange_discardsPartialAndRetries() = runTest {
+        server.enqueue(MockResponse().setResponseCode(206).setHeader("Content-Range", "bytes 0-9/10").setBody("0123456789"))
+        server.start()
+        val url = server.url("/episode.mp3").toString()
+        seedItem(url)
+        val file = existingPartialFile(url, "12345")
+
+        val result = buildWorker(ApplicationProvider.getApplicationContext()).doWork()
+
+        assertEquals(ListenableWorker.Result.retry(), result)
+        assertFalse(file.exists())
+    }
+
+    @Test
+    fun doWork_resumeWithMatchingContentRange_appendsAndCompletes() = runTest {
+        server.enqueue(MockResponse().setResponseCode(206).setHeader("Content-Range", "bytes 5-9/10").setBody("67890"))
+        server.start()
+        val url = server.url("/episode.mp3").toString()
+        seedItem(url)
+        existingPartialFile(url, "12345")
+
+        val result = buildWorker(ApplicationProvider.getApplicationContext()).doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals("1234567890", File(feedRepository.getItem("item-1")!!.downloadedFilePath!!).readText())
     }
 
     private class TestWorkerFactory(
