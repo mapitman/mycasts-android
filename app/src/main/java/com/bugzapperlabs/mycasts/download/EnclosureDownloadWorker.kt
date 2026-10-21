@@ -78,21 +78,52 @@ class EnclosureDownloadWorker @AssistedInject constructor(
             if (existingBytes > 0) header("Range", "bytes=$existingBytes-")
         }.build()
 
+        // The full size the finished file must have, when the server reported one (issue #301).
+        var expectedTotalBytes: Long? = null
+
         try {
             // Routed through this class's own async await() (below), not a plain execute(), since
             // execute() runs synchronously on the calling thread and bypasses the client's
             // Dispatcher entirely -- only enqueue()'d calls are subject to Dispatcher.maxRequests,
             // which is the whole point of @DownloadHttpClient's dedicated dispatcher (see its doc).
             httpClient.newCall(request).await().use { response ->
-                if (!response.isSuccessful) {
-                    Log.w(TAG, "Download failed for $url -- HTTP ${response.code}")
+                // issue #301: 416 means the Range start is at or past the end of the file. When the
+                // server's reported length equals what is already on disk, the earlier download had
+                // in fact finished; otherwise the partial file is stale, so it is discarded and the
+                // next attempt starts over. Either way this must not retry the same Range forever.
+                if (response.code == 416 && existingBytes > 0) {
+                    val knownLength = response.header("Content-Range")?.substringAfter("*/", "")?.toLongOrNull()
+                    if (knownLength == existingBytes) {
+                        downloadRepository.completeDownload(itemId, file.absolutePath)
+                        return@withContext Result.success()
+                    }
+                    Log.w(TAG, "Discarding stale partial file for $url -- HTTP 416")
+                    file.delete()
+                    feedRepository.setDownloadedBytes(itemId, null)
                     return@withContext Result.retry()
                 }
-                val body = response.body ?: return@withContext Result.retry()
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "Download failed for $url -- HTTP ${response.code}")
+                    return@withContext if (isPermanentHttpFailure(response.code)) {
+                        giveUp(itemId, file)
+                    } else {
+                        retryOrGiveUp(itemId, file)
+                    }
+                }
+                val body = response.body ?: return@withContext retryOrGiveUp(itemId, file)
                 val resumed = response.code == 206
+                // issue #301: a 206 must continue exactly where the partial file ends; anything
+                // else would corrupt it by appending bytes from the wrong offset.
+                if (resumed && contentRangeStart(response.header("Content-Range")) != existingBytes) {
+                    Log.w(TAG, "Discarding partial file for $url -- unexpected Content-Range")
+                    file.delete()
+                    feedRepository.setDownloadedBytes(itemId, null)
+                    return@withContext Result.retry()
+                }
                 val contentLength = body.contentLength()
                 val totalBytes = contentLength.takeIf { it > 0 }
                     ?.let { if (resumed) existingBytes + it else it }
+                expectedTotalBytes = totalBytes
 
                 FileOutputStream(file, resumed).use { output ->
                     body.byteStream().use { input ->
@@ -121,11 +152,37 @@ class EnclosureDownloadWorker @AssistedInject constructor(
                 return@withContext Result.failure(lowStorageFailureData())
             }
             Log.w(TAG, "Download failed for $url, will retry", e)
-            return@withContext Result.retry()
+            return@withContext retryOrGiveUp(itemId, file)
+        }
+
+        // issue #301: never mark a file complete that doesn't match the size the server promised.
+        // A short file keeps its bytes so the retry can resume; a long one is corrupt.
+        expectedTotalBytes?.let { expected ->
+            if (file.length() != expected) {
+                Log.w(TAG, "Size mismatch for $url -- expected $expected bytes, found ${file.length()}")
+                if (file.length() > expected) file.delete()
+                return@withContext retryOrGiveUp(itemId, file)
+            }
         }
 
         downloadRepository.completeDownload(itemId, file.absolutePath)
         Result.success()
+    }
+
+    /** A 4xx other than 408 (timeout) and 429 (rate limited) won't change by trying again (issue #301). */
+    private fun isPermanentHttpFailure(code: Int): Boolean = code in 400..499 && code != 408 && code != 429
+
+    /** Retries, except once [MAX_ATTEMPTS] have been used (issue #301), so a download that can
+     *  never succeed doesn't retry forever. */
+    private suspend fun retryOrGiveUp(itemId: String, file: File): Result =
+        if (runAttemptCount >= MAX_ATTEMPTS) giveUp(itemId, file) else Result.retry()
+
+    /** Permanent failure (issue #301): drops the partial file and its progress record, so the
+     *  episode doesn't linger in Downloads as an in-progress download that will never finish. */
+    private suspend fun giveUp(itemId: String, file: File): Result {
+        file.delete()
+        feedRepository.setDownloadedBytes(itemId, null)
+        return Result.failure()
     }
 
     /** Carries *why* a failure happened (issue #209) in the WorkInfo's outputData, so
@@ -168,6 +225,10 @@ class EnclosureDownloadWorker @AssistedInject constructor(
         const val KEY_FAILURE_REASON = "failureReason"
         const val FAILURE_REASON_LOW_STORAGE = "low_storage"
         private const val BUFFER_SIZE = 8 * 1024
+
+        // issue #301: attempts (WorkManager's runAttemptCount) before a still-failing download is
+        // abandoned. Linear backoff, so this spans a few hours of retries at most.
+        private const val MAX_ATTEMPTS = 20
         private const val PROGRESS_PERSIST_INTERVAL_BYTES = 256 * 1024L
         private const val BYTES_PER_MB = 1024f * 1024f
         private const val PROGRESS_MAX = 100
@@ -180,6 +241,10 @@ class EnclosureDownloadWorker @AssistedInject constructor(
         private const val TAG = "EnclosureDownloadWorker"
     }
 }
+
+/** The start offset of a `Content-Range: bytes START-END/TOTAL` header, or null if malformed. */
+internal fun contentRangeStart(header: String?): Long? =
+    header?.let { Regex("""bytes\s+(\d+)-""").find(it)?.groupValues?.get(1)?.toLongOrNull() }
 
 /** Bridges [Call.execute]'s synchronous API to a suspend call that still goes through
  *  [okhttp3.Dispatcher] -- [Call.execute] runs on the calling thread and is invisible to the
