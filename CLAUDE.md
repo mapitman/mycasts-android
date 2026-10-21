@@ -28,6 +28,8 @@ Two-module Android app: `:app` (the phone UI, playback, feed ingestion, download
 
 **Playback**: `playback/PlaybackController.kt` is a `@Singleton` that owns the Media3 `MediaController` connection to `playback/PlaybackService.kt` (a `MediaSessionService`), and exposes a single `PlaybackUiState` `StateFlow` consumed by both the persistent mini-player (`MiniPlayerBar`/`MiniPlayerViewModel`, shown from `MainActivity` whenever something is loaded and the reader isn't already showing that exact episode) and the reader's in-page player. `PlaybackController` also persists the "current" episode and last resume position through `SettingsDataStore` so playback state survives process death, and clears it on explicit stop or on natural completion (`Player.STATE_ENDED`).
 
+**Wear sync**: `sync/` in `:core` wraps the Wearable Data Layer (`WearSyncClient`). The Next Up queue goes phone to watch at `/queue`; each device writes its own latest playback position at the single path `/position` (one DataItem per device, not per episode, so nothing accumulates; `isPositionPath` also accepts the old `/position/<itemId>` paths, which `PlayServicesWearSyncClient` deletes once per launch).
+
 **Widget**: `widget/UnreadWidget.kt` is a Glance app widget showing per-feed unread counts; refreshed on app launch and after scheduled feed refreshes. Tapping a feed in the widget launches `MainActivity` with `WIDGET_FEED_ID_EXTRA` set, which is read in `onCreate` to pick the nav start destination.
 
 **DI**: `:core`'s `di/DatabaseModule.kt` and `di/SettingsModule.kt` provide the Room database/DAOs and DataStore respectively. `:app`'s `di/NetworkModule.kt` and `di/WorkModule.kt` provide the OkHttp client and WorkManager configuration.

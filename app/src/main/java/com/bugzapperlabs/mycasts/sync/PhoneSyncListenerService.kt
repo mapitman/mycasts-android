@@ -15,7 +15,7 @@ import javax.inject.Inject
  * Manifest-registered (issue #276) so the system can wake the phone app to apply a position
  * report from the watch even when it isn't running. The phone never applies an incoming queue
  * snapshot -- it's the source of that sync, not a consumer of it -- so this only handles
- * [POSITION_PATH_PREFIX] events, unlike `:wear`'s `WearSyncListenerService`.
+ * [POSITION_PATH] events, unlike `:wear`'s `WearSyncListenerService`.
  */
 @AndroidEntryPoint
 class PhoneSyncListenerService : WearableListenerService() {
@@ -30,7 +30,7 @@ class PhoneSyncListenerService : WearableListenerService() {
         for (event in dataEvents) {
             if (event.type != DataEvent.TYPE_CHANGED) continue
             val path = event.dataItem.uri.path ?: continue
-            if (path.startsWith(POSITION_PATH_PREFIX)) {
+            if (isPositionPath(path)) {
                 positionUpdates += DataMapItem.fromDataItem(event.dataItem).dataMap.toPositionUpdate()
             }
         }

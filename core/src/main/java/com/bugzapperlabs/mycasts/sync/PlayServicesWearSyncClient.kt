@@ -16,7 +16,7 @@ import javax.inject.Inject
  * -- see [WearSyncClient]'s own doc for why `DataClient` rather than `MessageClient` was chosen.
  *
  * This is the in-process, live-observation half of sync (for a ViewModel to collect while the app
- * is foregrounded); [QUEUE_PATH]/[POSITION_PATH_PREFIX] events are *also* delivered to each app's
+ * is foregrounded); [QUEUE_PATH]/[POSITION_PATH] events are *also* delivered to each app's
  * manifest-registered `WearableListenerService`, which is what actually keeps the database current
  * even when nothing is collecting these flows -- see that service's own doc.
  */
@@ -31,13 +31,31 @@ class PlayServicesWearSyncClient @Inject constructor(
         dataClient.putDataItem(request).await()
     }
 
+    // Process-wide, not per instance: the one-time legacy cleanup below needs to run once per
+    // launch however many times this class is constructed.
+    private companion object {
+        val legacyCleanupStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+    }
+
     override suspend fun putPosition(itemId: String, positionMs: Long, updatedAt: Long) {
-        val request = PutDataMapRequest.create(POSITION_PATH_PREFIX + itemId).apply {
+        if (legacyCleanupStarted.compareAndSet(false, true)) deleteLegacyPositionItems()
+        val request = PutDataMapRequest.create(POSITION_PATH).apply {
             dataMap.putString("itemId", itemId)
             dataMap.putLong("positionMs", positionMs)
             dataMap.putLong("updatedAt", updatedAt)
         }.asPutDataRequest().setUrgent()
         dataClient.putDataItem(request).await()
+    }
+
+    // issue #303: removes the per-episode `/position/<itemId>` items earlier versions left behind
+    // forever. Best effort and once per launch -- a failure only means they stay where they were.
+    private suspend fun deleteLegacyPositionItems() {
+        runCatching {
+            dataClient.deleteDataItems(
+                android.net.Uri.Builder().scheme("wear").path(LEGACY_POSITION_PATH_PREFIX).build(),
+                DataClient.FILTER_PREFIX,
+            ).await()
+        }
     }
 
     override fun observeQueueSnapshots(): Flow<List<SyncQueueItem>> = callbackFlow {
@@ -61,7 +79,7 @@ class PlayServicesWearSyncClient @Inject constructor(
         val listener = DataClient.OnDataChangedListener { events ->
             for (event in events) {
                 val path = event.dataItem.uri.path
-                if (event.type == DataEvent.TYPE_CHANGED && path != null && path.startsWith(POSITION_PATH_PREFIX)) {
+                if (event.type == DataEvent.TYPE_CHANGED && isPositionPath(path)) {
                     trySend(DataMapItem.fromDataItem(event.dataItem).dataMap.toPositionUpdate())
                 }
             }
