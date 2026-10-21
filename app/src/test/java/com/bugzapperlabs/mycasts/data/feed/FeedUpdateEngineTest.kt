@@ -211,6 +211,27 @@ class FeedUpdateEngineTest {
         assertTrue(item.isRead)
     }
 
+    // issue #302: existing items are matched from one preloaded lookup and only changed rows are
+    // written, but a changed row must still be updated and keep its read state.
+    @Test
+    fun updateFeed_secondRefresh_updatesOnlyChangedItemAndKeepsReadState() = runTest {
+        val feed = subscribeFeed()
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("g1" to "First", "g2" to "Second")))
+        engine.updateFeed(feed)
+        val before = repository.observeItems(feed.id).first().associateBy { it.itemGuid }
+        repository.markRead(before.getValue("g1").id, true)
+
+        server.enqueue(MockResponse().setResponseCode(200).setBody(rssWithItems("g1" to "First (edited)", "g2" to "Second")))
+        val result = engine.updateFeed(feed) as FeedUpdateResult.Success
+
+        assertEquals(0, result.newItemCount)
+        val after = repository.observeItems(feed.id).first().associateBy { it.itemGuid }
+        assertEquals("First (edited)", after.getValue("g1").title)
+        assertEquals(before.getValue("g1").id, after.getValue("g1").id)
+        assertTrue(after.getValue("g1").isRead)
+        assertEquals(before.getValue("g2"), after.getValue("g2"))
+    }
+
     @Test
     fun updateFeed_reDiscoveringAPreviouslyTrimmedItem_doesNotCountItAsNewAgain() = runTest {
         // issue #60: trimToItemsToKeep deletes evicted rows outright, so if a feed's upstream RSS
