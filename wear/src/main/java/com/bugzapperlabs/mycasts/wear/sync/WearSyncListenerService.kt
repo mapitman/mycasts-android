@@ -1,6 +1,6 @@
 package com.bugzapperlabs.mycasts.wear.sync
 
-import com.bugzapperlabs.mycasts.sync.POSITION_PATH_PREFIX
+import com.bugzapperlabs.mycasts.sync.isPositionPath
 import com.bugzapperlabs.mycasts.sync.PositionSyncApplier
 import com.bugzapperlabs.mycasts.sync.PositionUpdate
 import com.bugzapperlabs.mycasts.sync.QUEUE_PATH
@@ -45,7 +45,7 @@ class WearSyncListenerService : WearableListenerService() {
             val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
             when {
                 path == QUEUE_PATH -> queueSnapshots += dataMap.toSyncQueueItems()
-                path.startsWith(POSITION_PATH_PREFIX) -> positionUpdates += dataMap.toPositionUpdate()
+                isPositionPath(path) -> positionUpdates += dataMap.toPositionUpdate()
             }
         }
         dataEvents.release()
