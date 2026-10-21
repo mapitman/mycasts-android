@@ -27,6 +27,10 @@ object NetworkModule {
         .followSslRedirects(true)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
+        // issue #305: bounds the whole call, so a server that trickles bytes just often enough to
+        // beat the per-read timeout can't hold a feed or search request open indefinitely. Not set
+        // on the download client below, where a long total time is normal.
+        .callTimeout(2, TimeUnit.MINUTES)
         .build()
 
     /**

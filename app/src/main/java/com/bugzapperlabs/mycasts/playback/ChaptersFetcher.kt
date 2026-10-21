@@ -1,6 +1,8 @@
 package com.bugzapperlabs.mycasts.playback
 
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.MAX_JSON_BYTES
+import com.bugzapperlabs.mycasts.data.feed.stringLimited
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -23,7 +25,12 @@ class ChaptersFetcher @Inject constructor(private val httpClient: OkHttpClient) 
         }
         response.use {
             if (!it.isSuccessful) return@withContext emptyList()
-            ChaptersParser.parse(it.body?.string().orEmpty())
+            // issue #300: capped; an oversized or interrupted body just means no chapters.
+            try {
+                ChaptersParser.parse(it.body?.stringLimited(MAX_JSON_BYTES).orEmpty())
+            } catch (_: IOException) {
+                emptyList()
+            }
         }
     }
 }

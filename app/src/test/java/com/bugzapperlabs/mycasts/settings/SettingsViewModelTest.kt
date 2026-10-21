@@ -35,6 +35,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
@@ -181,7 +182,7 @@ class SettingsViewModelTest {
             settingsDataStore = settingsDataStore,
             opmlImportCoordinator = opmlImportCoordinator,
             opmlExporter = OpmlExporter(db.feedDao()),
-            appBackupRepository = AppBackupRepository(repository, queueRepository, settingsDataStore),
+            appBackupRepository = AppBackupRepository(repository, queueRepository, settingsDataStore, db.backupDao()),
             downloadRepository = downloadRepository,
             feedRefreshScheduler = object : FeedRefreshScheduling {
                 override suspend fun schedule(intervalMinutes: Long) {}
@@ -275,5 +276,33 @@ class SettingsViewModelTest {
 
         val message = viewModel.addDefaultFeedsMessage.first { it != null }
         assertEquals("Recovered 1 downloaded episode. Deleted 1 orphaned file", message)
+    }
+
+    // issue #305: a write that fails is reported, not silently treated as saved.
+    @Test
+    fun writeBackupTo_unwritableDestination_reportsFailure() = runTest(testDispatcher, timeout = 120.seconds) {
+        // Robolectric hands out a dummy stream for an unregistered Uri, so register one that fails.
+        val uri = android.net.Uri.parse("content://backup.test/backup.json")
+        val contentResolver = ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver
+        org.robolectric.Shadows.shadowOf(contentResolver).registerOutputStream(
+            uri,
+            object : java.io.OutputStream() {
+                override fun write(b: Int) = throw java.io.IOException("disk full")
+            },
+        )
+
+        viewModel.writeBackupTo(uri)
+
+        assertEquals("Couldn't save the backup file", viewModel.backupMessage.first { it != null })
+    }
+
+    @Test
+    fun writeBackupTo_writableDestination_reportsSuccess() = runTest(testDispatcher, timeout = 120.seconds) {
+        val file = java.io.File(ApplicationProvider.getApplicationContext<android.content.Context>().cacheDir, "backup-test.json")
+
+        viewModel.writeBackupTo(android.net.Uri.fromFile(file))
+
+        assertEquals("Backup saved", viewModel.backupMessage.first { it != null })
+        assertTrue(file.readText().contains("backupVersion"))
     }
 }

@@ -175,6 +175,7 @@
     <string name="settings_backup_exported">Backup salvato</string>
     <string name="settings_backup_restored">Backup ripristinato</string>
     <string name="settings_backup_restore_failed">Impossibile ripristinare questo file di backup</string>
+    <string name="settings_backup_export_failed">Impossibile salvare il file di backup</string>
     <string name="settings_confirm_restore_backup_title">Ripristinare questo backup?</string>
     <string name="settings_confirm_restore_backup_message">Questo sostituisce ogni podcast, episodio, elemento in coda e impostazione presenti su questo dispositivo con il contenuto del file di backup. L\'operazione non può essere annullata.</string>
     <string name="settings_add_default_feeds">Aggiungi podcast iniziali</string>
@@ -289,4 +290,8 @@
 
     <!-- Widget -->
     <string name="widget_all_caught_up">Tutto letto</string>
+    <!-- OPML received through a share/open intent (issue #300) -->
+    <string name="opml_import_confirm_title">Importare i feed?</string>
+    <string name="opml_import_confirm_message">Feed trovati in questo file: %1$d. Vuoi iscriverti?</string>
+    <string name="opml_import_confirm_action">Importa</string>
 </resources>

@@ -10,7 +10,18 @@ import com.google.android.gms.wearable.DataMap
  * lives in one public place rather than being duplicated per listener.
  */
 const val QUEUE_PATH = "/queue"
-const val POSITION_PATH_PREFIX = "/position/"
+
+/** The one DataItem each device keeps for its latest playback position (issue #303). Each device
+ *  writes only its own item (the Data Layer keys items by path and originating node), so the phone
+ *  and watch never overwrite each other's, and the number of items stays constant. */
+const val POSITION_PATH = "/position"
+
+/** Before issue #303 every episode got its own `/position/<itemId>` item, none ever deleted. */
+const val LEGACY_POSITION_PATH_PREFIX = "/position/"
+
+/** True for the current position path and for items still left over under the legacy prefix. */
+fun isPositionPath(path: String?): Boolean =
+    path != null && (path == POSITION_PATH || path.startsWith(LEGACY_POSITION_PATH_PREFIX))
 private const val KEY_ITEMS = "items"
 private const val KEY_ITEM_ID = "itemId"
 private const val KEY_FEED_ID = "feedId"

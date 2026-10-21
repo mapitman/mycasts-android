@@ -1,6 +1,8 @@
 package com.bugzapperlabs.mycasts.data.directory
 
 import com.bugzapperlabs.mycasts.data.feed.FeedFetcher
+import com.bugzapperlabs.mycasts.data.feed.MAX_JSON_BYTES
+import com.bugzapperlabs.mycasts.data.feed.stringLimited
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -75,7 +77,7 @@ class PodcastIndexSearchProvider @Inject constructor(
         val body = try {
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw SearchFailedException("HTTP ${response.code}")
-                response.body?.string() ?: throw SearchFailedException("Empty response body")
+                response.body?.stringLimited(MAX_JSON_BYTES) ?: throw SearchFailedException("Empty response body")
             }
         } catch (e: IOException) {
             throw SearchFailedException(e.message ?: "Network error", e)

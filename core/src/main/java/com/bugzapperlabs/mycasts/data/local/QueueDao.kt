@@ -4,51 +4,52 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface QueueDao {
+abstract class QueueDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(entry: QueueEntry)
+    abstract suspend fun insert(entry: QueueEntry)
 
     /** Restoring a full backup's queue order (issue #157) in one call, rather than [insert]-ing
      *  one entry at a time. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertAll(entries: List<QueueEntry>)
+    abstract suspend fun insertAll(entries: List<QueueEntry>)
 
     @Query("DELETE FROM queue_entries WHERE itemId = :itemId")
-    suspend fun remove(itemId: String)
+    abstract suspend fun remove(itemId: String)
 
     @Query("DELETE FROM queue_entries")
-    suspend fun clear()
+    abstract suspend fun clear()
 
     /** A one-shot snapshot of the whole queue in position order (issue #157), for a full backup
      *  export. */
     @Query("SELECT * FROM queue_entries ORDER BY position")
-    suspend fun getAll(): List<QueueEntry>
+    abstract suspend fun getAll(): List<QueueEntry>
 
     @Query("SELECT COALESCE(MIN(position), 0) FROM queue_entries")
-    suspend fun minPosition(): Int
+    abstract suspend fun minPosition(): Int
 
     @Query("SELECT COALESCE(MAX(position), -1) FROM queue_entries")
-    suspend fun maxPosition(): Int
+    abstract suspend fun maxPosition(): Int
 
     @Query("SELECT itemId FROM queue_entries WHERE itemId = :itemId LIMIT 1")
-    suspend fun findItemId(itemId: String): String?
+    abstract suspend fun findItemId(itemId: String): String?
 
     // Fetched before a remove (issue #284) so the exact entry -- position, addedAt, autoQueued --
     // can be handed back to insert() unchanged if the removal is undone.
     @Query("SELECT * FROM queue_entries WHERE itemId = :itemId LIMIT 1")
-    suspend fun getEntry(itemId: String): QueueEntry?
+    abstract suspend fun getEntry(itemId: String): QueueEntry?
 
     @Query("SELECT itemId FROM queue_entries ORDER BY position")
-    suspend fun orderedItemIds(): List<String>
+    abstract suspend fun orderedItemIds(): List<String>
 
     @Query("SELECT itemId FROM queue_entries ORDER BY position LIMIT 1")
-    suspend fun firstItemId(): String?
+    abstract suspend fun firstItemId(): String?
 
     @Query("UPDATE queue_entries SET position = :position WHERE itemId = :itemId")
-    suspend fun setPosition(itemId: String, position: Int)
+    abstract suspend fun setPosition(itemId: String, position: Int)
 
     // All of a feed's currently-queued items regardless of how they got there, oldest-position
     // first -- used to exempt queued items from item-count trimming (issue #125).
@@ -60,7 +61,7 @@ interface QueueDao {
         ORDER BY queue_entries.position
         """,
     )
-    suspend fun orderedItemIdsForFeed(feedId: Long): List<String>
+    abstract suspend fun orderedItemIdsForFeed(feedId: Long): List<String>
 
     // Only this feed's auto-queued items, oldest-queued first, for per-feed cap eviction (issue
     // #68) -- manually-queued entries are never candidates, see [QueueEntry.autoQueued]
@@ -76,7 +77,7 @@ interface QueueDao {
         ORDER BY queue_entries.addedAt
         """,
     )
-    suspend fun orderedAutoQueuedItemIdsForFeed(feedId: Long): List<String>
+    abstract suspend fun orderedAutoQueuedItemIdsForFeed(feedId: Long): List<String>
 
     @Query(
         """
@@ -87,10 +88,68 @@ interface QueueDao {
         ORDER BY queue_entries.position
         """,
     )
-    fun observeQueue(): Flow<List<QueuedEpisode>>
+    abstract fun observeQueue(): Flow<List<QueuedEpisode>>
 
     /** Just the queued item IDs (issue #52), cheaper than [observeQueue] for screens that only
      *  need to know whether a given episode is queued, not the full queue itself. */
     @Query("SELECT itemId FROM queue_entries")
-    fun observeQueuedItemIds(): Flow<List<String>>
+    abstract fun observeQueuedItemIds(): Flow<List<String>>
+
+    // The methods below combine several statements that must not interleave with another writer
+    // (issue #298): a concurrent add could otherwise read the same max/min position, and an
+    // observer could see a half-renumbered or briefly empty queue.
+
+    /** Appends [itemId] at the end unless already queued. Returns whether it was added. */
+    @Transaction
+    open suspend fun appendIfAbsent(itemId: String, addedAt: Long, autoQueued: Boolean): Boolean {
+        if (findItemId(itemId) != null) return false
+        insert(QueueEntry(itemId, position = maxPosition() + 1, addedAt = addedAt, autoQueued = autoQueued))
+        return true
+    }
+
+    /** Inserts [itemId] at the front, or directly after [afterItemId] when it is given, unless
+     *  already queued. */
+    @Transaction
+    open suspend fun prependIfAbsent(itemId: String, addedAt: Long, autoQueued: Boolean, afterItemId: String?): Boolean {
+        if (findItemId(itemId) != null) return false
+        insert(QueueEntry(itemId, position = minPosition() - 1, addedAt = addedAt, autoQueued = autoQueued))
+        if (afterItemId != null && findItemId(afterItemId) != null) {
+            val ordered = orderedItemIds().toMutableList()
+            ordered.remove(itemId)
+            ordered.add(ordered.indexOf(afterItemId) + 1, itemId)
+            reorder(ordered)
+        }
+        return true
+    }
+
+    /** Moves [itemId] to the front if queued, otherwise inserts it there. */
+    @Transaction
+    open suspend fun moveToFront(itemId: String, addedAt: Long) {
+        val position = minPosition() - 1
+        if (findItemId(itemId) != null) {
+            setPosition(itemId, position)
+        } else {
+            insert(QueueEntry(itemId, position = position, addedAt = addedAt))
+        }
+    }
+
+    /** Moves [itemId] to the back if queued; a no-op otherwise. */
+    @Transaction
+    open suspend fun moveToEnd(itemId: String) {
+        if (findItemId(itemId) == null) return
+        setPosition(itemId, maxPosition() + 1)
+    }
+
+    /** Renumbers positions to match [orderedItemIds] exactly. */
+    @Transaction
+    open suspend fun reorder(orderedItemIds: List<String>) {
+        orderedItemIds.forEachIndexed { index, itemId -> setPosition(itemId, index) }
+    }
+
+    /** Replaces the whole queue with [entries]. */
+    @Transaction
+    open suspend fun replaceAll(entries: List<QueueEntry>) {
+        clear()
+        insertAll(entries)
+    }
 }

@@ -1,6 +1,6 @@
 package com.bugzapperlabs.mycasts.wear.sync
 
-import com.bugzapperlabs.mycasts.sync.POSITION_PATH_PREFIX
+import com.bugzapperlabs.mycasts.sync.isPositionPath
 import com.bugzapperlabs.mycasts.sync.PositionSyncApplier
 import com.bugzapperlabs.mycasts.sync.PositionUpdate
 import com.bugzapperlabs.mycasts.sync.QUEUE_PATH
@@ -15,6 +15,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -34,6 +35,12 @@ class WearSyncListenerService : WearableListenerService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    override fun onDestroy() {
+        // issue #305: the scope otherwise outlives the service instance it belongs to.
+        serviceScope.cancel()
+        super.onDestroy()
+    }
+
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         // A DataEvent (and the buffer itself) becomes invalid once the buffer is released, so
         // every payload needed is decoded into a plain, buffer-independent model object first.
@@ -45,7 +52,7 @@ class WearSyncListenerService : WearableListenerService() {
             val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
             when {
                 path == QUEUE_PATH -> queueSnapshots += dataMap.toSyncQueueItems()
-                path.startsWith(POSITION_PATH_PREFIX) -> positionUpdates += dataMap.toPositionUpdate()
+                isPositionPath(path) -> positionUpdates += dataMap.toPositionUpdate()
             }
         }
         dataEvents.release()

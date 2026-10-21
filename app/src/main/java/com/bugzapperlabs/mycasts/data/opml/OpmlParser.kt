@@ -1,5 +1,9 @@
 package com.bugzapperlabs.mycasts.data.opml
 
+import com.bugzapperlabs.mycasts.data.feed.MAX_OPML_BYTES
+import com.bugzapperlabs.mycasts.data.feed.NoExternalEntitiesResolver
+import com.bugzapperlabs.mycasts.data.feed.declaresXmlEntities
+import com.bugzapperlabs.mycasts.data.feed.readBytesLimited
 import org.w3c.dom.Element
 import java.io.InputStream
 import javax.xml.parsers.DocumentBuilderFactory
@@ -26,8 +30,16 @@ data class OpmlDocument(val folders: List<OpmlFolder>) {
 object OpmlParser {
     private const val UNCATEGORIZED = "Uncategorized"
 
+    /** Throws [java.io.IOException] for input over [MAX_OPML_BYTES] or one declaring XML entities
+     *  (issue #300), and a SAX exception for malformed XML. */
     fun parse(input: InputStream): OpmlDocument {
-        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(input)
+        val bytes = input.readBytesLimited(MAX_OPML_BYTES)
+        if (String(bytes, Charsets.ISO_8859_1).declaresXmlEntities()) {
+            throw java.io.IOException("OPML declares XML entities")
+        }
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+            .apply { setEntityResolver(NoExternalEntitiesResolver) }
+            .parse(bytes.inputStream())
         val body = document.getElementsByTagName("body").item(0) as? Element
             ?: return OpmlDocument(emptyList())
 

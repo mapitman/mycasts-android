@@ -15,12 +15,18 @@ import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.DownloadScheduling
 import com.bugzapperlabs.mycasts.download.DownloadWorkInfo
 import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
+import com.bugzapperlabs.mycasts.data.local.AutoQueuePosition
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadWorker
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.runBlocking
+import org.json.JSONException
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -65,7 +71,7 @@ class AppBackupRepositoryTest {
             settingsDataStore = settingsDataStore,
         )
         queueRepository = QueueRepository(db.queueDao(), feedRepository, downloadRepository, settingsDataStore)
-        backupRepository = AppBackupRepository(feedRepository, queueRepository, settingsDataStore)
+        backupRepository = AppBackupRepository(feedRepository, queueRepository, settingsDataStore, db.backupDao())
     }
 
     @After
@@ -154,5 +160,83 @@ class AppBackupRepositoryTest {
         val settings = settingsDataStore.settings.first()
         assertEquals(feedId, settings.lastPlayingFeedId)
         assertEquals("now-playing", settings.lastPlayingItemId)
+    }
+
+    // issue #298: a file that can't be parsed or validated must be rejected before any data is
+    // deleted, not partway through a restore.
+    @Test
+    fun import_unsupportedVersion_throwsAndLeavesExistingDataIntact() = runTest {
+        val feedId = feedRepository.subscribe(Feed(title = "Keep Me"))
+        feedRepository.insertItems(listOf(FeedItem(id = "keep", feedId = feedId, itemGuid = "g")))
+        val json = backupRepository.export().replace("\"backupVersion\": 1", "\"backupVersion\": 999")
+
+        assertThrows(JSONException::class.java) { runBlocking { backupRepository.import(json) } }
+
+        assertEquals("Keep Me", feedRepository.observeAllFeeds().first().single().title)
+        assertEquals("keep", feedRepository.getItem("keep")?.id)
+    }
+
+    @Test
+    fun import_unknownEnumValue_throwsJsonExceptionAndLeavesExistingDataIntact() = runTest {
+        feedRepository.subscribe(Feed(title = "Keep Me", autoQueuePosition = AutoQueuePosition.TOP))
+        val json = backupRepository.export().replace("\"autoQueuePosition\": \"TOP\"", "\"autoQueuePosition\": \"NOWHERE\"")
+
+        assertThrows(JSONException::class.java) { runBlocking { backupRepository.import(json) } }
+
+        assertEquals("Keep Me", feedRepository.observeAllFeeds().first().single().title)
+    }
+
+    // issue #298: the database part of a restore is one transaction, so a failure while inserting
+    // rolls the earlier delete back instead of leaving every feed gone.
+    @Test
+    fun import_databaseFailureMidRestore_rollsBackToPreviousData() = runTest {
+        feedRepository.subscribe(Feed(title = "Keep Me"))
+        // An item whose feedId matches no feed in the backup violates the foreign key on insert.
+        val backup = AppBackup(
+            feeds = listOf(Feed(id = 7, title = "From Backup")),
+            feedItems = listOf(FeedItem(id = "orphan", feedId = 999, itemGuid = "g")),
+            queueEntries = emptyList(),
+            settings = settingsDataStore.settings.first(),
+        )
+
+        assertThrows(Exception::class.java) { runBlocking { backupRepository.import(backup.toJson()) } }
+
+        assertEquals("Keep Me", feedRepository.observeAllFeeds().first().single().title)
+    }
+
+    @Test
+    fun import_clearsDownloadRecordsPointingOutsideTheDownloadsDirectory() = runTest {
+        val outside = tempFolder.newFile("elsewhere.mp3")
+        val backup = AppBackup(
+            feeds = listOf(Feed(id = 1, title = "A Podcast")),
+            feedItems = listOf(
+                FeedItem(id = "ep-1", feedId = 1, itemGuid = "g1", downloadedFilePath = outside.absolutePath),
+                FeedItem(id = "ep-2", feedId = 1, itemGuid = "g2", downloadedFilePath = "/no/such/podcast_downloads/x.mp3", downloadedBytes = 10),
+            ),
+            queueEntries = emptyList(),
+            settings = settingsDataStore.settings.first(),
+        )
+
+        backupRepository.import(backup.toJson())
+
+        assertNull(feedRepository.getItem("ep-1")?.downloadedFilePath)
+        assertNull(feedRepository.getItem("ep-2")?.downloadedFilePath)
+        assertNull(feedRepository.getItem("ep-2")?.downloadedBytes)
+    }
+
+    @Test
+    fun import_keepsDownloadRecordForExistingFileInsideTheDownloadsDirectory() = runTest {
+        val downloadsDir = tempFolder.newFolder(EnclosureDownloadWorker.DOWNLOAD_DIR)
+        val file = File(downloadsDir, "x.mp3").apply { writeText("audio") }
+        val backup = AppBackup(
+            feeds = listOf(Feed(id = 1, title = "A Podcast")),
+            feedItems = listOf(FeedItem(id = "ep-1", feedId = 1, itemGuid = "g1", downloadedFilePath = file.absolutePath)),
+            queueEntries = emptyList(),
+            settings = settingsDataStore.settings.first(),
+        )
+
+        backupRepository.import(backup.toJson())
+
+        assertEquals(file.absolutePath, feedRepository.getItem("ep-1")?.downloadedFilePath)
     }
 }

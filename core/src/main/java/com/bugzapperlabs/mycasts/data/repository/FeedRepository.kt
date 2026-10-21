@@ -1,6 +1,7 @@
 package com.bugzapperlabs.mycasts.data.repository
 
 import com.bugzapperlabs.mycasts.data.local.DownloadedEpisode
+import com.bugzapperlabs.mycasts.data.local.EnclosureRef
 import com.bugzapperlabs.mycasts.data.local.Feed
 import com.bugzapperlabs.mycasts.data.local.FeedDao
 import com.bugzapperlabs.mycasts.data.local.FeedItem
@@ -88,6 +89,16 @@ class FeedRepository @Inject constructor(
     // refresh of an already-queued item (issue #153).
     suspend fun updateItem(item: FeedItem) = feedItemDao.update(item)
 
+    /** Updates every item in [items] in place as one transaction (issue #302); same constraint as
+     *  [updateItem] about never replacing a row, which would cascade-delete its queue entry. */
+    suspend fun updateItems(items: List<FeedItem>) {
+        if (items.isNotEmpty()) feedItemDao.updateAll(items)
+    }
+
+    /** Every stored item of [feedId] (issue #302), for a refresh to look incoming items up in
+     *  memory instead of running a query per item. */
+    suspend fun getItemsForFeed(feedId: Long): List<FeedItem> = feedItemDao.getByFeed(feedId)
+
     suspend fun findByItemGuid(feedId: Long, itemGuid: String): FeedItem? =
         feedItemDao.findByItemGuid(feedId, itemGuid)
 
@@ -142,24 +153,15 @@ class FeedRepository @Inject constructor(
     /** Every episode not currently tracked as downloaded/downloading (issue #234), for
      *  [com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository.recoverOrphanedDownloads]
      *  to check against files actually present on disk. */
-    suspend fun itemsMissingDownloadWithEnclosure(): List<FeedItem> = feedItemDao.itemsMissingDownloadWithEnclosure()
+    suspend fun itemsMissingDownloadWithEnclosure(): List<EnclosureRef> = feedItemDao.itemsMissingDownloadWithEnclosure()
 
     /** Every episode a downloaded file could legitimately belong to (issue #234), for
      *  [com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository.cleanUpOrphanedDownloadFiles]. */
-    suspend fun itemsWithEnclosure(): List<FeedItem> = feedItemDao.itemsWithEnclosure()
+    suspend fun itemsWithEnclosure(): List<EnclosureRef> = feedItemDao.itemsWithEnclosure()
 
     /** A one-shot snapshot of every feed and item, for a full backup export (issue #157). */
     suspend fun getAllFeeds(): List<Feed> = feedDao.getAll()
     suspend fun getAllItems(): List<FeedItem> = feedItemDao.getAll()
-
-    /** Replaces every feed with [feeds] wholesale (issue #157), for a full backup restore --
-     *  cascade-deletes every item and queue entry along with its parent feed first, then inserts
-     *  the backup's feeds back with their original ids preserved so the backup's own items/queue
-     *  entries (inserted separately, referencing those same ids) resolve correctly. */
-    suspend fun replaceAllFeeds(feeds: List<Feed>) {
-        feedDao.deleteAll()
-        feedDao.insertAll(feeds)
-    }
 
     /**
      * Consolidates duplicate rows sharing the same `itemGuid` within a feed down to one canonical

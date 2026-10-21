@@ -8,6 +8,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.bugzapperlabs.mycasts.data.local.AppDatabase
+import com.bugzapperlabs.mycasts.data.local.BackupDao
 import com.bugzapperlabs.mycasts.data.local.FeedDao
 import com.bugzapperlabs.mycasts.data.local.FeedItemDao
 import com.bugzapperlabs.mycasts.data.local.MIGRATION_1_2
@@ -60,4 +61,7 @@ object DatabaseModule {
 
     @Provides
     fun provideQueueDao(database: AppDatabase): QueueDao = database.queueDao()
+
+    @Provides
+    fun provideBackupDao(database: AppDatabase): BackupDao = database.backupDao()
 }

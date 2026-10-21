@@ -60,7 +60,10 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            isMinifyEnabled = false
+            // issue #304: R8 shrinking and resource shrinking on release builds only; keep rules, if any
+            // are ever needed, live in proguard-rules.pro.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (System.getenv("RELEASE_KEYSTORE_PATH") != null) {
                 signingConfig = signingConfigs.getByName("release")

@@ -35,10 +35,8 @@ class QueueRepository @Inject constructor(
      * or global auto-download toggle any more.
      */
     suspend fun addToEnd(itemId: String, autoQueued: Boolean = false): Boolean {
-        if (queueDao.findItemId(itemId) != null) return false
-        queueDao.insert(
-            QueueEntry(itemId, position = queueDao.maxPosition() + 1, addedAt = System.currentTimeMillis(), autoQueued = autoQueued),
-        )
+        // One transaction (issue #298), so two concurrent adds can't pick the same position.
+        if (!queueDao.appendIfAbsent(itemId, System.currentTimeMillis(), autoQueued)) return false
         triggerDownload(itemId)
         return true
     }
@@ -64,15 +62,9 @@ class QueueRepository @Inject constructor(
         if (queueDao.findItemId(itemId) != null) return
         val currentItemId = settingsDataStore.settings.first().lastPlayingItemId
             ?.takeIf { it != itemId && queueDao.findItemId(it) != null }
-        queueDao.insert(
-            QueueEntry(itemId, position = queueDao.minPosition() - 1, addedAt = System.currentTimeMillis(), autoQueued = autoQueued),
-        )
-        if (currentItemId != null) {
-            val ordered = queueDao.orderedItemIds().toMutableList()
-            ordered.remove(itemId)
-            ordered.add(ordered.indexOf(currentItemId) + 1, itemId)
-            reorder(ordered)
-        }
+        // Insert and renumber in one transaction (issue #298), so observers never see the new
+        // entry at the true front before it is moved behind the currently-playing one.
+        if (!queueDao.prependIfAbsent(itemId, System.currentTimeMillis(), autoQueued, currentItemId)) return
         triggerDownload(itemId)
     }
 
@@ -99,12 +91,7 @@ class QueueRepository @Inject constructor(
      * so it shows up in Next Up itself (clearly marked) instead of only via the mini/expanded player.
      */
     suspend fun moveToFront(itemId: String) {
-        val position = queueDao.minPosition() - 1
-        if (queueDao.findItemId(itemId) != null) {
-            queueDao.setPosition(itemId, position)
-        } else {
-            queueDao.insert(QueueEntry(itemId, position = position, addedAt = System.currentTimeMillis()))
-        }
+        queueDao.moveToFront(itemId, System.currentTimeMillis())
     }
 
     /**
@@ -115,8 +102,7 @@ class QueueRepository @Inject constructor(
      * Next Up for the user to retry.
      */
     suspend fun moveToEnd(itemId: String) {
-        if (queueDao.findItemId(itemId) == null) return
-        queueDao.setPosition(itemId, queueDao.maxPosition() + 1)
+        queueDao.moveToEnd(itemId)
     }
 
     /** Returns the entry that was removed (for issue #284's undo), or null if it wasn't queued. */
@@ -132,7 +118,7 @@ class QueueRepository @Inject constructor(
 
     /** Renumbers positions to match [orderedItemIds] exactly, for drag-to-reorder in the queue screen. */
     suspend fun reorder(orderedItemIds: List<String>) {
-        orderedItemIds.forEachIndexed { index, itemId -> queueDao.setPosition(itemId, index) }
+        queueDao.reorder(orderedItemIds)
     }
 
     /** The item at the front of the queue, without removing it (issue #196) -- the currently-playing
@@ -162,18 +148,11 @@ class QueueRepository @Inject constructor(
      *  export. */
     suspend fun getAllEntries(): List<QueueEntry> = queueDao.getAll()
 
-    /** Replaces the whole queue with [entries] wholesale (issue #157), for a full backup restore
-     *  -- the entries themselves are inserted separately by [com.bugzapperlabs.mycasts.data.repository.FeedRepository.replaceAllFeeds]'s
-     *  cascade-delete of the previous feeds/items/queue, so this only needs to insert the backup's
-     *  own queue rows back afterward. */
-    suspend fun replaceAllEntries(entries: List<QueueEntry>) = queueDao.insertAll(entries)
-
     /** Applying a synced Next Up snapshot on a Wear OS watch (issue #276): unlike
-     *  [replaceAllEntries] (restoring into an already-empty DB), a repeat sync needs stale
-     *  entries -- removed from the queue on the phone since the last sync -- actually cleared
-     *  first, not just left behind alongside the new ones. */
+     *  a backup restore (see [com.bugzapperlabs.mycasts.data.local.BackupDao]), a repeat sync needs
+     *  stale entries -- removed from the queue on the phone since the last sync -- actually
+     *  cleared first, not just left behind alongside the new ones. */
     suspend fun replaceQueueFromSync(entries: List<QueueEntry>) {
-        queueDao.clear()
-        queueDao.insertAll(entries)
+        queueDao.replaceAll(entries)
     }
 }

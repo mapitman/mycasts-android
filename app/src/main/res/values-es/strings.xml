@@ -175,6 +175,7 @@
     <string name="settings_backup_exported">Copia de seguridad guardada</string>
     <string name="settings_backup_restored">Copia de seguridad restaurada</string>
     <string name="settings_backup_restore_failed">No se pudo restaurar ese archivo de copia de seguridad</string>
+    <string name="settings_backup_export_failed">No se pudo guardar el archivo de copia de seguridad</string>
     <string name="settings_confirm_restore_backup_title">¿Restaurar esta copia de seguridad?</string>
     <string name="settings_confirm_restore_backup_message">Esto reemplaza todos los podcasts, episodios, elementos de la cola y ajustes de este dispositivo con lo que hay en el archivo de copia de seguridad. Esta acción no se puede deshacer.</string>
     <string name="settings_add_default_feeds">Añadir podcasts iniciales</string>
@@ -289,4 +290,8 @@
 
     <!-- Widget -->
     <string name="widget_all_caught_up">Todo al día</string>
+    <!-- OPML received through a share/open intent (issue #300) -->
+    <string name="opml_import_confirm_title">¿Importar feeds?</string>
+    <string name="opml_import_confirm_message">Feeds encontrados en este archivo: %1$d. ¿Suscribirse a ellos?</string>
+    <string name="opml_import_confirm_action">Importar</string>
 </resources>
