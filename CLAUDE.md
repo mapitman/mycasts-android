@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CI (`.github/workflows/build.yml`) runs `./gradlew assembleDebug testDebugUnitTest lintDebug` on every push/PR to `main` — run the same before considering work done. There is no separate ktlint/detekt step; `lintDebug` is the only static check.
 
-Unit tests for `:app` live under `app/src/test`; unit tests for `:core` live under `core/src/test` — both run on the JVM via Robolectric (`isIncludeAndroidResources = true`, so Android resources are usable in tests). Instrumented tests (`connectedAndroidTest` on a device) are limited to Room migration tests, now under `core/src/androidTest` — most feature testing happens in the Robolectric unit tests instead.
+Unit tests for `:app` live under `app/src/test`; unit tests for `:core` live under `core/src/test` — both run on the JVM via Robolectric (`isIncludeAndroidResources = true`, so Android resources are usable in tests). Instrumented tests (`connectedAndroidTest` on a device) are limited to Room migration tests, now under `core/src/androidTest` (run with `./gradlew :core:connectedDebugAndroidTest`; CI runs them on an emulator in the `migration-tests` job). Their schema JSON lives in `core/schemas/com.bugzapperlabs.mycasts.data.local.AppDatabase/` and must include every version from 1 up, since `MigrationTestHelper` looks files up by the database class's current package — most feature testing happens in the Robolectric unit tests instead.
 
 ## Architecture
 
@@ -46,7 +46,7 @@ creates the signing keystore (wraps `keytool`, prompts for passwords). Signing u
 stored (base64) in the `RELEASE_KEYSTORE_BASE64` secret, decoded to a temp file at build time;
 `RELEASE_KEYSTORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` are the matching secrets --
 `scripts/set-release-secrets.sh /path/to/keystore.jks` pushes all four via the `gh` CLI. Tags are
-append-only -- never delete and re-push a release tag. Local `assembleRelease` without these env
+append-only -- never delete and re-push a release tag. Release builds are R8-minified and resource-shrunk (`isMinifyEnabled`/`isShrinkResources`); add keep rules to the module's `proguard-rules.pro` only for something a smoke test of the minified build shows breaking. Local `assembleRelease` without these env
 vars builds an unsigned APK (succeeds, just not signed). Debug builds use applicationId
 `com.bugzapperlabs.mycasts.debug` (vs. the release build's `com.bugzapperlabs.mycasts`) so a debug
 install and a release-signed install can coexist on the same device instead of colliding at
