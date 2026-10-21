@@ -175,6 +175,7 @@
     <string name="settings_backup_exported">Copia de seguridad guardada</string>
     <string name="settings_backup_restored">Copia de seguridad restaurada</string>
     <string name="settings_backup_restore_failed">No se pudo restaurar ese archivo de copia de seguridad</string>
+    <string name="settings_backup_export_failed">No se pudo guardar el archivo de copia de seguridad</string>
     <string name="settings_confirm_restore_backup_title">¿Restaurar esta copia de seguridad?</string>
     <string name="settings_confirm_restore_backup_message">Esto reemplaza todos los podcasts, episodios, elementos de la cola y ajustes de este dispositivo con lo que hay en el archivo de copia de seguridad. Esta acción no se puede deshacer.</string>
     <string name="settings_add_default_feeds">Añadir podcasts iniciales</string>

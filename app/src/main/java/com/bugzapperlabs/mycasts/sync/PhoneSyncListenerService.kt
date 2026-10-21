@@ -8,6 +8,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,6 +25,12 @@ class PhoneSyncListenerService : WearableListenerService() {
     lateinit var positionSyncApplier: PositionSyncApplier
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    override fun onDestroy() {
+        // issue #305: the scope otherwise outlives the service instance it belongs to.
+        serviceScope.cancel()
+        super.onDestroy()
+    }
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         val positionUpdates = mutableListOf<PositionUpdate>()
