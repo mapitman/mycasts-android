@@ -81,6 +81,7 @@ import com.bugzapperlabs.mycasts.data.opml.OpmlImportCoordinator
 import com.bugzapperlabs.mycasts.data.opml.OpmlParser
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import com.bugzapperlabs.mycasts.download.DownloadFeedbackCoordinator
+import com.bugzapperlabs.mycasts.download.EnclosureDownloadRepository
 import com.bugzapperlabs.mycasts.downloads.DownloadsScreen
 import com.bugzapperlabs.mycasts.feedlist.FeedListScreen
 import com.bugzapperlabs.mycasts.feedproperties.FeedPropertiesScreen
@@ -138,6 +139,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var queueSyncPublisher: QueueSyncPublisher
 
+    @Inject
+    lateinit var downloadRepository: EnclosureDownloadRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -156,6 +160,10 @@ class MainActivity : ComponentActivity() {
         // sync to a real database/Play Services. start() is idempotent (QueueSyncPublisher is a
         // Hilt singleton), so a config-change recreation of this Activity is harmless.
         queueSyncPublisher.start()
+
+        // issue #316: drops download records whose file or job is gone, e.g. after an Auto Backup
+        // restore. Kept off Application.onCreate() for the same reason as the scheduling above.
+        lifecycleScope.launch { downloadRepository.reconcileDownloadRecords() }
 
         // Refreshes the home-screen widget's unread counts on every app launch (issue #24); the
         // other trigger is FeedRefreshWorker completing a scheduled background refresh.
