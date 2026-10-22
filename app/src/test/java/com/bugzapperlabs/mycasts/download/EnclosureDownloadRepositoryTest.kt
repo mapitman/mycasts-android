@@ -13,6 +13,7 @@ import com.bugzapperlabs.mycasts.data.repository.FeedRepository
 import com.bugzapperlabs.mycasts.data.settings.SettingsDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -42,6 +43,7 @@ class EnclosureDownloadRepositoryTest {
     private val enqueuedCalls = mutableListOf<Triple<String, Boolean, Boolean>>()
     private val cancelledCalls = mutableListOf<String>()
     private var cancelAllCallCount = 0
+    private var activeJobIds = emptyList<String>()
     private var feedId: Long = 0
 
     @Before
@@ -68,7 +70,8 @@ class EnclosureDownloadRepositoryTest {
                     cancelAllCallCount++
                 }
 
-                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> = emptyFlow()
+                override fun observeDownloadWorkInfo(): Flow<List<DownloadWorkInfo>> =
+                    flowOf(activeJobIds.map { DownloadWorkInfo(it, DownloadWorkStatus.RUNNING) })
 
                 override fun observeFailureReason(itemId: String): Flow<String?> = emptyFlow()
             },
@@ -449,5 +452,52 @@ class EnclosureDownloadRepositoryTest {
         val deleted = downloadRepository.cleanUpOrphanedDownloadFiles(context)
 
         assertEquals(0, deleted)
+    }
+
+    @Test
+    fun reconcileDownloadRecords_fileMissing_clearsTheRecord() = runTest {
+        // issue #316: an Auto Backup restore brings back the row but not the file.
+        seedFeedAndItem("https://example.com/episode.mp3")
+        repository.setDownloadedFilePath("item-1", File(tempFolder.root, "gone.mp3").absolutePath)
+
+        val cleared = downloadRepository.reconcileDownloadRecords()
+
+        assertEquals(1, cleared)
+        assertNull(repository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun reconcileDownloadRecords_fileExists_keepsTheRecord() = runTest {
+        seedFeedAndItem("https://example.com/episode.mp3")
+        val file = tempFolder.newFile("episode.mp3")
+        repository.setDownloadedFilePath("item-1", file.absolutePath)
+
+        val cleared = downloadRepository.reconcileDownloadRecords()
+
+        assertEquals(0, cleared)
+        assertEquals(file.absolutePath, repository.getItem("item-1")?.downloadedFilePath)
+    }
+
+    @Test
+    fun reconcileDownloadRecords_inProgressWithNoJob_clearsTheByteCount() = runTest {
+        seedFeedAndItem("https://example.com/episode.mp3")
+        repository.setDownloadedBytes("item-1", 1024L)
+
+        val cleared = downloadRepository.reconcileDownloadRecords()
+
+        assertEquals(1, cleared)
+        assertNull(repository.getItem("item-1")?.downloadedBytes)
+    }
+
+    @Test
+    fun reconcileDownloadRecords_inProgressWithActiveJob_keepsTheByteCount() = runTest {
+        seedFeedAndItem("https://example.com/episode.mp3")
+        repository.setDownloadedBytes("item-1", 1024L)
+        activeJobIds = listOf("item-1")
+
+        val cleared = downloadRepository.reconcileDownloadRecords()
+
+        assertEquals(0, cleared)
+        assertEquals(1024L, repository.getItem("item-1")?.downloadedBytes)
     }
 }

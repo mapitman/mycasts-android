@@ -101,6 +101,14 @@ interface FeedItemDao {
     @Query("UPDATE feed_items SET downloadedFilePath = :path, downloadedBytes = NULL WHERE id = :id")
     suspend fun setDownloadedFilePath(id: String, path: String?)
 
+    // issue #316: every item that claims a finished or in-progress download, so a launch-time
+    // check can compare those claims with the files and jobs that actually exist.
+    @Query("SELECT id, downloadedFilePath, downloadedBytes FROM feed_items WHERE downloadedFilePath IS NOT NULL OR downloadedBytes IS NOT NULL")
+    suspend fun downloadRecords(): List<DownloadRecordRef>
+
+    @Query("UPDATE feed_items SET downloadedFilePath = NULL, downloadedBytes = NULL WHERE id = :id")
+    suspend fun clearDownloadRecord(id: String)
+
     @Query("UPDATE feed_items SET autoDownloaded = :autoDownloaded WHERE id = :id")
     suspend fun setAutoDownloaded(id: String, autoDownloaded: Boolean)
 

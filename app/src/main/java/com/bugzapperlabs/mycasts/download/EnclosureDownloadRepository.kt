@@ -132,6 +132,29 @@ class EnclosureDownloadRepository @Inject constructor(
     }
 
     /**
+     * Clears download records that point at nothing (issue #316). Auto Backup and device transfer
+     * restore the database without the downloaded files or the WorkManager jobs, so a restored
+     * episode can claim a finished download whose file is gone, or an in-progress one with no job
+     * left to finish it. Clearing the record makes the episode show as not downloaded and lets the
+     * user download it again. A job enqueued before the per-item tag existed is not listed by
+     * [observeDownloadWorkInfo]; its in-progress count is cleared too, and the next download
+     * resumes from the partial file. Returns how many records were cleared.
+     */
+    suspend fun reconcileDownloadRecords(): Int {
+        val activeJobIds = downloadScheduling.observeDownloadWorkInfo().first().map { it.itemId }.toSet()
+        var cleared = 0
+        feedRepository.downloadRecords().forEach { record ->
+            val path = record.downloadedFilePath
+            val stale = if (path != null) !File(path).isFile else record.id !in activeJobIds
+            if (stale) {
+                feedRepository.clearDownloadRecord(record.id)
+                cleared++
+            }
+        }
+        return cleared
+    }
+
+    /**
      * Re-links episodes whose downloaded-file DB record was lost without the underlying file
      * itself ever being deleted (issue #234) -- [EnclosureFileNaming.fileNameFor] derives a
      * download's on-disk filename purely from its enclosure URL, not the item id, so a file that

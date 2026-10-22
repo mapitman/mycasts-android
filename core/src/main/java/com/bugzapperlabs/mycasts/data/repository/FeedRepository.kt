@@ -126,6 +126,10 @@ class FeedRepository @Inject constructor(
 
     suspend fun setDownloadedFilePath(itemId: String, path: String?) = feedItemDao.setDownloadedFilePath(itemId, path)
 
+    suspend fun downloadRecords() = feedItemDao.downloadRecords()
+
+    suspend fun clearDownloadRecord(itemId: String) = feedItemDao.clearDownloadRecord(itemId)
+
     suspend fun setAutoDownloaded(itemId: String, autoDownloaded: Boolean) = feedItemDao.setAutoDownloaded(itemId, autoDownloaded)
 
     /** Every episode with a download in progress or completed, across all feeds (issue #69). */
